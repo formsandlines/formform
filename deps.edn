@@ -1,5 +1,5 @@
 {:paths ["src"]
- :deps {}
+ :deps {org.clojure/math.combinatorics {:mvn/version "0.1.6"}}
  :aliases
  {:test ;; added by neil
   {:extra-paths ["test"]

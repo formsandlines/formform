@@ -1,5 +1,6 @@
 .DS_Store
 .editorconfig
+.nrepl-port
 /node_modules/
 .vscode
 .backups
