@@ -220,15 +220,49 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; formDNA perspectives
 
-;; TODO
 (defn permute-dna-seq
-  [dna perm-order]
-  nil)
+  [dna-seq perm-order]
+  (let [dim     (dna-seq-dim dna-seq)
+        dna-vec (vec dna-seq)]
+    (cond
+      (not= dim (count perm-order)) nil
+      (< dim 2)                     [perm-order dna-seq]
+      (= perm-order (range dim))    [perm-order dna-seq]
+      (> dim 10)                    (throw (ex-info "Aborted: operation too expensive for dimensions greater than 10." {:input [dna-seq perm-order]}))
+      :else
+      (let [int->quat-str (fn [n] (utils/pad-left (utils/int->nbase n 4)
+                                    dim "0"))
+            perm-dna-seq
+            (map (fn [i]
+                   (let [qtn-key (mapv (comp read-string str)
+                                   (int->quat-str i))
+                         perm-key (apply str "4r"
+                                    (map #(qtn-key (perm-order %))
+                                      (range dim)))
+                         i-perm (read-string perm-key)]
+                     (dna-vec i-perm)))
+              (range (count dna-seq)))]
+        [perm-order perm-dna-seq]))))
 
-;; TODO
+(defn dna-seq-perspectives
+  [dna-seq]
+  (let [dim (dna-seq-dim dna-seq)]
+    (if (> dim 6)
+      (throw (ex-info "Aborted: operation too expensive for dimensions greater than 6." {:input dna-seq}))
+      (let [dna-vec (vec dna-seq)]
+        (map (partial permute-dna-seq dna-vec)
+          (combo/permutations (range dim)))))))
+
+(defn permute-dna
+  [dna perm-order]
+  (consts->dna
+    (permute-dna-seq (dna->consts dna) perm-order)))
+
 (defn dna-perspectives
   [dna]
-  nil)
+  (into {}
+    (map #(let [[order cs] %] [order (consts->dna cs)])
+      (dna-seq-perspectives (dna->consts dna)))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -405,6 +439,59 @@
                      (sort compare-dna [:UMI :MNU])])
 
   (expand-dna-seq (dna->consts (rand-dna 1)) 2)
+
+
+  (let [dna-seq (dna->consts :MMMMIIIIUUUUNNNN)
+        perm-order [1 0]]
+    (permute-dna-seq dna-seq perm-order))
+
+  (dna-seq-perspectives (dna->consts :MMMMIIIIUUUUNNNN))
+
+  (dna-perspectives :MMMMIIIIUUUUNNNNMMMMIIIIUUUUNNNNMMMMIIIIUUUUNNNNMMMMIIIIUUUUNNNN)
+
+  ;; too computationally expensive with dim 7+:
+  (dna-perspectives (rand-dna 6))
+  (dna-seq-perspectives (rand-dna-seq 7))
+
+  ;; too computationally expensive with dim 11+:
+  (permute-dna-seq (rand-dna-seq 8) [1 0 2 3 4 5 6 7])
+  (permute-dna (rand-dna 8) [1 0 2 3 4 5 6 7])
+
+  (permute-dna-seq (rand-dna-seq 10) [1 0 2 3 4 5 6 7 8 9])
+
+  )
+
+(comment
+
+  ;; what can dna as keyword accomplish?
+  ;; kws are more like identifiers or keys for values,
+  ;; but what is being identified? a class of FORMs?
+
+  ;; can namespaces provide anything here?
+
+  {:MIUN #{'[ a ] '[ ((a)) ] '...}
+   :NUIM #{'[ (a) ] '[ (((a))) ] '...}}
+
+  {:N #{'[ nil ] '[ nil nil ] '[ (()) ] '...}
+   :U #{'[ :mn ] '...}
+   :I #{'[ (:mn) ] '...}
+   :M #{'[ () ] '[ () () ] '[ ((a ())) ] '...}}
+
+  ((:M *1) '[ () () ])
+
+  )
+
+(comment
+  (defn genbig [n] ;
+    (->> #(rand-int 10)
+         (repeatedly n)
+         (apply str)
+         (BigInteger.)
+         bigint))
+
+  (genbig 100000)
+
+  (.toBigInteger (bigint 1000))
 
   )
 
