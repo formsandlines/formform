@@ -221,82 +221,125 @@
 ;; formDNA perspectives
 
 (defn permute-dna-seq
-  [dna-seq perm-order]
-  (let [dim     (dna-seq-dim dna-seq)
-        dna-vec (vec dna-seq)]
-    (cond
-      (not= dim (count perm-order)) nil
-      (< dim 2)                     [perm-order dna-seq]
-      (= perm-order (range dim))    [perm-order dna-seq]
-      (> dim 10)                    (throw (ex-info "Aborted: operation too expensive for dimensions greater than 10." {:input [dna-seq perm-order]}))
-      :else
-      (let [int->quat-str (fn [n] (utils/pad-left (utils/int->nbase n 4)
-                                    dim "0"))
-            perm-dna-seq
-            (map (fn [i]
-                   (let [qtn-key (mapv (comp read-string str)
-                                   (int->quat-str i))
-                         perm-key (apply str "4r"
-                                    (map #(qtn-key (perm-order %))
-                                      (range dim)))
-                         i-perm (read-string perm-key)]
-                     (dna-vec i-perm)))
-              (range (count dna-seq)))]
-        [perm-order perm-dna-seq]))))
+  ([dna-seq perm-order] (permute-dna-seq dna-seq perm-order {}))
+  ([dna-seq perm-order {:keys [limit?] :or {limit? true}}]
+   (let [dim     (dna-seq-dim dna-seq)
+         dna-vec (vec dna-seq)]
+     (cond
+       (not= dim (count perm-order)) nil
+       (< dim 2)                     [perm-order dna-seq]
+       (= perm-order (range dim))    [perm-order dna-seq]
+       ;; fast-ish for up to 10 dimensions, have not tested beyond 12
+       (and limit? (> dim 12))       (throw (ex-info "Aborted: operation too expensive for dimensions greater than 12. Set `:limit?` to false to proceed." {:input [dna-seq perm-order]}))
+       :else
+       (let [int->quat-str (fn [n] (utils/pad-left (utils/int->nbase n 4)
+                                                   dim "0"))
+             perm-dna-seq
+             (map (fn [i]
+                    (let [qtn-key (mapv (comp read-string str)
+                                        (int->quat-str i))
+                          perm-key (apply str "4r"
+                                          (map #(qtn-key (perm-order %))
+                                               (range dim)))
+                          i-perm (read-string perm-key)]
+                      (dna-vec i-perm)))
+                  (range (count dna-seq)))]
+         [perm-order perm-dna-seq])))))
 
 (defn dna-seq-perspectives
-  [dna-seq]
-  (let [dim (dna-seq-dim dna-seq)]
-    (if (> dim 6)
-      (throw (ex-info "Aborted: operation too expensive for dimensions greater than 6." {:input dna-seq}))
-      (let [dna-vec (vec dna-seq)]
-        (map (partial permute-dna-seq dna-vec)
-          (combo/permutations (range dim)))))))
+  ([dna-seq] (dna-seq-perspectives dna-seq {}))
+  ([dna-seq {:keys [limit?] :or {limit? true}}]
+   (let [dim (dna-seq-dim dna-seq)]
+     (if (and limit? (> dim 6))
+       ;; fast-ish for up to 5 dimensions, have not tested beyond 6.
+       (throw (ex-info "Aborted: operation too expensive for dimensions greater than 6. Set `:limit?` to false to proceed, but be aware that the combinatorial space explodes quickly!" {:input dna-seq}))
+       (let [dna-vec (vec dna-seq)]
+         (map (partial permute-dna-seq dna-vec)
+              (combo/permutations (range dim))))))))
 
 (defn permute-dna
-  [dna perm-order]
-  (consts->dna
-    (permute-dna-seq (dna->consts dna) perm-order)))
+  ([dna perm-order] (permute-dna dna perm-order {}))
+  ([dna perm-order opts]
+   (consts->dna
+     (permute-dna-seq (dna->consts dna) perm-order opts))))
 
 (defn dna-perspectives
-  [dna]
-  (into {}
-    (map #(let [[order cs] %] [order (consts->dna cs)])
-      (dna-seq-perspectives (dna->consts dna)))))
+  ([dna] (dna-perspectives dna {}))
+  ([dna opts]
+   (into {}
+         (map #(let [[order cs] %] [order (consts->dna cs)])
+              (dna-seq-perspectives (dna->consts dna) opts)))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Value structures
 
+;;-------------------------------------------------------------------------
+;; `vpoint` -> value point -> vector of `const`-coordinates in a `vspace`
+
 (defn rand-vpoint
-  "`vpoint` -> value point -> vector of `const`-coordinates in a `vspace`
-  
-  Generates a random vpoint either as a lazy seq or with given dimension `dim`."
+  "Generates a random vpoint either as a lazy seq or with given dimension `dim`."
   ([]    (repeatedly #(rand-nth nuim-code)))
   ([dim] (repeatedly dim #(rand-nth nuim-code))))
 
+;;-------------------------------------------------------------------------
+;; `vspace` -> value space -> vector of all `n`-dimensional `vpoint`s
+
 (defn vspace 
-  "`vspace` -> value space -> vector of all `n`-dimensional `vpoint`s
-  
-  Generates a vspace of dimension `dim`, optionally with custom `sort-code`."
+  "Generates a vspace of dimension `dim`, optionally with custom `sort-code`."
   ([dim] (vspace dim nuim-code))
   ([dim sort-code]
    (let [vs sort-code]
      (apply combo/cartesian-product (repeat dim sort-code)))))
 
-;; TODO
-(defn vmap
-  "`vmap` -> value map -> mapping from `vspace` topology to `dna`"
-  ([dim vp->con]
-   nil))
+;;-------------------------------------------------------------------------
+;; `vdict` -> value dictionary -> sorted k-v map from `vspace` to `dna`
+;; - for value table generation
+;; - like a flat vmap
 
-;; TODO
-;; ? actually useless, just build a map
-;; ? maybe for verification or sample generation?
 (defn vdict
-  "`vdict` -> value dictionary -> k-v map from `vspace` to `dna`"
-  ([dim vp->con]
-   nil))
+  "Generates a vdict given a map from vpoint to result (constant).
+  - if the corresponding vspace is not a subset of the set of keys from `vp->r, the remaining results will be filled with :N or a given default constant.`
+  - optional `sorted?` defaults to false since sorting large vspace dimensions can be expensive."
+  [vp->r {:keys [default-result sorted?]
+          :or {default-result :N sorted? false}}]
+  (let [dim   (count (ffirst vp->r))
+        vspc  (vspace dim)
+        def-r (if (const? default-result) default-result :N)]
+    (->> (map #(let [r (vp->r %)]
+                 (if (const? r)
+                   [% r]
+                   [% def-r])) vspc)
+         (into (if sorted? (sorted-map-by compare-dna) (hash-map))))))
+
+(defn dna->vdict
+  "Generates a vdict from a given dna.
+  - optional `sorted?` defaults to false since sorting large vspace dimensions can be expensive."
+  [dna {:keys [sorted?] :or {sorted? false}}]
+  (let [dna-seq (reverse (dna->consts dna))
+        vspc    (vspace  (dna-seq-dim dna-seq))]
+    (into (if sorted? (sorted-map-by compare-dna) (hash-map))
+      (map vector vspc dna-seq))))
+
+;;-------------------------------------------------------------------------
+;; `vmap` -> value map -> mapping from `vspace` topology to `dna`
+
+;; ? should this really be a map? if yes, must it be sorted?
+
+;; fast with up to 9 dimensions
+(defn vdict->vmap
+  "Generates a vmap from a given vdict."
+  [vdict]
+  (let [vspc (keys vdict)
+        dim  (count (first vspc))
+        aux  (fn f [i vspc]
+               (if (< i dim)
+                 (let [group (group-by #(nth % i) vspc)]
+                   (update-vals group
+                     #(f (inc i) %)))
+                 (vdict (first vspc))))]
+    (aux 0 vspc)))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; formDNA arithmetic
@@ -425,8 +468,6 @@
 
   (read-string "4r2301200223012002030323012301030303032002230100002301230123012301")
 
-  (coll? nil)
-
   (dna->quaternary :NUIM)
   (dna->quaternary :NMUI)
   (dna->quaternary (rand-dna 7))
@@ -443,55 +484,35 @@
 
   (let [dna-seq (dna->consts :MMMMIIIIUUUUNNNN)
         perm-order [1 0]]
-    (permute-dna-seq dna-seq perm-order))
+    (permute-dna-seq dna-seq perm-order {}))
 
-  (dna-seq-perspectives (dna->consts :MMMMIIIIUUUUNNNN))
+  (dna-seq-perspectives (dna->consts :MMMMIIIIUUUUNNNN) {})
 
-  (dna-perspectives :MMMMIIIIUUUUNNNNMMMMIIIIUUUUNNNNMMMMIIIIUUUUNNNNMMMMIIIIUUUUNNNN)
+  (dna-perspectives :MMMMIIIIUUUUNNNNMMMMIIIIUUUUNNNNMMMMIIIIUUUUNNNNMMMMIIIIUUUUNNNN {})
 
-  ;; too computationally expensive with dim 7+:
-  (dna-perspectives (rand-dna 6))
-  (dna-seq-perspectives (rand-dna-seq 7))
+  (dna-perspectives (rand-dna 6) {})
+  (dna-seq-perspectives (rand-dna-seq 7) {})
 
-  ;; too computationally expensive with dim 11+:
-  (permute-dna-seq (rand-dna-seq 8) [1 0 2 3 4 5 6 7])
-  (permute-dna (rand-dna 8) [1 0 2 3 4 5 6 7])
+  (permute-dna-seq (rand-dna-seq 8) [1 0 2 3 4 5 6 7] {})
+  (permute-dna (rand-dna 8) [1 0 2 3 4 5 6 7] {})
 
-  (permute-dna-seq (rand-dna-seq 10) [1 0 2 3 4 5 6 7 8 9])
+  (permute-dna-seq (rand-dna-seq 10) [1 0 2 3 4 5 6 7 8 9] {})
 
   )
 
 (comment
 
-  ;; what can dna as keyword accomplish?
-  ;; kws are more like identifiers or keys for values,
-  ;; but what is being identified? a class of FORMs?
+  (let [vp->r {[:N :M] :M
+               [:U :U] :I
+               [:X :Y] :M
+               [:U :U :I] :N}]
+    (vdict vp->r {:default-result :U}))
 
-  ;; can namespaces provide anything here?
+  (dna->vdict (rand-dna 4) {:sorted? true})
 
-  {:MIUN #{'[ a ] '[ ((a)) ] '...}
-   :NUIM #{'[ (a) ] '[ (((a))) ] '...}}
-
-  {:N #{'[ nil ] '[ nil nil ] '[ (()) ] '...}
-   :U #{'[ :mn ] '...}
-   :I #{'[ (:mn) ] '...}
-   :M #{'[ () ] '[ () () ] '[ ((a ())) ] '...}}
-
-  ((:M *1) '[ () () ])
+  (vdict->vmap (dna->vdict (rand-dna 8) {}))
 
   )
 
-(comment
-  (defn genbig [n] ;
-    (->> #(rand-int 10)
-         (repeatedly n)
-         (apply str)
-         (BigInteger.)
-         bigint))
 
-  (genbig 100000)
-
-  (.toBigInteger (bigint 1000))
-
-  )
 
