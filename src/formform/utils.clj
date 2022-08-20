@@ -14,12 +14,4 @@
 
 
 
-(comment
 
-  (has-decimal? 1.01)
-  (pow-nat 4 3)
-
-  (pad-left "123" 4 "0")
-  (pad-left "12345" 4 "0")
-
-  )

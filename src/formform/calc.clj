@@ -50,7 +50,7 @@
   (let [len (count dna-seq)
         dim (/ (math/log len)
                (math/log 4.0))]
-    (if (utils/has-decimal? dim)
+    (if (or (infinite? dim) (utils/has-decimal? dim))
       nil
       (int dim))))
 
@@ -66,7 +66,7 @@
        (if-let [elem-set (set elems)]
          (and
            (<= 4 (count elem-set))
-           (every? elem-set x))
+           (every? (partial contains? elem-set) x))
          false)
        (<= (count (distinct x)) 4)))))
 
@@ -216,6 +216,11 @@
           (apply str)
           keyword))))
 
+;; TODO
+(defn filter-dna-seq
+  [dna-seq vpoint]
+  nil)
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; formDNA perspectives
@@ -277,6 +282,10 @@
 ;;-------------------------------------------------------------------------
 ;; `vpoint` -> value point -> vector of `const`-coordinates in a `vspace`
 
+(defn vpoint?
+  [x]
+  (every? (set nuim-code) x))
+
 (defn rand-vpoint
   "Generates a random vpoint either as a lazy seq or with given dimension `dim`."
   ([]    (repeatedly #(rand-nth nuim-code)))
@@ -284,6 +293,10 @@
 
 ;;-------------------------------------------------------------------------
 ;; `vspace` -> value space -> vector of all `n`-dimensional `vpoint`s
+
+(defn vspace?
+  [x]
+  (and (dna-seq-dim x) (every? vpoint? x)))
 
 (defn vspace 
   "Generates a vspace of dimension `dim`, optionally with custom `sort-code`."
@@ -293,9 +306,13 @@
      (apply combo/cartesian-product (repeat dim sort-code)))))
 
 ;;-------------------------------------------------------------------------
-;; `vdict` -> value dictionary -> sorted k-v map from `vspace` to `dna`
+;; `vdict` -> value dictionary -> (sorted) k-v map from `vspace` to `dna`
 ;; - for value table generation
 ;; - like a flat vmap
+
+(defn vdict?
+  [x]
+  (and (map? x) (vspace? (keys x)) (dna-seq? (vals x))))
 
 (defn vdict
   "Generates a vdict given a map from vpoint to result (constant).
@@ -325,6 +342,14 @@
 ;; `vmap` -> value map -> mapping from `vspace` topology to `dna`
 
 ;; ? should this really be a map? if yes, must it be sorted?
+
+(defn vmap?
+  ;; ! insufficient -> checks only root form
+  [x]
+  (and (map? x) (== (count x) 4)
+    (every? const? (keys x))
+    (every? map? (vals x))))
+
 
 ;; fast with up to 9 dimensions
 (defn vdict->vmap
@@ -394,125 +419,8 @@
 (def | inv)
 
 
-
 (comment
-  (rand-vpoint 5)
-  (vspace 2 nmui-code)
-
-  (rand-dna 3)
-
-  (rand-const)
-
-  (const->int :M)
-  (const->int :M nmui-code)
-  (int->const 3)
-  (int->const 3 nmui-code)
-
-  (--)
-  (-- :I)
-  (-- :U :I)
-  (-- :U :I :U :N)
-
-  (|)
-  (| :I)
-  (| :U :I)
-  (| :U :I :U :N)
-
-  (-- :U (| (-- (| :N) (| :I))))
-
-  (= :NMUIMUUMMIIIMMMM (rel :NMUIIUNMMIIIUUMN :NUIM :NUIM))
-  (= :MIUN (inv :NUIM))
-
-  (dna->consts :NUIM)
-  (consts->dna [:N :U :I :M])
-
-  (const? [])
-
-  (dna? :NUIM)
-  (dna? (rand-dna 10)) ; 16 mio. digits!
-
-  (dna->digits :NUIM)
-  (dna->digits :NMUI nmui-code)
-  (digits->dna [0 1 2 3])
-  (digits->dna [0 1 2 3] nmui-code)
-
-  (rand-dna-seq 3 nuim-code)
-  (rand-dna-seq 3 [:N :M])
-  (rand-dna 3)
-
-  (rel :NMUI :MNIN)
-
-  (dna-dim :MMMMIIIIUUUUNNNN)
-  (dna? :MMMMIIIIUUUUNNNN)
-  (dna-seq? [1 0 3 2
-             3 2 0 2
-             1 2 0 1
-             0 0 1 2])
-
-  (consts->dna
-    (reorder-dna-seq
-      (dna->consts :MMMMIIIIUUUUNNNN)
-      nuim-code nmui-code))
-  ;=> :IIIIUUUUMMMMNNNN
-
-  (consts->dna
-    (reorder-dna-seq
-      (dna->consts :IIIIUUUUMMMMNNNN)
-      nmui-code nuim-code))
-  ;=> :MMMMIIIIUUUUNNNN
-
-  (def d1 (digits->dna (map (comp read-string str) "2301200223012002030323012301030303032002230100002301230123012301") nmui-code))
-  (def d2 (digits->dna (map (comp read-string str) "1032012332102301") nmui-code))
-  (def r (rel d1 d2))
-  (apply str (dna->digits r nmui-code))
-
-  (read-string "4r2301200223012002030323012301030303032002230100002301230123012301")
-
-  (dna->quaternary :NUIM)
-  (dna->quaternary :NMUI)
-  (dna->quaternary (rand-dna 7))
-  (read-string (dna->quaternary (rand-dna 7)))
-  (dna->quaternary :IM)
-
-  (sort compare-dna [:NMUI :NUIM :M])
-  (sort compare-dna [[:NUIM :IM] [:UMI :MNU]])
-  (sort compare-dna [(sort compare-dna [:NUIM :IM])
-                     (sort compare-dna [:UMI :MNU])])
-
-  (expand-dna-seq (dna->consts (rand-dna 1)) 2)
-
-
-  (let [dna-seq (dna->consts :MMMMIIIIUUUUNNNN)
-        perm-order [1 0]]
-    (permute-dna-seq dna-seq perm-order {}))
-
-  (dna-seq-perspectives (dna->consts :MMMMIIIIUUUUNNNN) {})
-
-  (dna-perspectives :MMMMIIIIUUUUNNNNMMMMIIIIUUUUNNNNMMMMIIIIUUUUNNNNMMMMIIIIUUUUNNNN {})
-
-  (dna-perspectives (rand-dna 6) {})
-  (dna-seq-perspectives (rand-dna-seq 7) {})
-
-  (permute-dna-seq (rand-dna-seq 8) [1 0 2 3 4 5 6 7] {})
-  (permute-dna (rand-dna 8) [1 0 2 3 4 5 6 7] {})
-
-  (permute-dna-seq (rand-dna-seq 10) [1 0 2 3 4 5 6 7 8 9] {})
-
+  (dna->vdict (rand-dna 2) {:sorted? true})
   )
-
-(comment
-
-  (let [vp->r {[:N :M] :M
-               [:U :U] :I
-               [:X :Y] :M
-               [:U :U :I] :N}]
-    (vdict vp->r {:default-result :U}))
-
-  (dna->vdict (rand-dna 4) {:sorted? true})
-
-  (vdict->vmap (dna->vdict (rand-dna 8) {}))
-
-  )
-
 
 

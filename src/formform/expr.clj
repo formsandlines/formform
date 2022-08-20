@@ -1,5 +1,6 @@
 (ns formform.expr
-  (:require [formform.calc :as calc]))
+  (:require [clojure.math.combinatorics :as combo]
+            [formform.calc :as calc]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -13,6 +14,11 @@
 (def const->expr {:N n :U u :I i :M m})
 (def expr->const {n :N u :U i :I m :M})
 
+(def expr? vector?)
+(def form? seq?)
+(defn variable? [x] (or (string? x) (symbol? x)))
+
+
 (defn dna-expr?
   [x]
   (if-let [[vars dna] x]
@@ -22,33 +28,70 @@
       (== (count vars) (calc/dna-dim dna)))
     false))
 
+(defn filter-dna-seq-by-env
+  [dna-seq env]
+  (let [vpoint (mapv second (sort-by first (seq env)))]
+    (calc/filter-dna-seq dna-seq vpoint)))
+
+
+(defn vars
+  [expr]
+  (let [children (fn [x] (filter #(or (form? %) (variable? %)) x))]
+    (->> (seq expr)
+         (tree-seq sequential? children)
+         rest
+         (filter (complement sequential?))
+         distinct)))
+
+; (defn all-envs
+;   [vars]
+;   (let [vspc (calc/vspace (count vars))]
+;     (map (comp (partial apply hash-map) (partial interleave vars))
+;       vspc)))
+
+
 (declare reduce-context)
 
-(defn- reduce-content
-  ([x] (reduce-content x {}))
-  ([x env]
+; (defn- reduce-dna
+;   [dna env]
+;   (let [vars (keys env)]
+;     nil))
+
+(defn- reduce-matching-content
+  ([x] (reduce-matching-content x x))
+  ([x default]
    (case x
      (() :M (nil) (:N) ((())) ((:M)) (((nil))) (((:N)))
-      ((:U :I)) ((:I :U)))
+         ((:U :I)) ((:I :U)))
      '()
      (nil :N (()) (:M) ((nil)) ((:N))
-      (:U :I) (:I :U))
+          (:U :I) (:I :U))
      nil
      (:mn :U (:I) ((:mn)) ((:U)) (((:I))))
      :mn
      ((:mn) :I (:U) (((:mn))) ((:I)) (((:U))))
      '(:mn)
-     (cond
+     default)))
+
+(defn- reduce-content
+  [x env]
+  (let [r (reduce-matching-content x :failed)]
+    (if (not= :failed r)
+      r
+      (cond
        ; (dna-expr? x) (let [[vars dna] x]
        ;                 )
        ; (calc/dna? x)
-       (coll? x) (reduce-context x env)
-       :else (if-let [interpr (env x)]
-               (let [r (reduce-context interpr env)]
-                 (if (<= (count r) 1)
-                   (first r)
-                   (list r)))
-               x)))))
+        (coll? x) (let [r (reduce-context x env)]
+                    (reduce-matching-content r))
+        :else (if-let [interpr (env x)]
+                (cond
+                  (keyword? interpr) interpr
+                  :else (let [r (reduce-context interpr env)]
+                          (if (<= (count r) 1)
+                            (first r)
+                            (list r))))
+                x)))))
 
 (defn- reduce-context
   ([ctx] (reduce-context ctx {}))
@@ -69,20 +112,6 @@
                  ctx'
                  (recur ctx')))))))
 
-(defn- eval-expr
-  ([expr] (eval-expr expr {}))
-  ([expr env]
-   (let [[r & ctx] (reduce-context expr env)
-         v (when (empty? ctx)
-             (case r
-               (( )   :M) :M
-               (nil   :N) :N
-               (:mn   :U) :U
-               ((:mn) :I) :I
-               nil))]
-     (if (some? v)
-       v
-       {:expr (into [r] ctx) :env env}))))
 
 (defn cnt>
   "Reduces a FORM content recursively until it cannot be further reduced.
@@ -101,88 +130,75 @@
   ([ctx env] (vec (reduce-context ctx env))))
 
 (defn =>
-  "Evaluates a FORM expression and either returns a formDNA or a map with the maximally reduced expression and its environment `env`.
+  "Evaluates a FORM expression with an optional `env` and returns a Constant expression with attached metadata including the maximally reduced expression in `:expr` and the environment in `:env`.
   - `env` must be a map with a content/variable in `expr` as a key"
-  ([expr]     (=> expr {}))
-  ([expr env] (eval-expr expr env)))
+  ([expr] (=> expr {}))
+  ([expr env]
+   (let [[r & more :as ctx] (ctx> expr env)
+         v (when (empty? more)
+             (case r
+               (( )   :M) :M
+               (nil   :N) :N
+               (:mn   :U) :U
+               ((:mn) :I) :I
+               nil))
+         m {:expr ctx :env env}]
+     (if (some? v)
+       (with-meta [ v ] m)
+       (with-meta [ :_ ] m)))))
+
+(defn =>*
+  "Evaluates a FORM expression for all possible interpretations of any occurring variable in the expression. Returns a formDNA expression by default.
+  - if `as-dna-expr?` is false, returns a seq of results as returned by `=>` in the order of the corresponding `vspace` ordering"
+  ([expr] (=>* expr true))
+  ([expr as-dna-expr?]
+   (let [vars (vars expr)
+         vspc (calc/vspace (count vars))
+         all-envs (fn [vars]
+                    (map (comp
+                           (partial apply hash-map)
+                           (partial interleave vars)) vspc))
+         envs (all-envs vars)]
+     (if as-dna-expr?
+       (let [consts (mapv (comp first (partial => expr)) envs)]
+         [ [vars (rseq consts)] ])
+       (let [results (map (partial => expr) envs)]
+         (with-meta results {:vars vars :vspc vspc}))))))
+
+
+(defn eval-expr
+  "Calls `=>` but instead of an expression returns the `const` value or nil."
+  ([expr]     (eval-expr expr {}))
+  ([expr env] (let [[x] (=> expr env)]
+                (if (calc/const? x)
+                  x
+                  nil))))
+
+(defn eval-all
+  "Calls `=>*` but instead of an expression returns a `vdict`"
+  [expr {:keys [sorted?] :or {sorted? true}}]
+  (let [rs (=>* expr false)
+        {:keys [vars vspc]} (meta rs)]
+    (with-meta
+      (->> rs
+           (map first)
+           (map vector vspc)
+           (into (if sorted? (sorted-map-by calc/compare-dna) (hash-map))))
+      {:vars vars})))
+
 
 
 (comment
-  (=> [ '() ])
-  (=> [ :M ])
-  (=> [ '(:M) ])
-  (=> [ '(:M) :M ])
-  (=> [ '() '() ])
-  (=> [ '(()) ])
-  (=> [ '(() ()) ])
-  (=> [ '(() ()) '() ])
-  (=> [ '(((() nil) nil) nil) ])
-  (=> [ '((((() nil) nil) nil) nil) ])
 
-  (=> [ 'a ]) ;=> {:expr [a], :env {}}
-  (=> [ 'a ] {'a [ :N ]}) ;=> :N
-  (=> [ 'a 'b ]) ;=> {:expr [a b], :env {}}
-  (=> [ 'a 'b ] {'a [ :M ]}) ;=> :M
-  (=> [ 'a 'b ] {'a [ :N ]}) ;=> {:expr [b], :env {a [:N]}}
-
-  (=> [ '(a) ]) ;=> {:expr [(a)], :env {}}
-  (=> [ '(a) ] {'a [ :M ]}) ;=> :N
-  (=> [ '(a b) ]) ;=> {:expr [(a b)], :env {}}
-  (=> [ '(a b) ] {'a [ :N ]}) ;=> {:expr [(b)], :env {a [:N]}}
-  (=> [ '(a b) ] {'a [ :N ] 'b [ :M ]}) ;=> :N
-  (=> [ '((a) b) ]) ;=> {:expr [((a) b)], :env {}}
-  (=> [ '((a) b) ] {'a [ :M ]}) ;=> {:expr [(b)], :env {a [:M]}}
-  (=> [ '((a) b) 'c ]) ;=> {:expr [((a) b) c], :env {}}
-  (=> [ '((a) b :M) 'c ]) ;=> {:expr [c], :env {}}
-
-  (=> [ :U ]) ;=> :U
-  (=> [ :I ]) ;=> :I
-  (=> [ :U :I ]) ;=> :M
-  (=> [ :I nil :U '(()) :N :I ]) ;=> :M
-  (=> [ '(:U) ]) ;=> :I
-  (=> [ '(:I) ]) ;=> :U
-  (=> [ '((:I)) ]) ;=> :I
-  (=> [ '((:U)) ]) ;=> :U
-  (=> [ '(((:U))) ]) ;=> :I
-  (=> [ '(((:U)) (:I)) ]) ;=> :I
-  (=> [ '(:U :M) ]) ;=> :N
-  (=> [ '(:U) :M ]) ;=> :M
-  (=> [ '(:U) :I ]) ;=> :I
-  (=> [ :U '(:I) ]) ;=> :U
-  (=> [ :U '(:U) ]) ;=> :M
-
-
-  (ctx> [ '((a) b :M) ]) ;=> [] 
-  (ctx> [ '((a) b) :M ]) ;=> [()] 
-  (ctx> [ '((a) b) ]) ;=> [((a) b)] 
-  (ctx> [ '((a) b) ] {'a [ :M ]}) ;=> [(b)] 
-  (ctx> [ :U ]) ;=> [:mn]
-  (ctx> [ '(:U) ]) ;=> [(:mn)]
-  (ctx> [ '(:U) :I ]) ;=> [(:mn)]
-  (ctx> [ '(:U) :U ]) ;=> [()]
-  (ctx> [ :I ]) ;=> [(:mn)]
-  (ctx> [ '(:I) ]) ;=> [:mn]
-  (ctx> [ '(:I) :U ]) ;=> [:mn]
-  (ctx> [ '(:I) :I ]) ;=> [()]
-  (ctx> [ :mn ]) ;=> [:mn]
-  (ctx> [ '(:mn) ]) ;=> [(:mn)]
-  (ctx> [ '(:mn) :mn ]) ;=> [()]
-
-  (cnt> '((a) b)) ;=> ((a) b)
-  (cnt> '((a) b) {'a [ :M ]}) ;=> (b)
-  (cnt> '((a) b :M) ) ;=> (()) 
-  (cnt> '((a) b) ) ;=> ((a) b) 
-  (cnt> :U ) ;=> :mn
-  (cnt> '(:U) ) ;=> (:mn)
-  (cnt> :I ) ;=> (:mn)
-  (cnt> '(:I) ) ;=> :mn
-  (cnt> :mn ) ;=> :mn
-  (cnt> '(:mn) ) ;=> (:mn)
-
+  (=> [ '((a) b) ] {'a :N, 'b :U})
+  (eval-expr [ '((a) b) ])
+  (=> [ '((a) b) ] {'a [:N], 'b [:U]})
+  (meta (=> [ '((a) b) ] ))
+  (=>* [ '((a) b) ])
+  (eval-all [ '((a) b) ] {})
 
   (let [expr `[ (~@m ~@n) ~@m ]]
     expr) ;=> [(() nil) ()]
 
-  (dna-expr? [['a 'b] :IUMNIUMNIUMNIUMN])
-
   )
+
