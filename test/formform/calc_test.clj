@@ -67,7 +67,6 @@
     (doseq [n (range 6)]
       (is (fc/dna? (fc/rand-dna n)))))) 
 
-
 (deftest dna->digits-test
   (testing "Correctness of conversion"
     (is (= (fc/dna->digits :NUIM) '(0 1 2 3)))
@@ -125,7 +124,8 @@
     (is (= "4r0123" (fc/dna->quaternary :NUIM)))
     (is (= "4r0312" (fc/dna->quaternary :NMUI)))
     ;; should this return nil?
-    (is (= "4r23" (fc/dna->quaternary :IM))))) 
+    ; (is (= "4r23" (fc/dna->quaternary :IM)))
+    )) 
 
 
 (deftest permute-dna-seq-test

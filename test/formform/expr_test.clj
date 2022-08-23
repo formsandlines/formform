@@ -1,32 +1,36 @@
 (ns formform.expr-test
-  (:require [clojure.test :as t :refer [deftest is testing]]
+  (:require [clojure.test :as t :refer [deftest is are testing]]
             [formform.expr :as fe]))
 
 (deftest cnt>-test
   (testing "Simple expressions"
     (testing "FORM"
       (testing "equal"
-        (is (= (fe/cnt> nil) nil))
-        (is (= (fe/cnt> '()) '()))
-        (is (= (fe/cnt> :mn) :mn))
-        (is (= (fe/cnt> '(:mn)) '(:mn))))
+        (are [x y] (= x y)
+          (fe/cnt> nil)    nil
+          (fe/cnt> '())    '()
+          (fe/cnt> :mn)    :mn
+          (fe/cnt> '(:mn)) '(:mn)))
       (testing "marked"
-        (is (= (fe/cnt> '(nil)) '()))
-        (is (= (fe/cnt> '(())) nil))
-        (is (= (fe/cnt> '(:mn)) '(:mn)))
-        (is (= (fe/cnt> '((:mn))) :mn))))
+        (are [x y] (= x y)
+          (fe/cnt> '(nil))   '()
+          (fe/cnt> '(()))    nil
+          (fe/cnt> '(:mn))   '(:mn)
+          (fe/cnt> '((:mn))) :mn)))
 
     (testing "Constant"
       (testing "equal"
-        (is (= (fe/cnt> :N) nil))
-        (is (= (fe/cnt> :M) '()))
-        (is (= (fe/cnt> :U) :mn))
-        (is (= (fe/cnt> :I) '(:mn))))
+        (are [x y] (= x y)
+          (fe/cnt> :N) nil
+          (fe/cnt> :M) '()
+          (fe/cnt> :U) :mn
+          (fe/cnt> :I) '(:mn)))
       (testing "marked"
-        (is (= (fe/cnt> '(:N)) '()))
-        (is (= (fe/cnt> '(:M)) nil))
-        (is (= (fe/cnt> '(:U)) '(:mn)))
-        (is (= (fe/cnt> '(:I)) :mn))))
+        (are [x y] (= x y)
+          (fe/cnt> '(:N)) '()
+          (fe/cnt> '(:M)) nil
+          (fe/cnt> '(:U)) '(:mn)
+          (fe/cnt> '(:I)) :mn)))
 
     (testing "variable"
       (testing "without env"
@@ -177,24 +181,18 @@
 (deftest =>-test
   (testing "Reducable expressions"
     (testing "FORMs"
-      (is (= (fe/=> [ nil ])
-             [ :N ]))
-      (is (= (fe/=> [ '() ])
-             [ :M ]))
-      (is (= (fe/=> [ :mn ])
-             [ :U ]))
-      (is (= (fe/=> [ '(:mn) ])
-             [ :I ])))
+      (are [x y] (= x y)
+        (fe/=> [ nil ])    [ :N ]
+        (fe/=> [ '() ])    [ :M ]
+        (fe/=> [ :mn ])    [ :U ]
+        (fe/=> [ '(:mn) ]) [ :I ]))
 
     (testing "Constants"
-      (is (= (fe/=> [ :N ])
-             [ :N ]))
-      (is (= (fe/=> [ :M ])
-             [ :M ]))
-      (is (= (fe/=> [ :U ])
-             [ :U ]))
-      (is (= (fe/=> [ :I ])
-             [ :I ]))))
+      (are [x y] (= x y)
+        (fe/=> [ :N ]) [ :N ]
+        (fe/=> [ :M ]) [ :M ]
+        (fe/=> [ :U ]) [ :U ]
+        (fe/=> [ :I ]) [ :I ])))
 
   (testing "irreducable expressions"
     (is (= (fe/=> [ 'a ])
