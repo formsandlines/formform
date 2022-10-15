@@ -12,6 +12,19 @@
 ;; ? drop dependency on superstring in the future?
 (def pad-left superstring.core/pad-left)
 
+(defn compare-names [a b]
+  (let [to-str (fn [x] (cond
+                         (symbol? x)  (str x)
+                         (keyword? x) (name x)
+                         (string? x)   x
+                         :else (assert false)))
+        astr (to-str a)
+        bstr (to-str b)]
+    (compare astr bstr)))
 
 
+(comment
+
+  
+  )
 

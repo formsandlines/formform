@@ -7,3 +7,4 @@
 .clj-kondo/
 .lsp/
 .cpcache/
+.clerk/

@@ -1,20 +1,75 @@
 (ns formform.expr
-  (:require [clojure.math.combinatorics :as combo]
-            [formform.calc :as calc]))
+  (:require #_[clojure.math.combinatorics :as combo]
+            [clojure.string :as string]
+            [formform.calc :as calc]
+            [formform.utils :as utils]
+            [clojure.spec.alpha :as s]
+            #_[clojure.spec.gen.alpha :as gen]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Primitive expressions
+;; FORM
 
-(def n '[ nil ])
-(def m '[ () ])
-(def u '[ :mn ])
-(def i '[ (:mn) ])
+(def MARK '())
 
-(def const->expr {:N n :U u :I i :M m})
-(def expr->const {n :N u :U i :I m :M})
+(defn mark
+  ([] MARK)
+  ([x & ys] (cons x ys)))
 
-(def expr? vector?)
+(def · mark)
+
+(def UFORM :mn)
+(def IFORM (mark UFORM))
+
+(defn fvar [x]
+  (when (or string? symbol? keyword?) x))
+
+(defn unclear [s]
+  (when (string? s) (str "/" s)))
+
+
+;; Macros for nested FORMs
+
+(defmacro <·
+  "nest-to-left macro: (((…)a)b)
+  use brackets [x y …] to group expressions on the same level"
+  [& exprs]
+  (if (empty? exprs)
+    '()
+    (let [[x & r] exprs]
+      (loop [x (if (vector? x) `(list ~@x) `(list ~x))
+             r r]
+        (if (empty? r)
+          x
+          (let [y (first r)]
+            (recur (if (vector? y) `(list ~x ~@y) `(list ~x ~y))
+              (rest r))))))))
+
+(defmacro ·>
+  "nest-to-right macro: (a(b(…)))
+  use brackets [x y …] to group expressions on the same level"
+  [& exprs]
+  (if (empty? exprs)
+    '()
+    (let [[x & r] exprs]
+      (if (empty? r)
+        (if (vector? x) `(list ~@x)          `(list ~x))
+        (if (vector? x) `(list ~@x (·> ~@r)) `(list ~x (·> ~@r)))))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Expressions
+
+;; Predicates
+
+(s/def :formform.specs.expr/expr-tag #(:expr (meta %)))
+
+;; ? underspecified
+(s/def :formform.specs.expr/expr
+  (s/and vector? :formform.specs.expr/expr-tag))
+
+(def expr? (partial s/valid? :formform.specs.expr/expr))
+(def expr-tag? (partial s/valid? :formform.specs.expr/expr-tag))
 (def form? seq?)
 (def mem-form? map?)
 (defn variable? [x] (or (string? x) (symbol? x)))
@@ -22,33 +77,72 @@
 
 (defn dna-expr?
   [x]
-  (if-let [[vars dna] x]
-    (and 
-      (vector? vars)
-      (calc/dna? dna)
-      (== (count vars) (calc/dna-dim dna)))
+  (if (expr? x)
+    (if-let [[vars dna] x]
+      (and
+        (vector? vars)
+        (calc/dna? dna)
+        (== (count vars) (calc/dna-dim dna)))
+      false)
     false))
+
+;; Constructors
+
+(defn make-expr
+  ([] (with-meta [] {:expr true}))
+  ([x & ctx]
+   (let [[env ctx] (if (map? x) [x ctx] [nil (cons x ctx)])
+         merged-ctx
+         (reduce (fn [acc x]
+                   (if (and (expr? x) (not (map? (first x))))
+                     (into acc x)
+                     (conj acc x)))
+           (if (seq env) [env] []) ctx)]
+     (with-meta merged-ctx {:expr true}))))
+
+(def ·· make-expr)
+
+(defn seq->expr [xs]
+  (let [v (if (vector? xs)
+            xs
+            (vec xs))]
+    (with-meta v {:expr true})))
+
+(def n (make-expr nil))
+(def m (make-expr MARK))
+(def u (make-expr UFORM))
+(def i (make-expr IFORM))
+
+(def const->expr {:N n :U u :I i :M m})
+(def expr->const {n :N u :U i :I m :M})
+
+(defn fdna [vars dna]
+  {:pre [(== (count vars) (calc/dna-dim dna))]}
+  (make-expr [vars dna]))
+
 
 (defn filter-dna-seq-by-env
   [dna-seq env]
   (let [vpoint (mapv second (sort-by first (seq env)))]
     (calc/filter-dna-seq dna-seq vpoint)))
 
-
 (defn vars
-  [expr]
+  [expr {:keys [ordered?] :or {ordered? false}}]
   (let [children (fn [x] (filter #(or (form? %) (variable? %)) x))]
-    (->> (seq expr)
-         (tree-seq sequential? children)
-         rest
-         (filter (complement sequential?))
-         distinct)))
+    (let [vs (->> (seq expr)
+                  (tree-seq sequential? children)
+                  rest
+                  (filter (complement sequential?))
+                  distinct)]
+      (if ordered?
+        (sort utils/compare-names vs)
+        vs))))
 
-; (defn all-envs
-;   [vars]
-;   (let [vspc (calc/vspace (count vars))]
-;     (map (comp (partial apply hash-map) (partial interleave vars))
-;       vspc)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Re-entry expressions
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Reduction
@@ -97,24 +191,58 @@
                             (list r))))
                 x)))))
 
+
+(defn- reduce-by-calling
+  ;; kinda messy - how to make this more systematic?
+  [ctx env]
+  (if (some #{'() :M '(nil) '(:N) '((())) '((:M)) '(((nil))) '(((:N)))}
+        ctx)
+    ['( () ) env]
+    (let [[seen-U seen-I] [(:U env) (:I env)]
+          [seen-U env]
+          (if (and (not seen-U)
+                (some #{:mn :U '(:I) '((:mn)) '((:U)) '(((:I)))}
+                  ctx))
+            [true (assoc env :U true)]
+            [seen-U env])]
+      (if (and seen-U seen-I)
+        ['( () ) env]
+        (let [[seen-I env]
+              (if (and (not seen-I)
+                    (some #{'(:mn) :I '(:U) '(((:mn))) '((:I)) '(((:U)))}
+                      ctx))
+                [true (assoc env :I true)]
+                [seen-I env])]
+          (if (and seen-U seen-I)
+            ['( () ) env]
+            [ctx env]))))))
+
+(defn- reduce-by-crossing
+  [ctx]
+  (let [f (fn [ctx' x]
+            (if (form? x)
+              (let [[x' & r] x]
+                (if (and (form? x') (empty? r))
+                  (into [] (concat ctx' x'))
+                  (conj ctx' x)))
+              (conj ctx' x)))]
+    (reduce f [] ctx)))
+
 (defn- reduce-context
-  ([ctx] (reduce-context ctx {}))
-  ([ctx env]
-   (loop [ctx ctx]
-     (cond
-       (some #{'() :M '(nil) '(:N) '((())) '((:M)) '(((nil))) '(((:N)))} ctx)
-       '( () )
-       (and
-         (some #{:mn :U '(:I) '((:mn)) '((:U)) '(((:I)))} ctx)
-         (some #{'(:mn) :I '(:U) '(((:mn))) '((:I)) '(((:U)))} ctx))
-       '( () )
-       :else (let [ctx' (->> ctx
-                             distinct
-                             (map #(reduce-content % env))
-                             (remove nil?))]
-               (if (= ctx' ctx)
-                 ctx'
-                 (recur ctx')))))))
+  [ctx env]
+  (loop [ctx ctx
+         env env]
+    (let [[ctx env] (reduce-by-calling ctx env)]
+      (if (= ctx '( () ))
+        ctx
+        (let [ctx' (->> ctx
+                        distinct
+                        (map #(reduce-content % env))
+                        reduce-by-crossing
+                        (remove nil?))]
+          (if (= ctx' ctx)
+            ctx'
+            (recur ctx' env)))))))
 
 
 (defn cnt>
@@ -142,6 +270,8 @@
   - `env` must be a map with a content/variable in `expr` as a key"
   ([expr] (=> expr {}))
   ([expr env]
+   (when-not (expr-tag? expr)
+     (throw (ex-info "missing `:expr` tag on input expression" {:input expr})))
    (let [[r & more :as ctx] (ctx> expr env)
          v (when (empty? more)
              (case r
@@ -160,7 +290,9 @@
   - if `as-dna-expr?` is false, returns a seq of results as returned by `=>` in the order of the corresponding `vspace` ordering"
   ([expr] (=>* expr true))
   ([expr as-dna-expr?]
-   (let [vars (vars expr)
+   (when-not (expr-tag? expr)
+     (throw (ex-info "missing `:expr` tag on input expression" {:input expr})))
+   (let [vars (vars expr {:ordered? true})
          vspc (calc/vspace (count vars))
          all-envs (fn [vars]
                     (map (comp
@@ -169,7 +301,7 @@
          envs (all-envs vars)]
      (if as-dna-expr?
        (let [consts (mapv (comp first (partial => expr)) envs)]
-         [ [vars (rseq consts)] ])
+         ^:expr [ ^:expr [vars (rseq consts)] ])
        (let [results (map (partial => expr) envs)]
          (with-meta results {:vars vars :vspc vspc}))))))
 
@@ -196,164 +328,19 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Nested sequences
+;; Expression parsing
 
-(defmacro <·
-  "nest-to-left macro: (((…)a)b)
-  use brackets [x y …] to group expressions on the same level"
-  [& exprs]
-  (if (empty? exprs)
-    '()
-    (let [[x & r] exprs]
-      (loop [x (if (vector? x) `(list ~@x) `(list ~x))
-             r r]
-        (if (empty? r)
-          x
-          (let [y (first r)]
-            (recur (if (vector? y) `(list ~x ~@y) `(list ~x ~y))
-              (rest r))))))))
+;; ! WIP
+(defn str->expr
+  [s]
+  (let [->expr-str #(if (and (= \[ (first %)) (= \] (last %)))
+                      %
+                      (str "[" % "]"))
+        escape-uncl (fn [s]
+                      (string/replace s #"/.+?/" #(str "\"" % "\"")))]
+    (-> s
+        ->expr-str
+        escape-uncl
+        read-string)))
 
-(defmacro ·>
-  "nest-to-right macro: (a(b(…)))
-  use brackets [x y …] to group expressions on the same level"
-  [& exprs]
-  (if (empty? exprs)
-    '()
-    (let [[x & r] exprs]
-      (if (empty? r)
-        (if (vector? x) `(list ~@x)          `(list ~x))
-        (if (vector? x) `(list ~@x (·> ~@r)) `(list ~x (·> ~@r)))))))
-
-
-
-(comment
-
-  [[ '... {:f '((:f a) b)} '... ] {}]
-  [[ '... :f0 '... ] {:f '((:f0 a) b)}]
-
-  [[ '... {:f '((:f a) {:f '((:f :N) :U)} )} '... ] {}]
-  [[ '... :f0 '... ] {:f0 '((:f0 a) {:f '((:f :N) :U)} )}]
-  [[ '... :f0 '... ] {:f0 '((:f0 a) :f1 ), :f1 '((:f1 :N) :U)}]
-
-
-  (cnt> '( (( ((f a) b) ) f )  (( f ) ((f a) b) ) ))
-
-  (defrecord SeqRE [parity unmarked? interpr fseq])
-
-  [ `(->SeqRE :any true :rec-ident (<· ~'a ~'b)) ]
-
-  (->SeqRE :any true :rec-ident (<· 'a 'b))
-
-  (seq ['a 'b])
-
-  (·> 'a ['b :M] 'c ['d :mn])
-  (<· 'a ['b :M] 'c ['d :mn])
-
-  [ {:par :even :f (<· 'a 'b)} ]
-
-  (=> [ '((a) b) ] {'a :N, 'b :U})
-  (eval-expr [ '((a) b) ])
-  (=> [ '((a) b) ] {'a [:N], 'b [:U]})
-  (meta (=> [ '((a) b) ] ))
-  (=>* [ '((a) b) ])
-  (eval-all [ '((a) b) ] {})
-
-  (let [expr `[ (~@m ~@n) ~@m ]]
-    expr) ;=> [(() nil) ()]
-  
-  )
-
-
-(comment
-  ;; experimental self-equivalent re-entry macros
-
-  (defmacro <re
-    [& exprs]
-    (if (or (empty? exprs) (odd? (count exprs)))
-      `(..<re. ~@exprs)
-      (let [[x & r] exprs]
-        `{:f* (<· [:f* ~x] ~@r) })))
-
-  (defmacro ..<re
-    [& exprs]
-    (let [n (count exprs)]
-      (if (and (> n 0) (even? n))
-        `(<re ~@exprs)
-        (if (empty? exprs)
-          '{:f* (list (list :f*)) }
-          (let [[x & r] exprs]
-            `{:f* (<· [(<· [:f* ~x] ~@r) ~x] ~@r) })))))
-
-  (defmacro ..<re.
-    [& exprs]
-    (let [n (count exprs)]
-      (if (and (> n 0) (even? n))
-        `(<re ~@exprs)
-        (if (empty? exprs)
-          '(into {:f' (list :f*) } (..<re))
-          (let [[x & r] exprs]
-            `(into {:f' (<· [:f* ~x] ~@r) } (..<re ~@exprs))
-          ; `[ (<· [(..<re ~@exprs) ~x] ~@r) ]
-            )))))
-
-  (defmacro <re_
-    [& exprs]
-    (let [n (count exprs)]
-      (if (and (> n 0) (even? n))
-        (let [[x & r] exprs]
-          `(into {:f_ (cons (<· [:f* ~x] ~@r) '())} (<re ~@exprs)))
-        `(..<re._ ~@exprs))))
-
-  (defmacro ..<re_
-    [& exprs]
-    (let [n (count exprs)]
-      (if (and (> n 0) (even? n))
-        `(<re_ ~@exprs)
-        (if (empty? exprs)
-          `(into {:f_ '((:f*))} (..<re ~@exprs))
-          (let [[x & r] exprs]
-            `(into {:f_ (cons (<· [:f* ~x] ~@r) '())} (..<re ~@exprs)))))))
-
-  (defmacro ..<re._
-    [& exprs]
-    (let [n (count exprs)]
-      (if (and (> n 0) (even? n))
-        `(<re_ ~@exprs)
-        (if (empty? exprs)
-          `(into {:f_ '((:f'))} (..<re. ~@exprs))
-          (let [[x & r] exprs]
-            `(into {:f_ (cons (<· [:f' ~x] ~@r) '())} (..<re. ~@exprs)))))))
-
-  (<re 'a 'b 'c) ;== (..<re. a b c)
-  (<re 'a 'b) ;=> {:f* ((:f* a) b)}
-  (<re 'a) ;== (..<re. a)
-  (<re) ;== (..<re.)
-
-  (..<re 'a 'b 'c) ;=> {:f* ((((((:f* a) b) c) a) b) c)}
-  (..<re 'a 'b) ;== (<re a b)
-  (..<re 'a) ;=> {:f* ((:f* a) a)}
-  (..<re) ;=> {:f* ((:f*))}
-
-  (..<re. 'a 'b 'c) ;=> {:f' (((:f* a) b) c), :f* ((((((:f* a) b) c) a) b) c)}
-  (..<re. 'a 'b) ;== (<re a b)
-  (..<re. 'a) ;=> {:f' (:f* a), :f* ((:f* a) a)}
-  (..<re.) ;=> {:f' (:f*), :f* ((:f*))}
-
-  (<re_ 'a 'b 'c) ;== (..<re._ a b c)
-  (<re_ 'a 'b) ;=> {:f_ (((:f* a) b)), :f* ((:f* a) b)}
-  (<re_ 'a) ;== (..<re._ a)
-  (<re_) ;== (..<re._)
-
-  (..<re_ 'a 'b 'c) ;=> {:f_ ((((:f* a) b) c)), :f* ((((((:f* a) b) c) a) b) c)}
-  (..<re_ 'a 'b) ;== (<re_ a b)
-  (..<re_ 'a) ;=> {:f_ ((:f* a)), :f* ((:f* a) a)}
-  (..<re_) ;=> {:f_ ((:f*)), :f* ((:f*))}
-
-  (..<re._ 'a 'b 'c) ;=> {:f_ ((((:f' a) b) c)), 
-                     ;    :f' (((:f* a) b) c), :f* ((((((:f* a) b) c) a) b) c)}
-  (..<re._ 'a 'b) ;== (<re_ a b)
-  (..<re._ 'a) ;=> {:f_ ((:f' a)), :f' (:f* a), :f* ((:f* a) a)}
-  (..<re._) ;=> {:f_ ((:f')), :f' (:f*), :f* ((:f*))}
-
-  )
 

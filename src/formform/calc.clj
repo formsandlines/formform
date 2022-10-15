@@ -11,44 +11,33 @@
 ;; -> element of formDNA representing a primitive FORM value
 ;; -> single-digit formDNA
 
+(def N :N)
+(def U :U)
+(def I :I)
+(def M :M)
 
 (s/def :formform.specs.calc/const
   (s/with-gen
     #(case %
        (:N :U :I :M) true
        false)
-    #(gen/elements [:N :U :I :M])))
+    #(gen/elements [N U I M])))
 
 (s/def :formform.specs.calc/sort-code
   (s/with-gen
     (s/and
       vector?
       #(== 4 (count %))
-      #(= #{:N :U :I :M} (set %)))
-    #(gen/shuffle [:N :U :I :M])))
+      #(= #{N U I M} (set %)))
+    #(gen/shuffle [N U I M])))
 
 (def const? (partial s/valid? :formform.specs.calc/const))
 (def rand-const #(gen/generate (s/gen :formform.specs.calc/const)))
 
 (def sort-code? (partial s/valid? :formform.specs.calc/sort-code))
 
-; (defn const?
-;   [x] (case x
-;         (:N :U :I :M) true
-;         false))
-
-; (defn sort-code?
-;   [x] (and
-;         (vector? x)
-;         (== 4 (count x))
-;         (= #{:N :U :I :M} (set x))))
-
-(def nuim-code [:N :U :I :M])
-(def nmui-code [:N :M :U :I])
-
-; (defn rand-const
-;   "Generates a random constant. Given a natural number `nat` and an optional `sort-code`, returns the correpsonding `const`."
-;   [] (rand-nth nuim-code))
+(def nuim-code [N U I M])
+(def nmui-code [N M U I])
 
 (defn int->const
   ([n] (int->const n nuim-code))
@@ -107,22 +96,6 @@
            (every? (partial contains? elem-set) x))
          false)
        true))))
-
-; (defn dna-seq?
-;   "True if `x` is a `dna-seq`: must be a `seqable?` of no more than 4 distinct elements and must have a `dna-seq-dim`.
-;   - can be given an optional set/collection of no more than 4 specific elements that `x` should consist of"
-;   ([x] (dna-seq? x nil))
-;   ([x elems]
-;    (and
-;      (seqable? x)
-;      (some? (dna-seq-dim x))
-;      (if (coll? elems)
-;        (if-let [elem-set (set elems)]
-;          (and
-;            (<= 4 (count elem-set))
-;            (every? (partial contains? elem-set) x))
-;          false)
-;        (<= (count (distinct x)) 4)))))
 
 (defn rand-dna-seq
   "Generates a random `dna-seq?` of `elems` (defaults to digits 0-3) with dimension `dim`."
@@ -208,8 +181,7 @@
 
 (defn consts->dna
   [cs]
-  (keyword
-    (apply str (map name cs))))
+  (keyword (apply str (map name cs))))
 
 (defn reorder-dna-seq
   "Reorders a `dna-seq` from `sort-code-from` to `sort-code-to`.
@@ -279,6 +251,21 @@
           (map #(name (int->const % sort-code)))
           (apply str)
           keyword))))
+
+;; ! unchecked
+(defn flatten-dna-seq
+  [dna-seq]
+  (flatten dna-seq))
+
+;; ? what about mixed dna-seqs?
+(defn make-dna
+  [& cs]
+  {:pre [(dna-seq? cs)]}
+  (cond
+    (keyword? (first cs)) (consts->dna cs)
+    (integer? (first cs)) (digits->dna cs)
+    (dna-seq? (first cs)) (flatten-dna-seq cs)
+    :else (throw (ex-info "unsupported type" {:args cs}))))
 
 ;; TODO
 (defn filter-dna-seq
@@ -435,19 +422,19 @@
 
 (defn- relc [a b]
   (case a
-    :M :M
+    :M M
     :N b
     (case b
-      :M :M
+      :M M
       :N a
       (case [a b]
-        [:U :U] :U
-        [:I :I] :I
-        ([:U :I] [:I :U]) :M))))
+        [:U :U] U
+        [:I :I] I
+        ([:U :I] [:I :U]) M))))
 
 (defn rel
   "Relates the values of 2 constants in a formDNA to each other."
-  ([] :N)
+  ([]  N)
   ([a] a)
   ([a b] (if (and (const? a) (const? b))
            (relc a b)
@@ -467,22 +454,19 @@
 
 (defn- invc [a]
   (case a
-    :N :M
-    :U :I
-    :I :U
-    :M :N))
+    :N M
+    :U I
+    :I U
+    :M N))
 
 (defn inv
   "Inverts the value of a every constant in a formDNA."
-  ([] :M)
+  ([]  M)
   ([a] (if (const? a)
          (invc a)
          (consts->dna (map inv (dna->consts a)))))
   ([a & xs] (inv (apply rel (cons a xs)))))
 ;; alias
 (def | inv)
-
-
-
 
 
