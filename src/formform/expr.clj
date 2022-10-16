@@ -7,25 +7,59 @@
             #_[clojure.spec.gen.alpha :as gen]))
 
 
+;; Predicates
+
+(s/def :formform.specs.expr/expr-tag #(:expr (meta %)))
+
+;; ? underspecified
+(s/def :formform.specs.expr/expr
+  (s/and vector? :formform.specs.expr/expr-tag))
+
+(def expr? (partial s/valid? :formform.specs.expr/expr))
+(def expr-tag? (partial s/valid? :formform.specs.expr/expr-tag))
+(def form? seq?)
+(def mem-form? map?)
+(defn variable? [x] (or (string? x) (symbol? x)))
+
+(defn dna-expr?
+  [x]
+  (if (expr? x)
+    (if-let [[vars dna] x]
+      (and
+        (vector? vars)
+        (calc/dna? dna)
+        (== (count vars) (calc/dna-dim dna)))
+      false)
+    false))
+
+;; Helper
+
+(defn merge-ctx
+  ([ctx] (merge-ctx identity ctx))
+  ([pred ctx]
+   (reduce (fn [acc x] (if (and (expr? x) (not (map? (first x))) (pred x))
+                         (into acc x)
+                         (conj acc x))) [] ctx)))
+
+(defn gen-vars
+  [n]
+  (map #(str "v__" %) (range n)))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; FORM
 
 (def MARK '())
 
-(defn mark
+(defn FORM
   ([] MARK)
-  ([x & ys] (cons x ys)))
-
-(def · mark)
+  ([x & ys] (seq (merge-ctx (cons x ys)))))
 
 (def UFORM :mn)
-(def IFORM (mark UFORM))
+(def IFORM (FORM UFORM))
 
-(defn fvar [x]
-  (when (or string? symbol? keyword?) x))
-
-(defn unclear [s]
-  (when (string? s) (str "/" s)))
+(defn UNCLEAR
+  [x & ys] [:unclear (apply str x ys)])
 
 
 ;; Macros for nested FORMs
@@ -60,44 +94,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Expressions
 
-;; Predicates
-
-(s/def :formform.specs.expr/expr-tag #(:expr (meta %)))
-
-;; ? underspecified
-(s/def :formform.specs.expr/expr
-  (s/and vector? :formform.specs.expr/expr-tag))
-
-(def expr? (partial s/valid? :formform.specs.expr/expr))
-(def expr-tag? (partial s/valid? :formform.specs.expr/expr-tag))
-(def form? seq?)
-(def mem-form? map?)
-(defn variable? [x] (or (string? x) (symbol? x)))
-
-
-(defn dna-expr?
-  [x]
-  (if (expr? x)
-    (if-let [[vars dna] x]
-      (and
-        (vector? vars)
-        (calc/dna? dna)
-        (== (count vars) (calc/dna-dim dna)))
-      false)
-    false))
-
-;; Constructors
-
 (defn make-expr
   ([] (with-meta [] {:expr true}))
   ([x & ctx]
    (let [[env ctx] (if (map? x) [x ctx] [nil (cons x ctx)])
-         merged-ctx
-         (reduce (fn [acc x]
-                   (if (and (expr? x) (not (map? (first x))))
-                     (into acc x)
-                     (conj acc x)))
-           (if (seq env) [env] []) ctx)]
+         merged-ctx (let [ctx (merge-ctx ctx)]
+                      (if (seq env) (into [env] ctx) ctx))]
      (with-meta merged-ctx {:expr true}))))
 
 (def ·· make-expr)
@@ -107,24 +109,6 @@
             xs
             (vec xs))]
     (with-meta v {:expr true})))
-
-(def n (make-expr nil))
-(def m (make-expr MARK))
-(def u (make-expr UFORM))
-(def i (make-expr IFORM))
-
-(def const->expr {:N n :U u :I i :M m})
-(def expr->const {n :N u :U i :I m :M})
-
-(defn fdna [vars dna]
-  {:pre [(== (count vars) (calc/dna-dim dna))]}
-  (make-expr [vars dna]))
-
-
-(defn filter-dna-seq-by-env
-  [dna-seq env]
-  (let [vpoint (mapv second (sort-by first (seq env)))]
-    (calc/filter-dna-seq dna-seq vpoint)))
 
 (defn vars
   [expr {:keys [ordered?] :or {ordered? false}}]
@@ -139,9 +123,62 @@
         vs))))
 
 
+;; Basic expression types
+
+(def ·n (make-expr nil))
+(def ·m (make-expr MARK))
+(def ·u (make-expr UFORM))
+(def ·i (make-expr IFORM))
+
+(def const->expr {:N ·n :U ·u :I ·i :M ·m})
+(def expr->const {·n :N ·u :U ·i :I ·m :M})
+
+
+(defn form-expr [& ctx] (make-expr (apply FORM ctx)))
+(def · form-expr)
+
+(defn unclear-expr [x & ys] (make-expr (apply UNCLEAR x ys)))
+(def ·uncl unclear-expr)
+
+(defn unclear-expr->label [uncl-expr]
+  (second (first uncl-expr)))
+
+
+;; Special expression types
+
+(defn var-expr [x]
+  (when (or string? symbol? keyword?)
+    (make-expr x)))
+(def ·var var-expr)
+
+
+(defn dna-expr
+  ([] (dna-expr [] :N))
+  ([dna]
+   (let [vars (gen-vars (calc/dna-dim dna))]
+     (dna-expr vars dna)))
+  ([vars dna]
+   {:pre [(== (count vars) (calc/dna-dim dna))]}
+   (make-expr [vars dna]))
+  ([vars c & cs]
+   (make-expr [vars (apply calc/make-dna c cs)])))
+(def ·dna dna-expr)
+
+(defn dna-expr->dna-seq [dna-expr]
+  (second (first dna-expr)))
+
+(defn dna-expr->varlist [dna-expr]
+  (first (first dna-expr)))
+
+;; TODO
+(defn filter-dna-seq-by-env
+  [dna-seq env]
+  (let [vpoint (mapv second (sort-by first (seq env)))]
+    (calc/filter-dna-seq dna-seq vpoint)))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Re-entry expressions
-
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -301,7 +338,10 @@
          envs (all-envs vars)]
      (if as-dna-expr?
        (let [consts (mapv (comp first (partial => expr)) envs)]
-         ^:expr [ ^:expr [vars (rseq consts)] ])
+         ;; ? dna or dna-seq (performance?)
+         (dna-expr vars (calc/consts->dna (rseq consts)))
+         ; ^:expr [ ^:expr [vars (rseq consts)] ]
+         )
        (let [results (map (partial => expr) envs)]
          (with-meta results {:vars vars :vspc vspc}))))))
 

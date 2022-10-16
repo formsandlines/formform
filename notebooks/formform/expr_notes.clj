@@ -1,28 +1,24 @@
 (ns formform.expr-notes
-  (:require [nextjournal.clerk :as clerk] 
+  (:require [nextjournal.clerk :as clerk]
             [formform.calc :as calc]
             [formform.expr :as expr
-             :refer [MARK UFORM IFORM fvar unclear n m u i fdna
+             :refer [MARK UFORM IFORM FORM UNCLEAR
                      cnt> ctx> => =>*
-                     · ··]]))
+                     ·n ·m ·u ·i ·var ·uncl ·dna · ··]]))
 
 ;; # Expr module
-
-;; ## FORMs
-
-(·)
-
-(· 'a 'b)
-
-(· (· 'a 'b) (· 'c 'd))
 
 ;; ### Primitives
 
 [nil MARK UFORM IFORM]
 
-;; ### unclear FORM
+(FORM MARK)
 
-(unclear "sharp")
+(FORM (FORM MARK MARK) (FORM MARK MARK))
+
+(FORM UFORM IFORM)
+
+(UNCLEAR "sound of silence")
 
 
 ;; ---
@@ -32,35 +28,70 @@
 
 (meta (··))
 
-(·· (· 'a) (· 'b))
-
-;; ### …of simple values
-
-[n m u i]
-
-;; ### …of complex values (formDNA)
-
-(fdna ['a] (calc/make-dna :M :U :I :N))
-
-;; ### …with local env
-
-(·· {'a :M, 'b :N} (· (· 'a) 'b))
-
-;; ### combined
-
 (·· (·· (··)) (··))
 
-(·· (·· 'a (·· 'b 'c)) 'd (·· {} 'e))
+(·· 'a 'b)
 
-(·· (·· {'a :U} 'a) 'b)
+(·· (·· 'a (·· 'b 'c)) 'd (·· 'e))
 
-;; ### abstraction
+
+;; ### FORM expressions
+
+(·)
+
+(meta (·))
+
+(· (· (·)) (·))
+
+(· 'a 'b)
+
+(· (· 'a (· 'b 'c)) 'd (· 'e))
+
+
+;; ### unclear FORM expressions
+
+(def ux (·uncl ")" '(unfug ")")))
+
+(expr/unclear-expr->label ux)
+
+
+;; ### express simple values
+
+(·· ·n ·m ·u ·i)
+
+
+;; ### express complex values (formDNA)
+
+(·dna)
+
+(·dna (calc/rand-dna 2))
+
+(def dx (·dna ['a] :M :U :I :N))
+
+(expr/dna-expr->dna-seq dx)
+
+(expr/dna-expr->varlist dx)
+
+
+;; ### combine
+
+(·· (· 'a) (· 'b))
+
+
+;; ### abstract
 
 (defn ·and [x y] (·· (· (· x) (· y))))
 (defn ·nor [x y] (·· (· x y)))
 (defn ·equiv [x y] (·· (·and x y) (·nor x y)))
 
-(·equiv (fvar 'a) (fvar 'b))
+(·equiv (·var 'a) (·var 'b))
+
+
+;; ### expressions can have local environments
+
+(·· {'a :M, 'b :N} (· (· 'a) 'b))
+
+(·· (·· {'a :U} 'a) 'b)
 
 
 ;; ---
@@ -75,7 +106,7 @@
 
 ;; ### …of context
 
-(= m (ctx> (·· UFORM IFORM)))
+(= ·m (ctx> (·· UFORM IFORM)))
 
 ;; ### irreducable FORMs/expressions
 
@@ -87,9 +118,9 @@
 ;; ---
 ;; ## Evaluation
 
-[(=> m) (=> n) (=> u) (=> i)]
+[(=> ·m) (=> ·n) (=> ·u) (=> ·i)]
 
-(=> (·· u i))
+(=> (·· ·u ·i))
 
 ;; ### uninterpreted expressions (“holes”)
 

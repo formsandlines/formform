@@ -248,17 +248,20 @@
 (deftest =>*-test
   (testing "Correctness of returned combinatorial space"
     (is (= (fe/=>* (fe/make-expr nil))
-           [[ '() '(:N) ]]))
+           [[ '() :N ]]))
+           ; [[ '() '(:N) ]]))
     (is (= (fe/=>* (fe/make-expr nil) false)
            [[:N]]))
 
     (is (= (fe/=>* (fe/make-expr 'a))
-           [[ '(a) '(:M :I :U :N) ]]))
+           [[ '(a) :MIUN ]]))
+           ; [[ '(a) '(:M :I :U :N) ]]))
     (is (= (fe/=>* (fe/make-expr 'a) false)
            [[:N] [:U] [:I] [:M]]))
 
     (is (= (fe/=>* (fe/make-expr 'a 'b))
-           [[ '(a b) '(:M :M :M :M :M :I :M :I :M :M :U :U :M :I :U :N) ]]))
+           [[ '(a b) :MMMMMIMIMMUUMIUN ]]))
+           ; [[ '(a b) '(:M :M :M :M :M :I :M :I :M :M :U :U :M :I :U :N) ]]))
     (is (= (fe/=>* (fe/make-expr 'a 'b) false)
            [[:N] [:U] [:I] [:M]
             [:U] [:U] [:M] [:M]
@@ -266,7 +269,8 @@
             [:M] [:M] [:M] [:M]]))
 
     (is (= (fe/=>* (fe/make-expr 'a 'b 'c))
-           [[ '(a b c) '(:M :M :M :M :M :M :M :M :M :M :M :M :M :M :M :M :M :M :M :M :M :I :M :I :M :M :M :M :M :I :M :I :M :M :M :M :M :M :M :M :M :M :U :U :M :M :U :U :M :M :M :M :M :I :M :I :M :M :U :U :M :I :U :N) ]]))
+           [[ '(a b c) :MMMMMMMMMMMMMMMMMMMMMIMIMMMMMIMIMMMMMMMMMMUUMMUUMMMMMIMIMMUUMIUN ]]))
+           ; [[ '(a b c) '(:M :M :M :M :M :M :M :M :M :M :M :M :M :M :M :M :M :M :M :M :M :I :M :I :M :M :M :M :M :I :M :I :M :M :M :M :M :M :M :M :M :M :U :U :M :M :U :U :M :M :M :M :M :I :M :I :M :M :U :U :M :I :U :N) ]]))
     (is (= (fe/=>* (fe/make-expr 'a 'b 'c) false)
            [[:N] [:U] [:I] [:M]
             [:U] [:U] [:M] [:M]
