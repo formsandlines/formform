@@ -337,3 +337,154 @@
     ;        '("apple tree" else "something")))
     )) 
 
+
+(def seqre-opts
+  (vec (for [interpr [:rec-instr :rec-ident]
+             open?   [false true]
+             parity  [:any :even :odd]]
+         {:parity parity, :open? open?, :interpr interpr})))
+
+(deftest seq-reentry-sign-test
+  (testing "All possible inputs"
+    (are [x y] (= x y)
+      (fe/seq-reentry-opts->sign (seqre-opts 0))  :<re
+      (fe/seq-reentry-opts->sign (seqre-opts 1))  :<..re
+      (fe/seq-reentry-opts->sign (seqre-opts 2))  :<..re.
+      (fe/seq-reentry-opts->sign (seqre-opts 3))  :<re_
+      (fe/seq-reentry-opts->sign (seqre-opts 4))  :<..re_
+      (fe/seq-reentry-opts->sign (seqre-opts 5))  :<..re._
+
+      (fe/seq-reentry-opts->sign (seqre-opts 6))  :<re'
+      (fe/seq-reentry-opts->sign (seqre-opts 7))  :<..re'
+      (fe/seq-reentry-opts->sign (seqre-opts 8))  :<..re'.
+      (fe/seq-reentry-opts->sign (seqre-opts 9))  :<re'_
+      (fe/seq-reentry-opts->sign (seqre-opts 10)) :<..re'_
+      (fe/seq-reentry-opts->sign (seqre-opts 11)) :<..re'._)))
+
+(deftest seq-reentry-sign->opts-test
+  (testing "Basic functionality"
+    (is (= (fe/seq-reentry-sign->opts :<re) (seqre-opts 0)))
+    (is (= (fe/seq-reentry-sign->opts :<..re'._) (seqre-opts 11))))) 
+
+(deftest seq-reentry-expr-test
+  (testing "Empty expressions"
+    (are [x y] (= x y)
+      (fe/seq-reentry-expr (seqre-opts 0))  [[:<re]]
+      (fe/seq-reentry-expr (seqre-opts 1))  [[:<..re]]
+      (fe/seq-reentry-expr (seqre-opts 2))  [[:<..re.]]
+      (fe/seq-reentry-expr (seqre-opts 3))  [[:<re_]]
+      (fe/seq-reentry-expr (seqre-opts 4))  [[:<..re_]]
+      (fe/seq-reentry-expr (seqre-opts 5))  [[:<..re._]]
+
+      (fe/seq-reentry-expr (seqre-opts 6))  [[:<re']]
+      (fe/seq-reentry-expr (seqre-opts 7))  [[:<..re']]
+      (fe/seq-reentry-expr (seqre-opts 8))  [[:<..re'.]]
+      (fe/seq-reentry-expr (seqre-opts 9))  [[:<re'_]]
+      (fe/seq-reentry-expr (seqre-opts 10)) [[:<..re'_]]
+      (fe/seq-reentry-expr (seqre-opts 11)) [[:<..re'._]]))
+
+  (testing "Default type"
+    (is (= (fe/seq-reentry-expr {}) '[[:<re]])))
+
+  (testing "Content number and type"
+    (is (= (fe/seq-reentry-expr {} 'x) '[[:<re x]]))
+    (is (= (fe/seq-reentry-expr {} 'x 'y) '[[:<re x y]]))
+    (is (fe/expr? (fe/seq-reentry-expr {})))
+    (is (fe/expr?
+          (second (first (fe/seq-reentry-expr {} (fe/·· 'x 'y) 'z)))))))
+
+(def f (fn [opts & ctx] (fe/reduce-seq-reentry
+                          (first (apply fe/seq-reentry-expr opts ctx)))))
+
+;; ! check more thoroughly if these are correct
+(deftest reduce-seq-re-test
+  (testing "Shape of empty expression"
+    (are [x y] (= x y)
+         ;; ? should nil be removed or valuable to retain context?
+      (f (seqre-opts 0))  '[{:f* [((:f* nil) nil)], :f1 [(:f* nil)]} :f1]
+      (f (seqre-opts 1))  '[{:f* [((:f* nil) nil)]} :f*]
+      (f (seqre-opts 2))  '[{:f* [((:f* nil) nil)], :f1 [(:f* nil)]} :f1]
+      (f (seqre-opts 3))  '[{:f* [((:f* nil) nil)], :f2 [(:f* nil)], 
+                             :f1 [:f2 nil]} :f1]
+      (f (seqre-opts 4))  '[{:f* [((:f* nil) nil)], :f1 [:f* nil]} :f1]
+      (f (seqre-opts 5))  '[{:f* [((:f* nil) nil)], :f2 [(:f* nil)], 
+                             :f1 [:f2 nil]} :f1]
+
+      (f (seqre-opts 6))  '[{:f* [((:f* nil) nil)], :f1 [(:f* nil)]} :f1]
+      (f (seqre-opts 7))  '[{:f* [((:f* nil) nil)]} :f*]
+      (f (seqre-opts 8))  '[{:f* [((:f* nil) nil)], :f1 [(:f* nil)]} :f1]
+      (f (seqre-opts 9))  '[{:f* [((:f* nil) nil)], :f2 [(:f* nil)], 
+                             :f1 [:f2 nil]} :f1]
+      (f (seqre-opts 10)) '[{:f* [((:f* nil) nil)], :f1 [:f* nil]} :f1]
+      (f (seqre-opts 11)) '[{:f* [((:f* nil) nil)], :f2 [(:f* nil)], 
+                             :f1 [:f2 nil]} :f1]))
+
+  (testing "Shape of expressions with resolution 1"
+    (are [x y] (= x y)
+         ;; ? should redundant content (inner 'a) be reduced?
+      (f (seqre-opts 0) 'a)  '[{:f* [((:f* a) a)], :f1 [(:f* a)]} :f1]
+      (f (seqre-opts 1) 'a)  '[{:f* [((:f* a) a)]} :f*]
+      (f (seqre-opts 2) 'a)  '[{:f* [((:f* a) a)], :f1 [(:f* a)]} :f1]
+      (f (seqre-opts 3) 'a)  '[{:f* [((:f* a) a)], :f2 [(:f* a)], 
+                                :f1 [:f2 a]} :f1]
+      (f (seqre-opts 4) 'a)  '[{:f* [((:f* a) a)], :f1 [:f* a]} :f1]
+      (f (seqre-opts 5) 'a)  '[{:f* [((:f* a) a)], :f2 [(:f* a)], 
+                                :f1 [:f2 a]} :f1]
+
+      (f (seqre-opts 6) 'a)  '[{:f* [((:f* a) a)], :f1 [(:f* a)]} :f1]
+      (f (seqre-opts 7) 'a)  '[{:f* [((:f* a) a)]} :f*]
+      (f (seqre-opts 8) 'a)  '[{:f* [((:f* a) a)], :f1 [(:f* a)]} :f1]
+      (f (seqre-opts 9) 'a)  '[{:f* [((:f* a) a)], :f2 [(:f* a)], 
+                                :f1 [:f2 a]} :f1]
+      (f (seqre-opts 10) 'a) '[{:f* [((:f* a) a)], :f1 [:f* a]} :f1]
+      (f (seqre-opts 11) 'a) '[{:f* [((:f* a) a)], :f2 [(:f* a)], 
+                                :f1 [:f2 a]} :f1]))
+
+  (testing "Shape of expressions with even resolution"
+    (are [x y] (= x y)
+         ;; ? should even/odd construct redundant re-entries?
+      (f (seqre-opts 0) 'a 'b)  '[{:f* [((:f* a) b)]} :f*]
+      (f (seqre-opts 1) 'a 'b)  '[{:f* [((:f* a) b)]} :f*]
+      (f (seqre-opts 2) 'a 'b)  '[{:f* [((:f* a) b)]} :f*]
+      (f (seqre-opts 3) 'a 'b)  '[{:f* [((:f* a) b)], :f1 [(:f* a) b]} :f1]
+      (f (seqre-opts 4) 'a 'b)  '[{:f* [((:f* a) b)], :f1 [(:f* a) b]} :f1]
+      (f (seqre-opts 5) 'a 'b)  '[{:f* [((:f* a) b)], :f1 [(:f* a) b]} :f1]
+
+      (f (seqre-opts 6) 'a 'b)  '[{:f* [((:f* a) b)]} :f*]
+      (f (seqre-opts 7) 'a 'b)  '[{:f* [((:f* a) b)]} :f*]
+      (f (seqre-opts 8) 'a 'b)  '[{:f* [((:f* a) b)]} :f*]
+      (f (seqre-opts 9) 'a 'b)  '[{:f* [((:f* a) b)], :f1 [(:f* a) b]} :f1]
+      (f (seqre-opts 10) 'a 'b) '[{:f* [((:f* a) b)], :f1 [(:f* a) b]} :f1]
+      (f (seqre-opts 11) 'a 'b) '[{:f* [((:f* a) b)], :f1 [(:f* a) b]} :f1]))
+  
+  (testing "Shape of expressions with odd resolution"
+    (are [x y] (= x y)
+      (f (seqre-opts 0) 'a 'b 'c)  '[{:f* [((((((:f* a) b) c) a) b) c)], 
+                                      :f1 [(((:f* a) b) c)]} :f1]
+      (f (seqre-opts 1) 'a 'b 'c)  '[{:f* [((((((:f* a) b) c) a) b) c)]} :f*]
+      (f (seqre-opts 2) 'a 'b 'c)  '[{:f* [((((((:f* a) b) c) a) b) c)], 
+                                      :f1 [(((:f* a) b) c)]} :f1]
+      (f (seqre-opts 3) 'a 'b 'c)  '[{:f* [((((((:f* a) b) c) a) b) c)], 
+                                      :f2 [(((:f* a) b) c)], 
+                                      :f1 [((:f2 a) b) c]} :f1]
+      (f (seqre-opts 4) 'a 'b 'c)  '[{:f* [((((((:f* a) b) c) a) b) c)], 
+                                      :f1 [((:f* a) b) c]} :f1]
+      (f (seqre-opts 5) 'a 'b 'c)  '[{:f* [((((((:f* a) b) c) a) b) c)], 
+                                      :f2 [(((:f* a) b) c)], 
+                                      :f1 [((:f2 a) b) c]} :f1]
+
+      (f (seqre-opts 6) 'a 'b 'c)  '[{:f* [((((((:f* a) b) c) a) b) c)], 
+                                      :f1 [(((:f* a) b) c)]} :f1]
+      (f (seqre-opts 7) 'a 'b 'c)  '[{:f* [((((((:f* a) b) c) a) b) c)]} :f*]
+      (f (seqre-opts 8) 'a 'b 'c)  '[{:f* [((((((:f* a) b) c) a) b) c)], 
+                                      :f1 [(((:f* a) b) c)]} :f1]
+      (f (seqre-opts 9) 'a 'b 'c)  '[{:f* [((((((:f* a) b) c) a) b) c)], 
+                                      :f2 [(((:f* a) b) c)], 
+                                      :f1 [((:f2 a) b) c]} :f1]
+      (f (seqre-opts 10) 'a 'b 'c) '[{:f* [((((((:f* a) b) c) a) b) c)], 
+                                      :f1 [((:f* a) b) c]} :f1]
+      (f (seqre-opts 11) 'a 'b 'c) '[{:f* [((((((:f* a) b) c) a) b) c)], 
+                                      :f2 [(((:f* a) b) c)], 
+                                      :f1 [((:f2 a) b) c]} :f1]))) 
+
+

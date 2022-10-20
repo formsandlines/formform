@@ -34,16 +34,72 @@
 
 ;; Helper
 
-(defn merge-ctx
+(defn- merge-ctx
   ([ctx] (merge-ctx identity ctx))
   ([pred ctx]
-   (reduce (fn [acc x] (if (and (expr? x) (not (map? (first x))) (pred x))
+   (reduce (fn [acc x] (if (and (vector? x) (pred x))
                          (into acc x)
                          (conj acc x))) [] ctx)))
+
+(defn- nest-left [ctx]
+  (if (empty? ctx)
+    '()
+    (loop [xs     (rest ctx)
+           nested (seq (merge-ctx [(first ctx)]))]
+      (if (empty? xs)
+        nested
+        (let [[x & r] xs
+              nested' (seq (merge-ctx [nested x]))]
+          (if (empty? r)
+            nested'
+            (recur r nested')))))))
+
+(defn- nest-right [ctx]
+  (if (empty? ctx)
+    '()
+    (let [[x & r] ctx]
+      (if (empty? r)
+        (seq (merge-ctx (list x)))
+        (seq (merge-ctx (list x (nest-right r))))))))
+
+(defn- chain [ctx]
+  (map #(seq (merge-ctx (list %))) ctx))
 
 (defn gen-vars
   [n]
   (map #(str "v__" %) (range n)))
+
+(defn seq-reentry-opts->sign
+  "Constructs a signature for self-equivalent re-entry FORMs given an options map."
+  [{:keys [parity open? interpr]
+    :or {parity :any open? false interpr :rec-instr}}]
+  (let [[re-entry pre-entry] (case parity
+                               :any  [nil  nil]
+                               :even [".." nil]
+                               :odd  [".." "."])
+        pre-open (if open? "_" nil)
+        alt-interpr (if (= :rec-instr interpr) nil "'")]
+    (keyword (str "<" re-entry "re" alt-interpr pre-entry pre-open))))
+
+(defn seq-reentry-sign->opts
+  "Returns a corresponding map of options given a signature for self-equivalent re-entry FORMs."
+  [sign]
+  (let [defaults {:parity :any, :open? false, :interpr :rec-instr}]
+    (merge defaults
+      (case sign
+        :<re      {}
+        :<..re    {:parity :even}
+        :<..re.   {:parity :odd}
+        :<re_     {:open? true}
+        :<..re_   {:open? true :parity :even}
+        :<..re._  {:open? true :parity :odd}
+
+        :<re'     {:interpr :rec-ident}
+        :<..re'   {:interpr :rec-ident :parity :even}
+        :<..re'.  {:interpr :rec-ident :parity :odd}
+        :<re'_    {:interpr :rec-ident :open? true}
+        :<..re'_  {:interpr :rec-ident :open? true :parity :even}
+        :<..re'._ {:interpr :rec-ident :open? true :parity :odd}))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -53,42 +109,14 @@
 
 (defn FORM
   ([] MARK)
-  ([x & ys] (seq (merge-ctx (cons x ys)))))
+  ([x & ys] (seq (merge-ctx #(and (expr? %) (not (map? (first %))))
+                   (cons x ys)))))
 
 (def UFORM :mn)
 (def IFORM (FORM UFORM))
 
 (defn UNCLEAR
   [x & ys] [:unclear (apply str x ys)])
-
-
-;; Macros for nested FORMs
-
-(defmacro <·
-  "nest-to-left macro: (((…)a)b)
-  use brackets [x y …] to group expressions on the same level"
-  [& exprs]
-  (if (empty? exprs)
-    '()
-    (let [[x & r] exprs]
-      (loop [x (if (vector? x) `(list ~@x) `(list ~x))
-             r r]
-        (if (empty? r)
-          x
-          (let [y (first r)]
-            (recur (if (vector? y) `(list ~x ~@y) `(list ~x ~y))
-              (rest r))))))))
-
-(defmacro ·>
-  "nest-to-right macro: (a(b(…)))
-  use brackets [x y …] to group expressions on the same level"
-  [& exprs]
-  (if (empty? exprs)
-    '()
-    (let [[x & r] exprs]
-      (if (empty? r)
-        (if (vector? x) `(list ~@x)          `(list ~x))
-        (if (vector? x) `(list ~@x (·> ~@r)) `(list ~x (·> ~@r)))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -98,11 +126,10 @@
   ([] (with-meta [] {:expr true}))
   ([x & ctx]
    (let [[env ctx] (if (map? x) [x ctx] [nil (cons x ctx)])
-         merged-ctx (let [ctx (merge-ctx ctx)]
+         merged-ctx (let [ctx (merge-ctx #(and (expr? %) (not (map? (first %))))
+                                ctx)]
                       (if (seq env) (into [env] ctx) ctx))]
      (with-meta merged-ctx {:expr true}))))
-
-(def ·· make-expr)
 
 (defn seq->expr [xs]
   (let [v (if (vector? xs)
@@ -125,20 +152,14 @@
 
 ;; Basic expression types
 
-(def ·n (make-expr nil))
-(def ·m (make-expr MARK))
-(def ·u (make-expr UFORM))
-(def ·i (make-expr IFORM))
-
-(def const->expr {:N ·n :U ·u :I ·i :M ·m})
-(def expr->const {·n :N ·u :U ·i :I ·m :M})
-
+(def none-expr  (make-expr nil))
+(def mark-expr  (make-expr MARK))
+(def uform-expr (make-expr UFORM))
+(def iform-expr (make-expr IFORM))
 
 (defn form-expr [& ctx] (make-expr (apply FORM ctx)))
-(def · form-expr)
 
 (defn unclear-expr [x & ys] (make-expr (apply UNCLEAR x ys)))
-(def ·uncl unclear-expr)
 
 (defn unclear-expr->label [uncl-expr]
   (second (first uncl-expr)))
@@ -146,11 +167,17 @@
 
 ;; Special expression types
 
+(def n-expr (make-expr calc/N))
+(def m-expr (make-expr calc/M))
+(def u-expr (make-expr calc/U))
+(def i-expr (make-expr calc/I))
+
+(def const->expr {:N n-expr :U u-expr :I i-expr :M m-expr})
+(def expr->const {n-expr :N u-expr :U i-expr :I m-expr :M})
+
 (defn var-expr [x]
   (when (or string? symbol? keyword?)
     (make-expr x)))
-(def ·var var-expr)
-
 
 (defn dna-expr
   ([] (dna-expr [] :N))
@@ -162,7 +189,6 @@
    (make-expr [vars dna]))
   ([vars c & cs]
    (make-expr [vars (apply calc/make-dna c cs)])))
-(def ·dna dna-expr)
 
 (defn dna-expr->dna-seq [dna-expr]
   (second (first dna-expr)))
@@ -177,8 +203,82 @@
     (calc/filter-dna-seq dna-seq vpoint)))
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Re-entry expressions
+(defn nested-expr
+  "Nests contents leftwards `(((…)a)b)` or rightwards `(a(b(…)))`
+  if `{:rightwards? true}`
+  - use brackets `[x y …]` to group expressions on the same level"
+  ([env] (make-expr env))
+  ([{:keys [unmarked? rightwards?]
+     :or {unmarked? false rightwards? false}
+     :as env} & ctx]
+   (let [f-nested (if rightwards? (nest-right ctx) (nest-left ctx))]
+     (apply make-expr (dissoc env :unmarked? :rightwards?)
+       (if unmarked? f-nested (list f-nested))))))
+
+(defn chained-expr
+  "Chains content like `((a)(b)…)` or `(a)(b)…` if {:unmarked? true}`
+  - use brackets `[x y …]` to group expressions on the same link"
+  ([env] (make-expr env))
+  ([{:keys [unmarked?] :or {unmarked? false} :as env} & ctx]
+   (let [f-chained (chain ctx)
+         env (dissoc env :unmarked?)]
+     (if unmarked?
+       (apply make-expr env f-chained)
+       (make-expr env (apply form-expr f-chained))))))
+
+
+(defn seq-reentry-expr
+  "Constructor for self-equivalent re-entry expressions"
+  [env & ctx]
+  (let [sign (seq-reentry-opts->sign env)
+         ; ctx-merged (map #(if (vector? %) (merge-ctx %) %) ctx)
+        ]
+    (make-expr (apply vector sign ctx))))
+
+
+;; Aliases (maybe temporary)
+
+(def ·· make-expr)
+(def ·  form-expr)
+
+(def ·none  none-expr)
+(def ·mark  mark-expr)
+(def ·uform uform-expr)
+(def ·iform iform-expr)
+(def ·uncl  unclear-expr)
+
+(def ·n n-expr)
+(def ·m m-expr)
+(def ·u u-expr)
+(def ·i i-expr)
+(def ·var var-expr)
+(def ·dna dna-expr)
+
+(def ·< (partial nested-expr {:unmarked? false :rightwards? false}))
+(def ·> (partial nested-expr {:unmarked? false :rightwards? true}))
+(def ··<  (partial nested-expr {:unmarked? true :rightwards? false}))
+(def ··>  (partial nested-expr {:unmarked? true :rightwards? true}))
+(def ·*  (partial chained-expr {:unmarked? false}))
+(def ··*  (partial chained-expr {:unmarked? true}))
+
+(def ·seq-re seq-reentry-expr)
+
+(def ·r (partial seq-reentry-expr {:parity :any}))
+(def ·2r (partial seq-reentry-expr {:parity :even}))
+(def ·2r+1 (partial seq-reentry-expr {:parity :odd}))
+(def ··r (partial seq-reentry-expr {:parity :any :open? true}))
+(def ··2r (partial seq-reentry-expr {:parity :even :open? true}))
+(def ··2r+1 (partial seq-reentry-expr {:parity :odd :open? true}))
+
+(def ·r' (partial seq-reentry-expr {:parity :any :interpr :rec-ident}))
+(def ·2r' (partial seq-reentry-expr {:parity :even :interpr :rec-ident}))
+(def ·2r'+1 (partial seq-reentry-expr {:parity :odd :interpr :rec-ident}))
+(def ··r' (partial seq-reentry-expr 
+                   {:parity :any :open? true :interpr :rec-ident}))
+(def ··2r' (partial seq-reentry-expr 
+                    {:parity :even :open? true :interpr :rec-ident}))
+(def ··2r'+1 (partial seq-reentry-expr 
+                      {:parity :odd :open? true :interpr :rec-ident}))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -190,6 +290,28 @@
 ;   [dna env]
 ;   (let [vars (keys env)]
 ;     nil))
+
+(defn reduce-seq-reentry
+  [[sign & ctx]]
+  (let [[x & ys] ctx
+        {:keys [parity open? interpr]} (seq-reentry-sign->opts sign)
+        ctx       (if (zero? (count ctx)) (conj ctx nil) ctx)
+        res-odd?  (odd? (count ctx))
+        pre-step? (and res-odd? (not (= parity :even)))
+        re [:f* (apply nested-expr {:unmarked? false :rightwards? false}
+                  (make-expr :f* x) (if res-odd?
+                                      (concat ys (cons x ys))
+                                      ys))]
+        pre  (when pre-step?
+               [(if open? :f2 :f1)
+                (apply nested-expr {:unmarked? false :rightwards? false}
+                  (make-expr :f* x) ys)])
+        open (when open?
+               [:f1 (apply nested-expr {:unmarked? true :rightwards? false}
+                      (make-expr (if pre-step? :f2 :f*) x) ys)])
+        init (if (or pre-step? open?) :f1 :f*)]
+    (make-expr (into {} [re pre open]) init)))
+
 
 (defn- reduce-matching-content
   ([x] (reduce-matching-content x x))
