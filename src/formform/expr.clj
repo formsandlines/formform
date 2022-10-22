@@ -103,7 +103,7 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; FORM
+;; Content
 
 (def MARK '())
 
@@ -115,12 +115,43 @@
 (def UFORM :mn)
 (def IFORM (FORM UFORM))
 
+(defn VAR
+  [x]
+  (if (or (string? x) (symbol? x) (keyword? x))
+    x
+    (throw (ex-info "Invalid variable type" {}))))
+
 (defn UNCLEAR
   [x & ys] [:unclear (apply str x ys)])
 
+(def UNCLEAR->label second)
+
+(defn SEQ-REENTRY
+  [specs & xs]
+  (let [signature (cond
+                    (keyword? specs) specs
+                    (map? specs) (seq-reentry-opts->sign specs)
+                    :else (throw (ex-info
+                                   "Invalid re-entry specifications." {})))]
+    (apply vector signature xs)))
+
+(defn FDNA
+  ([] (FDNA [] calc/N))
+  ([dna] (let [vars (vec (gen-vars (calc/dna-dim dna)))] (FDNA vars dna)))
+  ([vars dna]
+   {:pre [(== (count vars) (calc/dna-dim dna))]}
+   [vars dna])
+  ([vars c & cs]
+   [vars (apply calc/make-dna c cs)]))
+
+(def FDNA->varlist first)
+(def FDNA->dna-seq second)
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Expressions
+;; Expression / context
+
+;; Expression constructors
 
 (defn make-expr
   ([] (with-meta [] {:expr true}))
@@ -131,6 +162,10 @@
                       (if (seq env) (into [env] ctx) ctx))]
      (with-meta merged-ctx {:expr true}))))
 
+
+;; Helper
+
+;; ? is this necessary
 (defn seq->expr [xs]
   (let [v (if (vector? xs)
             xs
@@ -149,59 +184,33 @@
         (sort utils/compare-names vs)
         vs))))
 
-
-;; Basic expression types
-
-(def none-expr  (make-expr nil))
-(def mark-expr  (make-expr MARK))
-(def uform-expr (make-expr UFORM))
-(def iform-expr (make-expr IFORM))
-
-(defn form-expr [& ctx] (make-expr (apply FORM ctx)))
-
-(defn unclear-expr [x & ys] (make-expr (apply UNCLEAR x ys)))
-
-(defn unclear-expr->label [uncl-expr]
-  (second (first uncl-expr)))
-
-
-;; Special expression types
-
-(def n-expr (make-expr calc/N))
-(def m-expr (make-expr calc/M))
-(def u-expr (make-expr calc/U))
-(def i-expr (make-expr calc/I))
-
-(def const->expr {:N n-expr :U u-expr :I i-expr :M m-expr})
-(def expr->const {n-expr :N u-expr :U i-expr :I m-expr :M})
-
-(defn var-expr [x]
-  (when (or string? symbol? keyword?)
-    (make-expr x)))
-
-(defn dna-expr
-  ([] (dna-expr [] :N))
-  ([dna]
-   (let [vars (gen-vars (calc/dna-dim dna))]
-     (dna-expr vars dna)))
-  ([vars dna]
-   {:pre [(== (count vars) (calc/dna-dim dna))]}
-   (make-expr [vars dna]))
-  ([vars c & cs]
-   (make-expr [vars (apply calc/make-dna c cs)])))
-
-(defn dna-expr->dna-seq [dna-expr]
-  (second (first dna-expr)))
-
-(defn dna-expr->varlist [dna-expr]
-  (first (first dna-expr)))
-
 ;; TODO
 (defn filter-dna-seq-by-env
   [dna-seq env]
   (let [vpoint (mapv second (sort-by first (seq env)))]
     (calc/filter-dna-seq dna-seq vpoint)))
 
+
+;; Expression types
+
+(def ·· make-expr)
+
+(def ·      (comp make-expr FORM))
+(def ·?     (comp make-expr VAR))
+(def ·none  (make-expr nil))
+(def ·mark  (make-expr MARK))
+(def ·uform (make-expr UFORM))
+(def ·iform (make-expr IFORM))
+(def ·uncl  (comp make-expr UNCLEAR))
+(def ·dna   (comp make-expr FDNA))
+
+(def ·N (make-expr calc/N))
+(def ·M (make-expr calc/M))
+(def ·U (make-expr calc/U))
+(def ·I (make-expr calc/I))
+
+(def const->expr {:N ·N :U ·U :I ·I :M ·M})
+(def expr->const {·N :N ·U :U ·I :I ·M :M})
 
 (defn nested-expr
   "Nests contents leftwards `(((…)a)b)` or rightwards `(a(b(…)))`
@@ -224,61 +233,30 @@
          env (dissoc env :unmarked?)]
      (if unmarked?
        (apply make-expr env f-chained)
-       (make-expr env (apply form-expr f-chained))))))
+       (make-expr env (apply · f-chained))))))
 
-
-(defn seq-reentry-expr
-  "Constructor for self-equivalent re-entry expressions"
-  [env & ctx]
-  (let [sign (seq-reentry-opts->sign env)
-         ; ctx-merged (map #(if (vector? %) (merge-ctx %) %) ctx)
-        ]
-    (make-expr (apply vector sign ctx))))
-
-
-;; Aliases (maybe temporary)
-
-(def ·· make-expr)
-(def ·  form-expr)
-
-(def ·none  none-expr)
-(def ·mark  mark-expr)
-(def ·uform uform-expr)
-(def ·iform iform-expr)
-(def ·uncl  unclear-expr)
-
-(def ·n n-expr)
-(def ·m m-expr)
-(def ·u u-expr)
-(def ·i i-expr)
-(def ·var var-expr)
-(def ·dna dna-expr)
-
-(def ·< (partial nested-expr {:unmarked? false :rightwards? false}))
-(def ·> (partial nested-expr {:unmarked? false :rightwards? true}))
-(def ··<  (partial nested-expr {:unmarked? true :rightwards? false}))
-(def ··>  (partial nested-expr {:unmarked? true :rightwards? true}))
+(def ·<  (partial nested-expr {:unmarked? false :rightwards? false}))
+(def ·>  (partial nested-expr {:unmarked? false :rightwards? true}))
+(def ··< (partial nested-expr {:unmarked? true :rightwards? false}))
+(def ··> (partial nested-expr {:unmarked? true :rightwards? true}))
 (def ·*  (partial chained-expr {:unmarked? false}))
-(def ··*  (partial chained-expr {:unmarked? true}))
+(def ··* (partial chained-expr {:unmarked? true}))
 
-(def ·seq-re seq-reentry-expr)
+(def ·seq-re (comp make-expr SEQ-REENTRY))
 
-(def ·r (partial seq-reentry-expr {:parity :any}))
-(def ·2r (partial seq-reentry-expr {:parity :even}))
-(def ·2r+1 (partial seq-reentry-expr {:parity :odd}))
-(def ··r (partial seq-reentry-expr {:parity :any :open? true}))
-(def ··2r (partial seq-reentry-expr {:parity :even :open? true}))
-(def ··2r+1 (partial seq-reentry-expr {:parity :odd :open? true}))
+(def ·r     (comp make-expr (partial SEQ-REENTRY :<re)))
+(def ·2r    (comp make-expr (partial SEQ-REENTRY :<..re)))
+(def ·2r+1  (comp make-expr (partial SEQ-REENTRY :<..re.)))
+(def ··r    (comp make-expr (partial SEQ-REENTRY :<re_)))
+(def ··2r   (comp make-expr (partial SEQ-REENTRY :<..re_)))
+(def ··2r+1 (comp make-expr (partial SEQ-REENTRY :<..re._)))
 
-(def ·r' (partial seq-reentry-expr {:parity :any :interpr :rec-ident}))
-(def ·2r' (partial seq-reentry-expr {:parity :even :interpr :rec-ident}))
-(def ·2r'+1 (partial seq-reentry-expr {:parity :odd :interpr :rec-ident}))
-(def ··r' (partial seq-reentry-expr 
-                   {:parity :any :open? true :interpr :rec-ident}))
-(def ··2r' (partial seq-reentry-expr 
-                    {:parity :even :open? true :interpr :rec-ident}))
-(def ··2r'+1 (partial seq-reentry-expr 
-                      {:parity :odd :open? true :interpr :rec-ident}))
+(def ·r'     (comp make-expr (partial SEQ-REENTRY :<re')))
+(def ·2r'    (comp make-expr (partial SEQ-REENTRY :<..re')))
+(def ·2r'+1  (comp make-expr (partial SEQ-REENTRY :<..re'.)))
+(def ··r'    (comp make-expr (partial SEQ-REENTRY :<re'_)))
+(def ··2r'   (comp make-expr (partial SEQ-REENTRY :<..re'_)))
+(def ··2r'+1 (comp make-expr (partial SEQ-REENTRY :<..re'._)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -461,7 +439,7 @@
      (if as-dna-expr?
        (let [consts (mapv (comp first (partial => expr)) envs)]
          ;; ? dna or dna-seq (performance?)
-         (dna-expr vars (calc/consts->dna (rseq consts)))
+         (·dna vars (calc/consts->dna (rseq consts)))
          ; ^:expr [ ^:expr [vars (rseq consts)] ]
          )
        (let [results (map (partial => expr) envs)]

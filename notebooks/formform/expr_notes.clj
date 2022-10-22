@@ -17,6 +17,14 @@
 
 (UNCLEAR "sound of silence")
 
+(SEQ-REENTRY :<re 'a 'b)
+
+(FDNA)
+
+(FDNA :M)
+
+(FDNA (calc/make-dna :N :U :I :M))
+
 
 ;; ---
 ;; ## Expressions
@@ -55,7 +63,7 @@
 
 (def ux (·uncl ")" '(unfug ")")))
 
-(expr/unclear-expr->label ux)
+(expr/UNCLEAR->label (first ux))
 
 
 ;; ### Self-equivalent re-entry (“seq-re”) expressions
@@ -90,7 +98,7 @@
 
 ;; #### …of constants
 
-(·· ·n ·m ·u ·i)
+(·· ·N ·M ·U ·I)
 
 
 ;; #### …of formDNA
@@ -103,9 +111,9 @@
 
 (def dx (·dna ['a] :M :U :I :N))
 
-(expr/dna-expr->dna-seq dx)
+(expr/FDNA->dna-seq (first dx))
 
-(expr/dna-expr->varlist dx)
+(expr/FDNA->varlist (first dx))
 
 
 ;; ### Combination
@@ -121,15 +129,15 @@
 (defn ·nor [x y] (·· (· x y)))
 (defn ·equiv [x y] (·· (·and x y) (·nor x y)))
 
-(·equiv (·var 'a) (·var 'b))
+(·equiv (·? 'a) (·? 'b))
 
 ;; Quoting lets us keep an abstraction for clarity or deferred application:
 
-(·equiv `(·and ~@(·var 'a) ~@(·var 'b)) (·var 'c))
+(·equiv `(·and ~@(·? 'a) ~@(·? 'b)) (·? 'c))
 
 ;; Quoting the whole form requires an outer expression for further combination:
 
-(·· `(·equiv (·var a) (·var b)))
+(·· `(·equiv (·? a) (·? b)))
 
 ;; Always use syntax quotes (backticks) to include the correct namespace.
 
@@ -163,7 +171,7 @@
 
 ;; ### …of context
 
-(= ·m (ctx> (·· UFORM IFORM)))
+(= ·M (ctx> (·· UFORM IFORM)))
 
 ;; ### irreducable FORMs/expressions
 
@@ -175,9 +183,9 @@
 ;; ---
 ;; ## Evaluation
 
-[(=> ·m) (=> ·n) (=> ·u) (=> ·i)]
+[(=> ·M) (=> ·N) (=> ·U) (=> ·I)]
 
-(=> (·· ·u ·i))
+(=> (·· ·U ·I))
 
 ;; ### uninterpreted expressions (“holes”)
 

@@ -369,32 +369,32 @@
 (deftest seq-reentry-expr-test
   (testing "Empty expressions"
     (are [x y] (= x y)
-      (fe/seq-reentry-expr (seqre-opts 0))  [[:<re]]
-      (fe/seq-reentry-expr (seqre-opts 1))  [[:<..re]]
-      (fe/seq-reentry-expr (seqre-opts 2))  [[:<..re.]]
-      (fe/seq-reentry-expr (seqre-opts 3))  [[:<re_]]
-      (fe/seq-reentry-expr (seqre-opts 4))  [[:<..re_]]
-      (fe/seq-reentry-expr (seqre-opts 5))  [[:<..re._]]
+      (fe/·seq-re (seqre-opts 0))  [[:<re]]
+      (fe/·seq-re (seqre-opts 1))  [[:<..re]]
+      (fe/·seq-re (seqre-opts 2))  [[:<..re.]]
+      (fe/·seq-re (seqre-opts 3))  [[:<re_]]
+      (fe/·seq-re (seqre-opts 4))  [[:<..re_]]
+      (fe/·seq-re (seqre-opts 5))  [[:<..re._]]
 
-      (fe/seq-reentry-expr (seqre-opts 6))  [[:<re']]
-      (fe/seq-reentry-expr (seqre-opts 7))  [[:<..re']]
-      (fe/seq-reentry-expr (seqre-opts 8))  [[:<..re'.]]
-      (fe/seq-reentry-expr (seqre-opts 9))  [[:<re'_]]
-      (fe/seq-reentry-expr (seqre-opts 10)) [[:<..re'_]]
-      (fe/seq-reentry-expr (seqre-opts 11)) [[:<..re'._]]))
+      (fe/·seq-re (seqre-opts 6))  [[:<re']]
+      (fe/·seq-re (seqre-opts 7))  [[:<..re']]
+      (fe/·seq-re (seqre-opts 8))  [[:<..re'.]]
+      (fe/·seq-re (seqre-opts 9))  [[:<re'_]]
+      (fe/·seq-re (seqre-opts 10)) [[:<..re'_]]
+      (fe/·seq-re (seqre-opts 11)) [[:<..re'._]]))
 
   (testing "Default type"
-    (is (= (fe/seq-reentry-expr {}) '[[:<re]])))
+    (is (= (fe/·seq-re {}) '[[:<re]])))
 
   (testing "Content number and type"
-    (is (= (fe/seq-reentry-expr {} 'x) '[[:<re x]]))
-    (is (= (fe/seq-reentry-expr {} 'x 'y) '[[:<re x y]]))
-    (is (fe/expr? (fe/seq-reentry-expr {})))
+    (is (= (fe/·seq-re {} 'x) '[[:<re x]]))
+    (is (= (fe/·seq-re {} 'x 'y) '[[:<re x y]]))
+    (is (fe/expr? (fe/·seq-re {})))
     (is (fe/expr?
-          (second (first (fe/seq-reentry-expr {} (fe/·· 'x 'y) 'z)))))))
+          (second (first (fe/·seq-re {} (fe/·· 'x 'y) 'z)))))))
 
 (def f (fn [opts & ctx] (fe/reduce-seq-reentry
-                          (first (apply fe/seq-reentry-expr opts ctx)))))
+                          (first (apply fe/·seq-re opts ctx)))))
 
 ;; ! check more thoroughly if these are correct
 (deftest reduce-seq-re-test
