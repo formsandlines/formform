@@ -393,11 +393,11 @@
     (is (fe/expr?
           (second (first (fe/·seq-re {} (fe/·· 'x 'y) 'z)))))))
 
-(def f (fn [opts & ctx] (fe/reduce-seq-reentry
+(def f (fn [opts & ctx] (fe/expand-seq-reentry
                           (first (apply fe/·seq-re opts ctx)))))
 
 ;; ! check more thoroughly if these are correct
-(deftest reduce-seq-re-test
+(deftest expand-seq-re-test
   (testing "Shape of empty expression"
     (are [x y] (= x y)
          ;; ? should nil be removed or valuable to retain context?
@@ -487,4 +487,87 @@
                                       :f2 [(((:f* a) b) c)], 
                                       :f1 [((:f2 a) b) c]} :f1]))) 
 
+
+(deftest expand-fdna-test
+  ;; ! unchecked
+  (testing "Correctness of transformation"
+    (is (= (fe/expand-fdna (fe/FDNA [] :M)) '[((:M))]))
+    (is (= (fe/expand-fdna (fe/FDNA ['a] :NUIM))
+           '[((:M) (([:<re [(a)]] [:<..re [(a)]])))
+             ((:I) ((([:<re [(a)]] a) ([:<..re a] (a)))))
+             ((:U) ((([:<re a] (a)) ([:<..re [(a)]] a))))
+             ((:N) (([:<re a] [:<..re a])))]))
+    (is (= (fe/expand-fdna (fe/FDNA ['a 'b] :MINIUMINUMNIMMIM))
+           '[((:I) (([:<re a] [:<..re a]))
+                   (([:<re [(b)]] [:<..re [(b)]])))
+             ((:I) (([:<re a] [:<..re a]))
+                   ((([:<re b] (b)) ([:<..re [(b)]] b))))
+             ((:U) ((([:<re [(a)]] a) ([:<..re a] (a))))
+                   (([:<re b] [:<..re b])))
+             ((:M) (([:<re a] [:<..re a]))
+                   (([:<re b] [:<..re b])))
+             ((:M) (([:<re [(a)]] [:<..re [(a)]]))
+                   (([:<re b] [:<..re b])))
+             ((:M) (([:<re [(a)]] [:<..re [(a)]]))
+                   (([:<re [(b)]] [:<..re [(b)]])))
+             ((:M) ((([:<re [(a)]] a) ([:<..re a] (a))))
+                   ((([:<re b] (b)) ([:<..re [(b)]] b))))
+             ((:U) ((([:<re a] (a)) ([:<..re [(a)]] a)))
+                   (([:<re b] [:<..re b])))
+             ((:N) ((([:<re [(a)]] a) ([:<..re a] (a))))
+                   ((([:<re [(b)]] b) ([:<..re b] (b)))))
+             ((:M) (([:<re [(a)]] [:<..re [(a)]]))
+                   ((([:<re b] (b)) ([:<..re [(b)]] b))))
+             ((:M) ((([:<re a] (a)) ([:<..re [(a)]] a)))
+                   ((([:<re b] (b)) ([:<..re [(b)]] b))))
+             ((:N) ((([:<re a] (a)) ([:<..re [(a)]] a)))
+                   (([:<re [(b)]] [:<..re [(b)]])))
+             ((:N) (([:<re a] [:<..re a]))
+                   ((([:<re [(b)]] b) ([:<..re b] (b)))))
+             ((:I) ((([:<re [(a)]] a) ([:<..re a] (a))))
+                   (([:<re [(b)]] [:<..re [(b)]])))
+             ((:I) ((([:<re a] (a)) ([:<..re [(a)]] a)))
+                   ((([:<re [(b)]] b) ([:<..re b] (b)))))
+             ((:I) (([:<re [(a)]] [:<..re [(a)]]))
+                   ((([:<re [(b)]] b) ([:<..re b] (b)))))])))) 
+
+
+(deftest expand-unclear-test
+  (testing "Correctness of transformation"
+    (is (= (fe/expand-unclear (fe/UNCLEAR "foo"))
+           [[:<re ["foo"] ["foo"]]]))
+    (is (= (fe/expand-unclear (fe/UNCLEAR #{:X :Y} #".+"))
+           [[:<re ["#{:Y :X}.+"] ["#{:Y :X}.+"]]])))) 
+
+
+(deftest ·N->M-test
+  (is (= (fe/·N->M 'a) '[([:<re [(a)]] [:<..re [(a)]])]))) 
+
+(deftest ·M->M-test
+  (is (= (fe/·M->M 'a) '[([:<re a] [:<..re a])])))
+
+(deftest ·U->M-test
+  (is (= (fe/·U->M 'a) '[(([:<re [(a)]] a) ([:<..re a] (a)))])))
+
+(deftest ·I->M-test
+  (is (= (fe/·I->M 'a) '[(([:<re a] (a)) ([:<..re [(a)]] a))])))
+
+(deftest ·sel-test
+  (testing "Correct expression"
+    (is (= (fe/·sel {})
+           '[()]))
+    (is (= (fe/·sel {'a :M})
+           '[((a))]))
+    (is (= (fe/·sel {'a :I})
+           '[((a) ([:<..re])) (a ([:<re]))]))
+    (is (= (fe/·sel {'a :M 'b :N 'c :M})
+           '[((a) b (c))]))
+    (is (= (fe/·sel {'a :M, 'b :N, 'c :U})
+           '[(a (b) c ([:<..re])) (a (b) (c) ([:<re]))])))
+
+  (testing "Without simplification"
+    (is (= (fe/·sel {} false)
+           '[(([:<..re])) (([:<re]))]))
+    (is (= (fe/·sel {'a :M} false)
+           '[(a ([:<..re])) (a ([:<re]))])))) 
 

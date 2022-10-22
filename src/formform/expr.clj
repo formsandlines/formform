@@ -1,43 +1,19 @@
 (ns formform.expr
   (:require #_[clojure.math.combinatorics :as combo]
             [clojure.string :as string]
+            [clojure.set :refer [map-invert]]
             [formform.calc :as calc]
             [formform.utils :as utils]
             [clojure.spec.alpha :as s]
             #_[clojure.spec.gen.alpha :as gen]))
 
 
-;; Predicates
-
-(s/def :formform.specs.expr/expr-tag #(:expr (meta %)))
-
-;; ? underspecified
-(s/def :formform.specs.expr/expr
-  (s/and vector? :formform.specs.expr/expr-tag))
-
-(def expr? (partial s/valid? :formform.specs.expr/expr))
-(def expr-tag? (partial s/valid? :formform.specs.expr/expr-tag))
-(def form? seq?)
-(def mem-form? map?)
-(defn variable? [x] (or (string? x) (symbol? x)))
-
-(defn dna-expr?
-  [x]
-  (if (expr? x)
-    (if-let [[vars dna] x]
-      (and
-        (vector? vars)
-        (calc/dna? dna)
-        (== (count vars) (calc/dna-dim dna)))
-      false)
-    false))
-
 ;; Helper
 
 (defn- merge-ctx
-  ([ctx] (merge-ctx identity ctx))
+  ([ctx] (merge-ctx vector? ctx))
   ([pred ctx]
-   (reduce (fn [acc x] (if (and (vector? x) (pred x))
+   (reduce (fn [acc x] (if (pred x)
                          (into acc x)
                          (conj acc x))) [] ctx)))
 
@@ -69,37 +45,78 @@
   [n]
   (map #(str "v__" %) (range n)))
 
+
+;; Specs
+
+(s/def :formform.specs.expr/expr-tag #(:expr (meta %)))
+(s/def :formform.specs.expr/unclear-tag #(:uncl (meta %)))
+(s/def :formform.specs.expr/seq-reentry-tag #(:seq-re (meta %)))
+(s/def :formform.specs.expr/fdna-tag #(:fdna (meta %)))
+
+(def expr-tag? (partial s/valid? :formform.specs.expr/expr-tag))
+(def unclear-tag? (partial s/valid? :formform.specs.expr/unclear-tag))
+(def seq-reentry-tag? (partial s/valid? :formform.specs.expr/seq-reentry-tag))
+(def fdna-tag? (partial s/valid? :formform.specs.expr/fdna-tag))
+
+;; ? underspecified
+(s/def :formform.specs.expr/expr
+  (s/and vector? :formform.specs.expr/expr-tag))
+
+(def expr? (partial s/valid? :formform.specs.expr/expr))
+(def form? seq?)
+; (def mem-form? map?)
+(defn variable? [x] (or (string? x) (symbol? x)))
+
+
+(defn dna-expr?
+  [x]
+  (if (expr? x)
+    (if-let [[vars dna] x]
+      (and
+        (vector? vars)
+        (calc/dna? dna)
+        (== (count vars) (calc/dna-dim dna)))
+      false)
+    false))
+
+(def seq-reentry-defaults {:parity :any, :open? false, :interpr :rec-instr})
+
+(def seq-reentry-sign->opts
+  "Maps signatures for self-equivalent re-entry FORMs to their corresponding option-maps."
+  (let [ds seq-reentry-defaults]
+    {:<re      (merge ds {})
+     :<..re    (merge ds {:parity :even})
+     :<..re.   (merge ds {:parity :odd})
+     :<re_     (merge ds {:open? true})
+     :<..re_   (merge ds {:open? true :parity :even})
+     :<..re._  (merge ds {:open? true :parity :odd})
+
+     :<re'     (merge ds {:interpr :rec-ident})
+     :<..re'   (merge ds {:interpr :rec-ident :parity :even})
+     :<..re'.  (merge ds {:interpr :rec-ident :parity :odd})
+     :<re'_    (merge ds {:interpr :rec-ident :open? true})
+     :<..re'_  (merge ds {:interpr :rec-ident :open? true :parity :even})
+     :<..re'._ (merge ds {:interpr :rec-ident :open? true :parity :odd})}))
+
 (defn seq-reentry-opts->sign
-  "Constructs a signature for self-equivalent re-entry FORMs given an options map."
-  [{:keys [parity open? interpr]
-    :or {parity :any open? false interpr :rec-instr}}]
-  (let [[re-entry pre-entry] (case parity
-                               :any  [nil  nil]
-                               :even [".." nil]
-                               :odd  [".." "."])
-        pre-open (if open? "_" nil)
-        alt-interpr (if (= :rec-instr interpr) nil "'")]
-    (keyword (str "<" re-entry "re" alt-interpr pre-entry pre-open))))
+  "Inverse map of seq-reentry-sign->opts with default args."
+  [m]
+  (let [opts (merge seq-reentry-defaults
+               (select-keys m [:parity :open? :interpr]))
+        opts->sign (map-invert seq-reentry-sign->opts)]
+    (opts->sign opts)))
 
-(defn seq-reentry-sign->opts
-  "Returns a corresponding map of options given a signature for self-equivalent re-entry FORMs."
-  [sign]
-  (let [defaults {:parity :any, :open? false, :interpr :rec-instr}]
-    (merge defaults
-      (case sign
-        :<re      {}
-        :<..re    {:parity :even}
-        :<..re.   {:parity :odd}
-        :<re_     {:open? true}
-        :<..re_   {:open? true :parity :even}
-        :<..re._  {:open? true :parity :odd}
+(s/def :formform.specs.expr/seq-reentry-signature
+  #(some? (seq-reentry-sign->opts %)))
 
-        :<re'     {:interpr :rec-ident}
-        :<..re'   {:interpr :rec-ident :parity :even}
-        :<..re'.  {:interpr :rec-ident :parity :odd}
-        :<re'_    {:interpr :rec-ident :open? true}
-        :<..re'_  {:interpr :rec-ident :open? true :parity :even}
-        :<..re'._ {:interpr :rec-ident :open? true :parity :odd}))))
+(s/def :formform.specs.expr/seq-reentry-opts
+  #(some? ((set (vals seq-reentry-sign->opts)) %)))
+
+(def seq-reentry-signature? (partial s/valid?
+                              :formform.specs.expr/seq-reentry-signature))
+
+(def seq-reentry-opts? (partial s/valid?
+                         :formform.specs.expr/seq-reentry-opts))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -122,30 +139,38 @@
     (throw (ex-info "Invalid variable type" {}))))
 
 (defn UNCLEAR
-  [x & ys] [:unclear (apply str x ys)])
+  [x & ys] (with-meta [:unclear (apply str x ys)] {:uncl true}))
 
 (def UNCLEAR->label second)
 
+;; ? map every x to its own context
 (defn SEQ-REENTRY
   [specs & xs]
-  (let [signature (cond
-                    (keyword? specs) specs
-                    (map? specs) (seq-reentry-opts->sign specs)
-                    :else (throw (ex-info
-                                   "Invalid re-entry specifications." {})))]
-    (apply vector signature xs)))
+  (let [signature
+        (cond
+          (keyword? specs) (if (seq-reentry-signature? specs)
+                             specs
+                             (throw
+                               (ex-info "Invalid re-entry signature." {})))
+          (map? specs) (seq-reentry-opts->sign specs)
+          :else (throw (ex-info
+                         "Invalid re-entry specifications." {})))]
+    (with-meta (apply vector signature xs) {:seq-re true})))
+
+(def SEQ-REENTRY->sign first)
+(def SEQ-REENTRY->ctx rest)
 
 (defn FDNA
   ([] (FDNA [] calc/N))
   ([dna] (let [vars (vec (gen-vars (calc/dna-dim dna)))] (FDNA vars dna)))
   ([vars dna]
    {:pre [(== (count vars) (calc/dna-dim dna))]}
-   [vars dna])
+   (with-meta [vars dna] {:fdna true}))
   ([vars c & cs]
-   [vars (apply calc/make-dna c cs)]))
+   (with-meta [vars (apply calc/make-dna c cs)] {:fdna true})))
 
 (def FDNA->varlist first)
-(def FDNA->dna-seq second)
+(def FDNA->dna second)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -235,6 +260,7 @@
        (apply make-expr env f-chained)
        (make-expr env (apply · f-chained))))))
 
+;; ? find a different solution to represent special FORM syntrax
 (def ·<  (partial nested-expr {:unmarked? false :rightwards? false}))
 (def ·>  (partial nested-expr {:unmarked? false :rightwards? true}))
 (def ··< (partial nested-expr {:unmarked? true :rightwards? false}))
@@ -258,21 +284,64 @@
 (def ··2r'   (comp make-expr (partial SEQ-REENTRY :<..re'_)))
 (def ··2r'+1 (comp make-expr (partial SEQ-REENTRY :<..re'._)))
 
+;; Isolator FORMs/class
+(defn ·N->M [x] (· (·r (· x)) (·2r (· x))))
+(defn ·M->M [x] (· (·r x) (·2r x)))
+(defn ·U->M [x] (· (· (·r (· x)) x) (· (·2r x) (· x))))
+(defn ·I->M [x] (· (· (·r x) (· x)) (· (·2r (· x)) x)))
+
+(def const->isolator {:N ·N->M :M ·M->M :U ·U->M :I ·I->M})
+
+;; Selector FORMs/class
+;; ? extend with flipped U/I for vcross (maybe a wrapper)
+(defn ·sel
+  ([vars->consts] (·sel vars->consts true))
+  ([vars->consts simplify?]
+   (if (and simplify? (every? #{calc/M calc/N} (vals vars->consts)))
+     (apply · (map (fn [[v c]]
+                     (if (= c calc/M) (· v) v)) vars->consts))
+     (let [select-UI (fn [[v c]] (case c
+                                   :N [(· v) (· v)]
+                                   :M [v v]
+                                   :U [v (· v)]
+                                   :I [(· v) v]))
+           all-selections (map select-UI vars->consts)]
+       (·· (· (apply ·· (map first all-selections)) (· (·2r)))
+           (· (apply ·· (map second all-selections)) (· (·r))))))))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Reduction
+;; Expansion (of special FORMs to expressions of simple FORMs)
 
-(declare reduce-context)
+;;-------------------------------------------------------------------------
+;; content -> context
 
-; (defn- reduce-dna
-;   [dna env]
-;   (let [vars (keys env)]
-;     nil))
+(def expand-uform {UFORM (·r nil nil)})
+(def expand-iform {IFORM (· expand-uform)})
 
-(defn reduce-seq-reentry
-  [[sign & ctx]]
-  (let [[x & ys] ctx
-        {:keys [parity open? interpr]} (seq-reentry-sign->opts sign)
+(defn expand-unclear
+  [uncl]
+  {:pre [(unclear-tag? uncl)]}
+  (let [v (·? (UNCLEAR->label uncl))]
+    (·r v v)))
+
+(defn expand-fdna
+  [fdna]
+  {:pre [(fdna-tag? fdna)]}
+  (let [vars  (FDNA->varlist fdna)
+        vdict (calc/dna->vdict (FDNA->dna fdna) {})]
+    (apply ·· (map (fn [[vpoint res]]
+                     (apply ·
+                       (· (const->expr res))
+                       (map #(· ((const->isolator %1) %2)) vpoint vars)))
+                   vdict))))
+
+(defn expand-seq-reentry
+  [seq-re]
+  {:pre [(seq-reentry-tag? seq-re)]}
+  (let [signature        (SEQ-REENTRY->sign seq-re)
+        [x & ys :as ctx] (SEQ-REENTRY->ctx seq-re)
+        {:keys [parity open? interpr]} (seq-reentry-sign->opts signature)
         ctx       (if (zero? (count ctx)) (conj ctx nil) ctx)
         res-odd?  (odd? (count ctx))
         pre-step? (and res-odd? (not (= parity :even)))
@@ -291,7 +360,16 @@
     (make-expr (into {} [re pre open]) init)))
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Reduction
+
+;;-------------------------------------------------------------------------
+;; content -> content
+
+(declare reduce-context)
+
 (defn- reduce-matching-content
+  "Tries to reduce given content `x` to its simplest FORM if it matches a simple equivalent representation."
   ([x] (reduce-matching-content x x))
   ([x default]
    (case x
@@ -313,12 +391,13 @@
     (if (not= :failed r)
       r
       (cond
-       ; (dna-expr? x) (let [[vars dna] x]
-       ;                 )
-       ; (calc/dna? x)
-        (form? x)     (let [r (reduce-context x env)]
-                        (reduce-matching-content r))
-        (mem-form? x) nil  ;; TODO
+         ; (dna-expr? x) (let [r (expand-fdna )])
+        ; (seq-reentry-tag? x) (let [ctx (expand-seq-reentry x)
+        ;                            r   (reduce-context ctx env)]
+        ;                        (reduce-matching-content r))
+        (form? x) (let [r (reduce-context x env)]
+                    (reduce-matching-content r))
+        ; (mem-form? x) nil  ;; TODO
         :else (if-let [interpr (env x)]
                 (cond
                   (keyword? interpr) interpr
@@ -328,33 +407,42 @@
                             (list r))))
                 x)))))
 
+;;-------------------------------------------------------------------------
+;; context -> context
 
+;; ? kinda messy - how to make this more systematic
 (defn- reduce-by-calling
-  ;; kinda messy - how to make this more systematic?
+  "Tries to reduce given context to `()` if it contains the equivalent of a `MARK` or both `UFORM` and `IFORM` are present in the context and/or given `env`.
+  - remembers any occurrence of `UFORM` or `IFORM` in the `env`."
   [ctx env]
+  ;; find mark in the expression
   (if (some #{'() :M '(nil) '(:N) '((())) '((:M)) '(((nil))) '(((:N)))}
         ctx)
     ['( () ) env]
+    ;; else find and remember UFORM in the expression
+    ;; match with IFORM if seen
     (let [[seen-U seen-I] [(:U env) (:I env)]
           [seen-U env]
           (if (and (not seen-U)
-                (some #{:mn :U '(:I) '((:mn)) '((:U)) '(((:I)))}
-                  ctx))
+                (some #{:mn :U '(:I) '((:mn)) '((:U)) '(((:I)))} ctx))
             [true (assoc env :U true)]
             [seen-U env])]
       (if (and seen-U seen-I)
         ['( () ) env]
+        ;; else find and remember IFORM in the expression
+        ;; match with UFORM if seen
         (let [[seen-I env]
               (if (and (not seen-I)
-                    (some #{'(:mn) :I '(:U) '(((:mn))) '((:I)) '(((:U)))}
-                      ctx))
+                    (some #{'(:mn) :I '(:U) '(((:mn))) '((:I)) '(((:U)))} ctx))
                 [true (assoc env :I true)]
                 [seen-I env])]
           (if (and seen-U seen-I)
             ['( () ) env]
+            ;; else return original expression with updated env
             [ctx env]))))))
 
 (defn- reduce-by-crossing
+  "Tries to reduce some `((x))` to `x` for each FORM in given context."
   [ctx]
   (let [f (fn [ctx' x]
             (if (form? x)
@@ -373,14 +461,13 @@
       (if (= ctx '( () ))
         ctx
         (let [ctx' (->> ctx
-                        distinct
+                        distinct ;; by law of calling
                         (map #(reduce-content % env))
                         reduce-by-crossing
                         (remove nil?))]
           (if (= ctx' ctx)
             ctx'
             (recur ctx' env)))))))
-
 
 (defn cnt>
   "Reduces a FORM content recursively until it cannot be further reduced.
