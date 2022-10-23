@@ -5,9 +5,9 @@
 
 ;; # Expr module
 
-;; ### Primitives
+;; ## Content
 
-[nil MARK UFORM IFORM]
+[NONE MARK UFORM IFORM]
 
 (FORM MARK)
 
@@ -27,7 +27,7 @@
 
 
 ;; ---
-;; ## Expressions
+;; ## Context
 
 (··)
 
@@ -40,7 +40,7 @@
 (·· (·· 'a (·· 'b 'c)) 'd (·· 'e))
 
 
-;; ### Primitive expressions
+;; ### Expression wrapper…
 
 (·· ·none ·mark ·uform ·iform)
 
@@ -63,7 +63,7 @@
 
 (def ux (·uncl ")" '(unfug ")")))
 
-(expr/UNCLEAR->label (first ux))
+(UNCLEAR->label (first ux))
 
 
 ;; ### Self-equivalent re-entry (“seq-re”) expressions
@@ -111,9 +111,12 @@
 
 (def dx (·dna ['a] :M :U :I :N))
 
-(expr/FDNA->dna-seq (first dx))
+(FDNA->dna (first dx))
 
-(expr/FDNA->varlist (first dx))
+(FDNA->varlist (first dx))
+
+(= ·N (expand-fdna (FDNA)))
+(= ·U (expand-fdna (FDNA :U)))
 
 
 ;; ### Combination
@@ -164,14 +167,15 @@
 
 ;; ### …of content
 
-(= MARK (cnt> (·)) (cnt> (· (· (·)))))
-(= nil (cnt> (· MARK)))
-(= IFORM (cnt> (· UFORM)))
-(= UFORM (cnt> (· IFORM)))
+(= MARK (cnt> (FORM)) (cnt> (FORM (FORM MARK))))
+(= NONE (cnt> (FORM MARK)))
+(= IFORM (cnt> (FORM UFORM)))
+(= UFORM (cnt> (FORM IFORM)))
 
 ;; ### …of context
 
-(= ·M (ctx> (·· UFORM IFORM)))
+(= ·mark (ctx> (·· UFORM IFORM)))
+
 
 ;; ### irreducable FORMs/expressions
 

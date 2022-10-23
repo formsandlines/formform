@@ -46,38 +46,7 @@
   (map #(str "v__" %) (range n)))
 
 
-;; Specs
-
-(s/def :formform.specs.expr/expr-tag #(:expr (meta %)))
-(s/def :formform.specs.expr/unclear-tag #(:uncl (meta %)))
-(s/def :formform.specs.expr/seq-reentry-tag #(:seq-re (meta %)))
-(s/def :formform.specs.expr/fdna-tag #(:fdna (meta %)))
-
-(def expr-tag? (partial s/valid? :formform.specs.expr/expr-tag))
-(def unclear-tag? (partial s/valid? :formform.specs.expr/unclear-tag))
-(def seq-reentry-tag? (partial s/valid? :formform.specs.expr/seq-reentry-tag))
-(def fdna-tag? (partial s/valid? :formform.specs.expr/fdna-tag))
-
-;; ? underspecified
-(s/def :formform.specs.expr/expr
-  (s/and vector? :formform.specs.expr/expr-tag))
-
-(def expr? (partial s/valid? :formform.specs.expr/expr))
-(def form? seq?)
-; (def mem-form? map?)
-(defn variable? [x] (or (string? x) (symbol? x)))
-
-
-(defn dna-expr?
-  [x]
-  (if (expr? x)
-    (if-let [[vars dna] x]
-      (and
-        (vector? vars)
-        (calc/dna? dna)
-        (== (count vars) (calc/dna-dim dna)))
-      false)
-    false))
+;; Specs / Predicates
 
 (def seq-reentry-defaults {:parity :any, :open? false, :interpr :rec-instr})
 
@@ -119,9 +88,44 @@
                          :formform.specs.expr/seq-reentry-opts))
 
 
+(s/def :formform.specs.expr/expr-tag #(:expr (meta %)))
+
+(def expr-tag? (partial s/valid? :formform.specs.expr/expr-tag))
+
+;; ? underspecified
+(s/def :formform.specs.expr/expr
+  (s/and vector? :formform.specs.expr/expr-tag))
+
+(s/def :formform.specs.expr/fdna
+  (s/and vector? #(= (first %) :fdna)
+    #(if-let [[_ vars dna] %] ;; too much overhead?
+       (and
+         (vector? vars)
+         (calc/dna? dna)
+         (== (count vars) (calc/dna-dim dna)))
+       false)))
+
+(s/def :formform.specs.expr/unclear
+  (s/and vector? #(= (first %) :uncl)))
+
+(s/def :formform.specs.expr/seq-reentry
+  (s/and vector? #(s/valid? :formform.specs.expr/seq-reentry-signature
+                    (first %))))
+
+(def expr? (partial s/valid? :formform.specs.expr/expr))
+(def form? seq?)
+
+(defn variable? [x] (or (string? x) (symbol? x)))
+
+(def unclear? (partial s/valid? :formform.specs.expr/unclear))
+(def seq-reentry? (partial s/valid? :formform.specs.expr/seq-reentry))
+(def fdna? (partial s/valid? :formform.specs.expr/fdna))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Content
 
+(def NONE nil)
 (def MARK '())
 
 (defn FORM
@@ -134,12 +138,12 @@
 
 (defn VAR
   [x]
-  (if (or (string? x) (symbol? x) (keyword? x))
+  (if (or (string? x) (symbol? x) #_(keyword? x))
     x
     (throw (ex-info "Invalid variable type" {}))))
 
 (defn UNCLEAR
-  [x & ys] (with-meta [:unclear (apply str x ys)] {:uncl true}))
+  [x & ys] [:uncl (apply str x ys)])
 
 (def UNCLEAR->label second)
 
@@ -155,7 +159,7 @@
           (map? specs) (seq-reentry-opts->sign specs)
           :else (throw (ex-info
                          "Invalid re-entry specifications." {})))]
-    (with-meta (apply vector signature xs) {:seq-re true})))
+    (apply vector signature xs)))
 
 (def SEQ-REENTRY->sign first)
 (def SEQ-REENTRY->ctx rest)
@@ -165,18 +169,15 @@
   ([dna] (let [vars (vec (gen-vars (calc/dna-dim dna)))] (FDNA vars dna)))
   ([vars dna]
    {:pre [(== (count vars) (calc/dna-dim dna))]}
-   (with-meta [vars dna] {:fdna true}))
+   [:fdna vars dna])
   ([vars c & cs]
-   (with-meta [vars (apply calc/make-dna c cs)] {:fdna true})))
+   [:fdna vars (apply calc/make-dna c cs)]))
 
-(def FDNA->varlist first)
-(def FDNA->dna second)
-
+(def FDNA->varlist second)
+(def FDNA->dna (comp second next))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Expression / context
-
-;; Expression constructors
 
 (defn make-expr
   ([] (with-meta [] {:expr true}))
@@ -187,8 +188,6 @@
                       (if (seq env) (into [env] ctx) ctx))]
      (with-meta merged-ctx {:expr true}))))
 
-
-;; Helper
 
 ;; ? is this necessary
 (defn seq->expr [xs]
@@ -216,13 +215,17 @@
     (calc/filter-dna-seq dna-seq vpoint)))
 
 
-;; Expression types
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Expression constructors
+
+;;-------------------------------------------------------------------------
+;; Atomic expressions
 
 (def ·· make-expr)
 
 (def ·      (comp make-expr FORM))
 (def ·?     (comp make-expr VAR))
-(def ·none  (make-expr nil))
+(def ·none  (make-expr NONE))
 (def ·mark  (make-expr MARK))
 (def ·uform (make-expr UFORM))
 (def ·iform (make-expr IFORM))
@@ -284,6 +287,9 @@
 (def ··2r'   (comp make-expr (partial SEQ-REENTRY :<..re'_)))
 (def ··2r'+1 (comp make-expr (partial SEQ-REENTRY :<..re'._)))
 
+;;-------------------------------------------------------------------------
+;; Compound expressions
+
 ;; Isolator FORMs/class
 (defn ·N->M [x] (· (·r (· x)) (·2r (· x))))
 (defn ·M->M [x] (· (·r x) (·2r x)))
@@ -316,33 +322,36 @@
 ;;-------------------------------------------------------------------------
 ;; content -> context
 
-(def expand-uform {UFORM (·r nil nil)})
-(def expand-iform {IFORM (· expand-uform)})
+(def ·expanded-uform (·r NONE NONE))
+(def ·expanded-iform (· ·expanded-uform))
 
 (defn expand-unclear
   [uncl]
-  {:pre [(unclear-tag? uncl)]}
+  {:pre [(unclear? uncl)]}
   (let [v (·? (UNCLEAR->label uncl))]
     (·r v v)))
 
 (defn expand-fdna
   [fdna]
-  {:pre [(fdna-tag? fdna)]}
-  (let [vars  (FDNA->varlist fdna)
-        vdict (calc/dna->vdict (FDNA->dna fdna) {})]
-    (apply ·· (map (fn [[vpoint res]]
-                     (apply ·
-                       (· (const->expr res))
-                       (map #(· ((const->isolator %1) %2)) vpoint vars)))
-                   vdict))))
+  {:pre [(fdna? fdna)]}
+  (let [vars (FDNA->varlist fdna)
+        dna  (FDNA->dna fdna)]
+    (if (empty? vars)
+      (·· dna)
+      (let [vdict (calc/dna->vdict dna {})]
+        (apply ·· (map (fn [[vpoint res]]
+                         (apply ·
+                           (· (const->expr res))
+                           (map #(· ((const->isolator %1) %2)) vpoint vars)))
+                    vdict))))))
 
 (defn expand-seq-reentry
   [seq-re]
-  {:pre [(seq-reentry-tag? seq-re)]}
+  {:pre [(seq-reentry? seq-re)]}
   (let [signature        (SEQ-REENTRY->sign seq-re)
         [x & ys :as ctx] (SEQ-REENTRY->ctx seq-re)
         {:keys [parity open? interpr]} (seq-reentry-sign->opts signature)
-        ctx       (if (zero? (count ctx)) (conj ctx nil) ctx)
+        ctx       (if (zero? (count ctx)) (conj ctx NONE) ctx)
         res-odd?  (odd? (count ctx))
         pre-step? (and res-odd? (not (= parity :even)))
         re [:f* (apply nested-expr {:unmarked? false :rightwards? false}
@@ -358,6 +367,18 @@
                       (make-expr (if pre-step? :f2 :f*) x) ys)])
         init (if (or pre-step? open?) :f1 :f*)]
     (make-expr (into {} [re pre open]) init)))
+
+;;-------------------------------------------------------------------------
+;; context -> content
+
+(defn expand-expr
+  [expr]
+  {:pre [(expr? expr)]}
+  (if-let [env (when (map? (first expr)) (first expr))]
+    (let [eqs (map (fn [[k v]]
+                     (· (· k v) (· (· k) (· v)))) env)]
+      (FORM (apply ·· eqs) (apply · (rest expr))))
+    (FORM (apply · expr))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -485,6 +506,8 @@
   ([ctx]     (ctx> ctx {}))
   ([ctx env] (vec (reduce-context ctx env))))
 
+(def reduce-expr ctx>)
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Evaluation
@@ -499,10 +522,10 @@
    (let [[r & more :as ctx] (ctx> expr env)
          v (when (empty? more)
              (case r
-               (( )   :M) :M
-               (nil   :N) :N
-               (:mn   :U) :U
-               ((:mn) :I) :I
+               (( )   :M) calc/M
+               (nil   :N) calc/N
+               (:mn   :U) calc/U
+               ((:mn) :I) calc/I
                nil))
          m {:expr ctx :env env}]
      (if (some? v)
@@ -526,7 +549,7 @@
      (if as-dna-expr?
        (let [consts (mapv (comp first (partial => expr)) envs)]
          ;; ? dna or dna-seq (performance?)
-         (·dna vars (calc/consts->dna (rseq consts)))
+         (·dna (vec vars) (calc/consts->dna (rseq consts)))
          ; ^:expr [ ^:expr [vars (rseq consts)] ]
          )
        (let [results (map (partial => expr) envs)]
@@ -539,8 +562,9 @@
   ([expr env] (let [[x] (=> expr env)]
                 (if (calc/const? x)
                   x
-                  nil))))
+                  :_)))) ; nil?
 
+;; ? return a map of map-keys var->interpr. instead
 (defn eval-all
   "Calls `=>*` but instead of an expression returns a `vdict`"
   [expr {:keys [sorted?] :or {sorted? true}}]

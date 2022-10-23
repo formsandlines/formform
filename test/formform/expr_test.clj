@@ -248,19 +248,19 @@
 (deftest =>*-test
   (testing "Correctness of returned combinatorial space"
     (is (= (fe/=>* (fe/make-expr nil))
-           [[ '() :N ]]))
+           [[:fdna '() :N ]]))
            ; [[ '() '(:N) ]]))
     (is (= (fe/=>* (fe/make-expr nil) false)
            [[:N]]))
 
     (is (= (fe/=>* (fe/make-expr 'a))
-           [[ '(a) :MIUN ]]))
+           [[:fdna '(a) :MIUN ]]))
            ; [[ '(a) '(:M :I :U :N) ]]))
     (is (= (fe/=>* (fe/make-expr 'a) false)
            [[:N] [:U] [:I] [:M]]))
 
     (is (= (fe/=>* (fe/make-expr 'a 'b))
-           [[ '(a b) :MMMMMIMIMMUUMIUN ]]))
+           [[:fdna '(a b) :MMMMMIMIMMUUMIUN ]]))
            ; [[ '(a b) '(:M :M :M :M :M :I :M :I :M :M :U :U :M :I :U :N) ]]))
     (is (= (fe/=>* (fe/make-expr 'a 'b) false)
            [[:N] [:U] [:I] [:M]
@@ -269,7 +269,7 @@
             [:M] [:M] [:M] [:M]]))
 
     (is (= (fe/=>* (fe/make-expr 'a 'b 'c))
-           [[ '(a b c) :MMMMMMMMMMMMMMMMMMMMMIMIMMMMMIMIMMMMMMMMMMUUMMUUMMMMMIMIMMUUMIUN ]]))
+           [[:fdna '(a b c) :MMMMMMMMMMMMMMMMMMMMMIMIMMMMMIMIMMMMMMMMMMUUMMUUMMMMMIMIMMUUMIUN ]]))
            ; [[ '(a b c) '(:M :M :M :M :M :M :M :M :M :M :M :M :M :M :M :M :M :M :M :M :M :I :M :I :M :M :M :M :M :I :M :I :M :M :M :M :M :M :M :M :M :M :U :U :M :M :U :U :M :M :M :M :M :I :M :I :M :M :U :U :M :I :U :N) ]]))
     (is (= (fe/=>* (fe/make-expr 'a 'b 'c) false)
            [[:N] [:U] [:I] [:M]
@@ -295,7 +295,7 @@
 
 (deftest dna-expr?-test
   (testing "Validity of dna-expr"
-    (is (fe/dna-expr? ^:expr [['a 'b] :IUMNIUMNIUMNIUMN])))) 
+    (is (fe/fdna? ^:expr [:fdna ['a 'b] :IUMNIUMNIUMNIUMN])))) 
 
 
 (deftest vars-test
@@ -491,7 +491,9 @@
 (deftest expand-fdna-test
   ;; ! unchecked
   (testing "Correctness of transformation"
-    (is (= (fe/expand-fdna (fe/FDNA [] :M)) '[((:M))]))
+    (is (= (fe/expand-fdna (fe/FDNA)) '[:N]))
+    (is (= (fe/expand-fdna (fe/FDNA :U)) '[:U]))
+    (is (= (fe/expand-fdna (fe/FDNA [] :M)) '[:M]))
     (is (= (fe/expand-fdna (fe/FDNA ['a] :NUIM))
            '[((:M) (([:<re [(a)]] [:<..re [(a)]])))
              ((:I) ((([:<re [(a)]] a) ([:<..re a] (a)))))
@@ -538,6 +540,13 @@
            [[:<re ["foo"] ["foo"]]]))
     (is (= (fe/expand-unclear (fe/UNCLEAR #{:X :Y} #".+"))
            [[:<re ["#{:Y :X}.+"] ["#{:Y :X}.+"]]])))) 
+
+(deftest expand-expr-test
+  (testing "Correctness of transformation"
+    (is (= (fe/expand-expr (fe/·· 'x 'y))
+           '((x y))))
+    (is (= (fe/expand-expr (fe/·· {'a :M 'b :U} 'x 'y))
+           '(((a :M) ((a) (:M))) ((b :U) ((b) (:U))) (x y)))))) 
 
 
 (deftest ·N->M-test
