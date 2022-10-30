@@ -15,15 +15,38 @@
 
 (FORM UFORM IFORM)
 
-(UNCLEAR "sound of silence")
+(·· ·expanded-uform ·expanded-iform)
 
-(SEQ-REENTRY :<re 'a 'b)
 
-(FDNA)
+;; ### Special FORMs
 
-(FDNA :M)
+(defn show-expand [xs exp-f]
+  (clerk/table (mapv #(vector % ">>" (exp-f %)) xs)))
 
-(FDNA (calc/make-dna :N :U :I :M))
+(show-expand
+  [(UNCLEAR "sound of silence")]
+  expand-unclear)
+
+(show-expand
+  [(FDNA)
+   (FDNA :M)
+   (FDNA (calc/make-dna :N :U :I :M))]
+  expand-fdna)
+
+(show-expand
+  [(SEQ-REENTRY :<re 'a 'b)]
+  expand-seq-reentry)
+
+(show-expand
+  [(MEMORY [['a :U] ['b :I]] 'a 'b)]
+  expand-memory)
+
+(show-expand
+  [(·· 'a 'b 'c)]
+   expand-expr)
+
+
+[:mem [[:f [ '((a) (b)) ]]] [:mem [['a :M] ['b :N]] :f]]
 
 
 ;; ---
@@ -175,6 +198,8 @@
 ;; ### …of context
 
 (= ·mark (ctx> (·· UFORM IFORM)))
+
+(ctx> (·· {'a :M} 'a))
 
 
 ;; ### irreducable FORMs/expressions

@@ -42,12 +42,16 @@
 (defn int->const
   ([n] (int->const n nuim-code))
   ([n sort-code]
-   (sort-code n)))
+   (if (== n -1)
+    :_ ;; “hole” or variable value
+    (sort-code n))))
 
 (defn const->int
   ([c] (const->int c nuim-code))
   ([c sort-code]
-   ((zipmap sort-code (range)) c)))
+   (if (= c :_)
+     -1 ;; “hole” or variable value
+     ((zipmap sort-code (range)) c))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -209,12 +213,14 @@
                       sort-idxs)))))]
     (aux dna-seq)))
 
+
+;; ? is this correct expansion for dim > 2 (see `rel`)
 (defn expand-dna-seq
   "Expands a `dna-seq` to a given target dimension by repeating elements.
   
   Note: `dna-seq` can have any type of elements (not only constants)"
   ([dna-seq ext-dim]
-   (let [dim (int (/ (math/log (count dna-seq))
+   (let [dim (int (/ (math/log (count dna-seq)) ;; ? use dna-seq-dim instead
                      (math/log 4.0)))]
      (expand-dna-seq dna-seq dim ext-dim)))
   ([dna-seq dim ext-dim]
@@ -225,6 +231,11 @@
          (repeat (utils/pow-nat 4 (- ext-dim dim)) x)))
      '()
      dna-seq)))
+
+; (defn shrink-dna-seq
+;   [dna-seq]
+;   ...)
+
 
 (defn dna->digits
   "Converts formDNA to a string of digits.
@@ -267,10 +278,32 @@
     (dna-seq? (first cs)) (flatten-dna-seq cs)
     :else (throw (ex-info "unsupported type" {:args cs}))))
 
-;; TODO
+
 (defn filter-dna-seq
-  [dna-seq vpoint]
-  nil)
+  [dna-seq depth-selections]
+  (let [dim (dna-seq-dim dna-seq)]
+    (if (== dim (count depth-selections))
+      (let [f (fn [pos depth] (* pos (utils/pow-nat 4 (- dim depth))))
+            depth-offsets (map (fn [pos depth]
+                                 (if (== pos -1)
+                                   (map #(f % depth) (range 0 4))
+                                   (list (f pos depth))))
+                               depth-selections (drop 1 (range)))
+            idxs (set (map #(apply + %)
+                           (apply combo/cartesian-product depth-offsets)))
+            n (dec (count dna-seq))]
+        (for [[c i] (map vector dna-seq (range))
+              :when (idxs (- n i))]
+          c))
+      (throw
+       (ex-info "Size of selection vector must be equal to dna-seq dimension!"
+                {:expected dim :actual (count depth-selections)})))))
+
+(defn filter-dna
+  "Filters a `dna` by selecting specific parts corresponding to a given `vpoint`, which acts as a coordinate vector in its value space.
+  - use holes `:_` to indicate a variable selection"
+  [dna vpoint]
+  (consts->dna (filter-dna-seq (dna->consts dna) (map const->int vpoint))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -286,7 +319,9 @@
        (< dim 2)                     [perm-order dna-seq]
        (= perm-order (range dim))    [perm-order dna-seq]
        ;; fast-ish for up to 10 dimensions, have not tested beyond 12
-       (and limit? (> dim 12))       (throw (ex-info "Aborted: operation too expensive for dimensions greater than 12. Set `:limit?` to false to proceed." {:input [dna-seq perm-order]}))
+       (and limit? (> dim 12))       (throw
+                                      (ex-info "Aborted: operation too expensive for dimensions greater than 12. Set `:limit?` to false to proceed."
+                                               {:input [dna-seq perm-order]}))
        :else
        (let [int->quat-str (fn [n] (utils/pad-left (utils/int->nbase n 4)
                                                    dim "0"))
@@ -317,7 +352,7 @@
   ([dna perm-order] (permute-dna dna perm-order {}))
   ([dna perm-order opts]
    (consts->dna
-     (permute-dna-seq (dna->consts dna) perm-order opts))))
+    (permute-dna-seq (dna->consts dna) perm-order opts))))
 
 (defn dna-perspectives
   ([dna] (dna-perspectives dna {}))
@@ -349,7 +384,7 @@
   [x]
   (and (dna-seq-dim x) (every? vpoint? x)))
 
-(defn vspace 
+(defn vspace
   "Generates a vspace of dimension `dim`, optionally with custom `sort-code`."
   ([dim] (vspace dim nuim-code))
   ([dim sort-code]
@@ -412,7 +447,7 @@
                (if (< i dim)
                  (let [group (group-by #(nth % i) vspc)]
                    (update-vals group
-                     #(f (inc i) %)))
+                                #(f (inc i) %)))
                  (vdict (first vspc))))]
     (aux 0 vspc)))
 
@@ -443,10 +478,10 @@
                  adim (dna-dim a)
                  bdim (dna-dim b)]
              (consts->dna
-               (cond
-                 (= adim bdim) (map rel acs bcs)
-                 (> adim bdim) (map rel acs (expand-dna-seq bcs adim))
-                 :else     (map rel (expand-dna-seq acs bdim) bcs))))))
+              (cond
+                (= adim bdim) (map rel acs bcs)
+                (> adim bdim) (map rel acs (expand-dna-seq bcs adim))
+                :else         (map rel (expand-dna-seq acs bdim) bcs))))))
   ([a b & xs] (rel a (reduce rel b xs))))
 ;; alias
 (def -- rel)
@@ -468,5 +503,8 @@
   ([a & xs] (inv (apply rel (cons a xs)))))
 ;; alias
 (def | inv)
+
+
+
 
 

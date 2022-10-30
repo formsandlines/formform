@@ -3,7 +3,7 @@
             [formform.expr :as fe]))
 
 (deftest cnt>-test
-  (testing "Simple expressions"
+  (testing "Simple content"
     (testing "FORM"
       (testing "equal"
         (are [x y] (= x y)
@@ -38,13 +38,13 @@
         (is (= (fe/cnt> "a") "a")))
 
       (testing "with env"
-        (is (= (fe/cnt> 'a {'a [ :M ]})
-               (fe/cnt> '(a) {'a [ :N ]})
-               (fe/cnt> '((a (b))) {'a [ :I ] 'b [ :I ]})
+        (is (= (fe/cnt> 'a {'a fe/·M})
+               (fe/cnt> '(a) {'a fe/·N})
+               (fe/cnt> '((a (b))) {'a fe/·I 'b fe/·I})
                '()))
-        (is (= (fe/cnt> "a" {"a" [ :U ]}) :mn)))))
+        (is (= (fe/cnt> "a" {"a" fe/·U}) :mn)))))
 
-  (testing "Nested expressions"
+  (testing "Nested content"
     (testing "reduced by calling"
       (is (= (fe/cnt> '(nil () nil () nil))
              (fe/cnt> '(() :M (:N)))
@@ -121,13 +121,13 @@
                [ 'a "a" ])))
 
       (testing "with env"
-        (is (= (fe/ctx> [ 'a 'a ] {'a [ :U ]})
+        (is (= (fe/ctx> [ 'a 'a ] {'a :U})
                [ :mn ]))
-        (is (= (fe/ctx> [ 'a 'b ] {'a [ :U ] 'b [ :I ]})
+        (is (= (fe/ctx> [ 'a 'b ] {'a :U 'b :I})
                [ '() ]))
-        (is (= (fe/ctx> [ 'a "a" ] {'a [ :U ] "a" [ :I ]}) ;; should be equal?
+        (is (= (fe/ctx> [ 'a "a" ] {'a fe/·U "a" fe/·I}) ;; should be equal?
                [ '() ]))
-        (is (= (fe/ctx> [ 'a 'b ] {'a [ :U ]})
+        (is (= (fe/ctx> [ 'a 'b ] {'a fe/·U})
                [ :mn 'b ]))))
 
     (testing "mixed"
@@ -201,18 +201,25 @@
       (is (= (fe/ctx> '[ :U ((a :I) :U) ])
              [ '() ]))
       (is (= (fe/ctx> '[ :I ((a (b :U (c))) c) ])
-             [ '(:mn) '((a) c) ]))
-      ))
+             [ '(:mn) '((a) c) ]))))
+
+  (testing "Degeneration in nested expressions"
+    (is (= (fe/ctx> '[ a b (a c (c a d)) ] {})
+       '[ a b (c (d)) ]))
+    (is (= (fe/ctx> '[ (a (b a c) (a c (b c d a))) ] {})
+       '[ (a (b c) (c (b d))) ]))
+    (is (= (fe/ctx> '[ x (a (b x)) (y (a x (b x))) ])
+       '[ x (a (b)) (y) ])))
 
   (testing "Long relations"
-    (is (= (fe/ctx> (repeat 1000 nil)) [ ]))
-    (is (= (fe/ctx> (repeat 1000 '())) [ '() ]))
-    (is (= (fe/ctx> (repeat 1000 :mn)) [ :mn ]))
-    (is (= (fe/ctx> (repeat 1000 '(:mn))) [ '(:mn) ]))
-    (is (= (fe/ctx> (repeat 1000 :N)) [ ]))
-    (is (= (fe/ctx> (repeat 1000 :M)) [ '() ]))
-    (is (= (fe/ctx> (repeat 1000 :U)) [ :mn ]))
-    (is (= (fe/ctx> (repeat 1000 :I)) [ '(:mn) ])))) 
+    (is (= (fe/ctx> (repeat 100 nil)) [ ]))
+    (is (= (fe/ctx> (repeat 100 '())) [ '() ]))
+    (is (= (fe/ctx> (repeat 100 :mn)) [ :mn ]))
+    (is (= (fe/ctx> (repeat 100 '(:mn))) [ '(:mn) ]))
+    (is (= (fe/ctx> (repeat 100 :N)) [ ]))
+    (is (= (fe/ctx> (repeat 100 :M)) [ '() ]))
+    (is (= (fe/ctx> (repeat 100 :U)) [ :mn ]))
+    (is (= (fe/ctx> (repeat 100 :I)) [ '(:mn) ])))) 
 
 
 (deftest =>-test
@@ -241,8 +248,8 @@
     (is (fe/expr-tag? (fe/=> (fe/make-expr 'a))))
     (is (= (meta (fe/=> (fe/make-expr 'a)))
            {:expr ['a], :env {}}))
-    (is (= (meta (fe/=> (fe/make-expr 'a) {'a [ :M ]}))
-           {:expr [()], :env {'a [:M]}}))))
+    (is (= (meta (fe/=> (fe/make-expr 'a) {'a :M}))
+           {:expr [()], :env {'a :M}}))))
 
 
 (deftest =>*-test
@@ -401,91 +408,69 @@
   (testing "Shape of empty expression"
     (are [x y] (= x y)
          ;; ? should nil be removed or valuable to retain context?
-      (f (seqre-opts 0))  '[{:f* [((:f* nil) nil)], :f1 [(:f* nil)]} :f1]
-      (f (seqre-opts 1))  '[{:f* [((:f* nil) nil)]} :f*]
-      (f (seqre-opts 2))  '[{:f* [((:f* nil) nil)], :f1 [(:f* nil)]} :f1]
-      (f (seqre-opts 3))  '[{:f* [((:f* nil) nil)], :f2 [(:f* nil)], 
-                             :f1 [:f2 nil]} :f1]
-      (f (seqre-opts 4))  '[{:f* [((:f* nil) nil)], :f1 [:f* nil]} :f1]
-      (f (seqre-opts 5))  '[{:f* [((:f* nil) nil)], :f2 [(:f* nil)], 
-                             :f1 [:f2 nil]} :f1]
+      (f (seqre-opts 0))  '[[:mem [[:f* [((:f* nil) nil)]] [:f1 [(:f* nil)]]] :f1]]
+      (f (seqre-opts 1))  '[[:mem [[:f* [((:f* nil) nil)]]] :f*]]
+      (f (seqre-opts 2))  '[[:mem [[:f* [((:f* nil) nil)]] [:f1 [(:f* nil)]]] :f1]]
+      (f (seqre-opts 3))  '[[:mem [[:f* [((:f* nil) nil)]] [:f2 [(:f* nil)]] [:f1 [:f2 nil]]] :f1]]
+      (f (seqre-opts 4))  '[[:mem [[:f* [((:f* nil) nil)]] [:f1 [:f* nil]]] :f1]]
+      (f (seqre-opts 5))  '[[:mem [[:f* [((:f* nil) nil)]] [:f2 [(:f* nil)]] [:f1 [:f2 nil]]] :f1]]
 
-      (f (seqre-opts 6))  '[{:f* [((:f* nil) nil)], :f1 [(:f* nil)]} :f1]
-      (f (seqre-opts 7))  '[{:f* [((:f* nil) nil)]} :f*]
-      (f (seqre-opts 8))  '[{:f* [((:f* nil) nil)], :f1 [(:f* nil)]} :f1]
-      (f (seqre-opts 9))  '[{:f* [((:f* nil) nil)], :f2 [(:f* nil)], 
-                             :f1 [:f2 nil]} :f1]
-      (f (seqre-opts 10)) '[{:f* [((:f* nil) nil)], :f1 [:f* nil]} :f1]
-      (f (seqre-opts 11)) '[{:f* [((:f* nil) nil)], :f2 [(:f* nil)], 
-                             :f1 [:f2 nil]} :f1]))
+      (f (seqre-opts 6))  '[[:mem [[:f* [((:f* nil) nil)]] [:f1 [(:f* nil)]]] :f1]]
+      (f (seqre-opts 7))  '[[:mem [[:f* [((:f* nil) nil)]]] :f*]]
+      (f (seqre-opts 8))  '[[:mem [[:f* [((:f* nil) nil)]] [:f1 [(:f* nil)]]] :f1]]
+      (f (seqre-opts 9))  '[[:mem [[:f* [((:f* nil) nil)]] [:f2 [(:f* nil)]] [:f1 [:f2 nil]]] :f1]]
+      (f (seqre-opts 10)) '[[:mem [[:f* [((:f* nil) nil)]] [:f1 [:f* nil]]] :f1]]
+      (f (seqre-opts 11)) '[[:mem [[:f* [((:f* nil) nil)]] [:f2 [(:f* nil)]] [:f1 [:f2 nil]]] :f1]]))
 
   (testing "Shape of expressions with resolution 1"
     (are [x y] (= x y)
          ;; ? should redundant content (inner 'a) be reduced?
-      (f (seqre-opts 0) 'a)  '[{:f* [((:f* a) a)], :f1 [(:f* a)]} :f1]
-      (f (seqre-opts 1) 'a)  '[{:f* [((:f* a) a)]} :f*]
-      (f (seqre-opts 2) 'a)  '[{:f* [((:f* a) a)], :f1 [(:f* a)]} :f1]
-      (f (seqre-opts 3) 'a)  '[{:f* [((:f* a) a)], :f2 [(:f* a)], 
-                                :f1 [:f2 a]} :f1]
-      (f (seqre-opts 4) 'a)  '[{:f* [((:f* a) a)], :f1 [:f* a]} :f1]
-      (f (seqre-opts 5) 'a)  '[{:f* [((:f* a) a)], :f2 [(:f* a)], 
-                                :f1 [:f2 a]} :f1]
+      (f (seqre-opts 0) 'a)  '[[:mem [[:f* [((:f* a) a)]] [:f1 [(:f* a)]]] :f1]]
+      (f (seqre-opts 1) 'a)  '[[:mem [[:f* [((:f* a) a)]]] :f*]]
+      (f (seqre-opts 2) 'a)  '[[:mem [[:f* [((:f* a) a)]] [:f1 [(:f* a)]]] :f1]]
+      (f (seqre-opts 3) 'a)  '[[:mem [[:f* [((:f* a) a)]] [:f2 [(:f* a)]] [:f1 [:f2 a]]] :f1]]
+      (f (seqre-opts 4) 'a)  '[[:mem [[:f* [((:f* a) a)]] [:f1 [:f* a]]] :f1]]
+      (f (seqre-opts 5) 'a)  '[[:mem [[:f* [((:f* a) a)]] [:f2 [(:f* a)]] [:f1 [:f2 a]]] :f1]]
 
-      (f (seqre-opts 6) 'a)  '[{:f* [((:f* a) a)], :f1 [(:f* a)]} :f1]
-      (f (seqre-opts 7) 'a)  '[{:f* [((:f* a) a)]} :f*]
-      (f (seqre-opts 8) 'a)  '[{:f* [((:f* a) a)], :f1 [(:f* a)]} :f1]
-      (f (seqre-opts 9) 'a)  '[{:f* [((:f* a) a)], :f2 [(:f* a)], 
-                                :f1 [:f2 a]} :f1]
-      (f (seqre-opts 10) 'a) '[{:f* [((:f* a) a)], :f1 [:f* a]} :f1]
-      (f (seqre-opts 11) 'a) '[{:f* [((:f* a) a)], :f2 [(:f* a)], 
-                                :f1 [:f2 a]} :f1]))
+      (f (seqre-opts 6) 'a)  '[[:mem [[:f* [((:f* a) a)]] [:f1 [(:f* a)]]] :f1]]
+      (f (seqre-opts 7) 'a)  '[[:mem [[:f* [((:f* a) a)]]] :f*]]
+      (f (seqre-opts 8) 'a)  '[[:mem [[:f* [((:f* a) a)]] [:f1 [(:f* a)]]] :f1]]
+      (f (seqre-opts 9) 'a)  '[[:mem [[:f* [((:f* a) a)]] [:f2 [(:f* a)]] [:f1 [:f2 a]]] :f1]]
+      (f (seqre-opts 10) 'a) '[[:mem [[:f* [((:f* a) a)]] [:f1 [:f* a]]] :f1]]
+      (f (seqre-opts 11) 'a) '[[:mem [[:f* [((:f* a) a)]] [:f2 [(:f* a)]] [:f1 [:f2 a]]] :f1]]))
 
   (testing "Shape of expressions with even resolution"
     (are [x y] (= x y)
          ;; ? should even/odd construct redundant re-entries?
-      (f (seqre-opts 0) 'a 'b)  '[{:f* [((:f* a) b)]} :f*]
-      (f (seqre-opts 1) 'a 'b)  '[{:f* [((:f* a) b)]} :f*]
-      (f (seqre-opts 2) 'a 'b)  '[{:f* [((:f* a) b)]} :f*]
-      (f (seqre-opts 3) 'a 'b)  '[{:f* [((:f* a) b)], :f1 [(:f* a) b]} :f1]
-      (f (seqre-opts 4) 'a 'b)  '[{:f* [((:f* a) b)], :f1 [(:f* a) b]} :f1]
-      (f (seqre-opts 5) 'a 'b)  '[{:f* [((:f* a) b)], :f1 [(:f* a) b]} :f1]
+      (f (seqre-opts 0) 'a 'b)  '[[:mem [[:f* [((:f* a) b)]]] :f*]]
+      (f (seqre-opts 1) 'a 'b)  '[[:mem [[:f* [((:f* a) b)]]] :f*]]
+      (f (seqre-opts 2) 'a 'b)  '[[:mem [[:f* [((:f* a) b)]]] :f*]]
+      (f (seqre-opts 3) 'a 'b)  '[[:mem [[:f* [((:f* a) b)]] [:f1 [(:f* a) b]]] :f1]]
+      (f (seqre-opts 4) 'a 'b)  '[[:mem [[:f* [((:f* a) b)]] [:f1 [(:f* a) b]]] :f1]]
+      (f (seqre-opts 5) 'a 'b)  '[[:mem [[:f* [((:f* a) b)]] [:f1 [(:f* a) b]]] :f1]]
 
-      (f (seqre-opts 6) 'a 'b)  '[{:f* [((:f* a) b)]} :f*]
-      (f (seqre-opts 7) 'a 'b)  '[{:f* [((:f* a) b)]} :f*]
-      (f (seqre-opts 8) 'a 'b)  '[{:f* [((:f* a) b)]} :f*]
-      (f (seqre-opts 9) 'a 'b)  '[{:f* [((:f* a) b)], :f1 [(:f* a) b]} :f1]
-      (f (seqre-opts 10) 'a 'b) '[{:f* [((:f* a) b)], :f1 [(:f* a) b]} :f1]
-      (f (seqre-opts 11) 'a 'b) '[{:f* [((:f* a) b)], :f1 [(:f* a) b]} :f1]))
+      (f (seqre-opts 6) 'a 'b)  '[[:mem [[:f* [((:f* a) b)]]] :f*]]
+      (f (seqre-opts 7) 'a 'b)  '[[:mem [[:f* [((:f* a) b)]]] :f*]]
+      (f (seqre-opts 8) 'a 'b)  '[[:mem [[:f* [((:f* a) b)]]] :f*]]
+      (f (seqre-opts 9) 'a 'b)  '[[:mem [[:f* [((:f* a) b)]] [:f1 [(:f* a) b]]] :f1]]
+      (f (seqre-opts 10) 'a 'b) '[[:mem [[:f* [((:f* a) b)]] [:f1 [(:f* a) b]]] :f1]]
+      (f (seqre-opts 11) 'a 'b) '[[:mem [[:f* [((:f* a) b)]] [:f1 [(:f* a) b]]] :f1]]))
   
   (testing "Shape of expressions with odd resolution"
     (are [x y] (= x y)
-      (f (seqre-opts 0) 'a 'b 'c)  '[{:f* [((((((:f* a) b) c) a) b) c)], 
-                                      :f1 [(((:f* a) b) c)]} :f1]
-      (f (seqre-opts 1) 'a 'b 'c)  '[{:f* [((((((:f* a) b) c) a) b) c)]} :f*]
-      (f (seqre-opts 2) 'a 'b 'c)  '[{:f* [((((((:f* a) b) c) a) b) c)], 
-                                      :f1 [(((:f* a) b) c)]} :f1]
-      (f (seqre-opts 3) 'a 'b 'c)  '[{:f* [((((((:f* a) b) c) a) b) c)], 
-                                      :f2 [(((:f* a) b) c)], 
-                                      :f1 [((:f2 a) b) c]} :f1]
-      (f (seqre-opts 4) 'a 'b 'c)  '[{:f* [((((((:f* a) b) c) a) b) c)], 
-                                      :f1 [((:f* a) b) c]} :f1]
-      (f (seqre-opts 5) 'a 'b 'c)  '[{:f* [((((((:f* a) b) c) a) b) c)], 
-                                      :f2 [(((:f* a) b) c)], 
-                                      :f1 [((:f2 a) b) c]} :f1]
+      (f (seqre-opts 0) 'a 'b 'c)  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f1 [(((:f* a) b) c)]]] :f1]]
+      (f (seqre-opts 1) 'a 'b 'c)  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]]] :f*]]
+      (f (seqre-opts 2) 'a 'b 'c)  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f1 [(((:f* a) b) c)]]] :f1]]
+      (f (seqre-opts 3) 'a 'b 'c)  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f2 [(((:f* a) b) c)]] [:f1 [((:f2 a) b) c]]] :f1]]
+      (f (seqre-opts 4) 'a 'b 'c)  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f1 [((:f* a) b) c]]] :f1]]
+      (f (seqre-opts 5) 'a 'b 'c)  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f2 [(((:f* a) b) c)]] [:f1 [((:f2 a) b) c]]] :f1]]
 
-      (f (seqre-opts 6) 'a 'b 'c)  '[{:f* [((((((:f* a) b) c) a) b) c)], 
-                                      :f1 [(((:f* a) b) c)]} :f1]
-      (f (seqre-opts 7) 'a 'b 'c)  '[{:f* [((((((:f* a) b) c) a) b) c)]} :f*]
-      (f (seqre-opts 8) 'a 'b 'c)  '[{:f* [((((((:f* a) b) c) a) b) c)], 
-                                      :f1 [(((:f* a) b) c)]} :f1]
-      (f (seqre-opts 9) 'a 'b 'c)  '[{:f* [((((((:f* a) b) c) a) b) c)], 
-                                      :f2 [(((:f* a) b) c)], 
-                                      :f1 [((:f2 a) b) c]} :f1]
-      (f (seqre-opts 10) 'a 'b 'c) '[{:f* [((((((:f* a) b) c) a) b) c)], 
-                                      :f1 [((:f* a) b) c]} :f1]
-      (f (seqre-opts 11) 'a 'b 'c) '[{:f* [((((((:f* a) b) c) a) b) c)], 
-                                      :f2 [(((:f* a) b) c)], 
-                                      :f1 [((:f2 a) b) c]} :f1]))) 
+      (f (seqre-opts 6) 'a 'b 'c)  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f1 [(((:f* a) b) c)]]] :f1]]
+      (f (seqre-opts 7) 'a 'b 'c)  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]]] :f*]]
+      (f (seqre-opts 8) 'a 'b 'c)  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f1 [(((:f* a) b) c)]]] :f1]]
+      (f (seqre-opts 9) 'a 'b 'c)  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f2 [(((:f* a) b) c)]] [:f1 [((:f2 a) b) c]]] :f1]]
+      (f (seqre-opts 10) 'a 'b 'c) '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f1 [((:f* a) b) c]]] :f1]]
+      (f (seqre-opts 11) 'a 'b 'c) '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f2 [(((:f* a) b) c)]] [:f1 [((:f2 a) b) c]]] :f1]]))) 
 
 
 (deftest expand-fdna-test
@@ -545,7 +530,12 @@
   (testing "Correctness of transformation"
     (is (= (fe/expand-expr (fe/·· 'x 'y))
            '((x y))))
-    (is (= (fe/expand-expr (fe/·· {'a :M 'b :U} 'x 'y))
+    (is (= (fe/expand-expr (fe/·mem [['a :M] ['b :U]] (fe/·· 'x 'y)))
+           '(([:mem [[a :M] [b :U]] x y])))))) 
+
+(deftest expand-memory-test
+      (testing "Correctness of transformation"
+        (is (= (fe/expand-memory (first (fe/·mem [['a :M] ['b :U]] 'x 'y)))
            '(((a :M) ((a) (:M))) ((b :U) ((b) (:U))) (x y)))))) 
 
 
@@ -579,4 +569,8 @@
            '[(([:<..re])) (([:<re]))]))
     (is (= (fe/·sel {'a :M} false)
            '[(a ([:<..re])) (a ([:<re]))])))) 
+
+
+
+
 

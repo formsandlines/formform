@@ -1,5 +1,5 @@
 (ns user
-  (:require [clojure.string]
+  (:require [flow-storm.api :as fs-api]
             [nextjournal.clerk :as clerk]))
 
 
@@ -12,3 +12,4 @@
 ;; or let Clerk watch the given `:paths` for changes
 (clerk/serve! {:watch-paths ["notebooks"]})
 
+(fs-api/local-connect)

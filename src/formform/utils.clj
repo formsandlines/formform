@@ -22,8 +22,12 @@
         bstr (to-str b)]
     (compare astr bstr)))
 
+; (defn extend-meta [x metadata]
+;   (with-meta x (merge (meta x) metadata)))
 
 (comment
+
+  ; (meta (extend-meta (with-meta ['x] {:foo true}) {:bar true}))
 
   
   )
