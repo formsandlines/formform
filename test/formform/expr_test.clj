@@ -78,7 +78,9 @@
              (fe/cnt> '(((:U)) ((:I))))
              nil))
       (is (= (fe/cnt> '(((a))))
-             '(a))))
+             '(a)))
+      (is (= (fe/cnt> '(((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((x))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) {'x :U})
+             '(:mn))))
 
     (testing "irreducable"
       (is (= (fe/cnt> '(a b))
@@ -219,7 +221,7 @@
     (is (= (fe/ctx> (repeat 100 :N)) [ ]))
     (is (= (fe/ctx> (repeat 100 :M)) [ '() ]))
     (is (= (fe/ctx> (repeat 100 :U)) [ :mn ]))
-    (is (= (fe/ctx> (repeat 100 :I)) [ '(:mn) ])))) 
+    (is (= (fe/ctx> (repeat 100 :I)) [ '(:mn) ]))))
 
 
 (deftest =>-test
@@ -400,77 +402,183 @@
     (is (fe/expr?
           (second (first (fe/·seq-re {} (fe/·· 'x 'y) 'z)))))))
 
-(def f (fn [opts & ctx] (fe/expand-seq-reentry
-                          (first (apply fe/·seq-re opts ctx)))))
+(deftest reduce-seq-reentry-test
+  (testing "Reduction of primitive seq-re types"
+    (are [x1 x2 y] (= (#'fe/reduce-seq-reentry (first x1) {})
+                      (#'fe/reduce-seq-reentry (first x2) {}) y)
+      (fe/·r [])     (fe/·r' [])     fe/IFORM
+      (fe/·2r [])    (fe/·2r' [])    fe/UFORM
+      (fe/·2r+1 [])  (fe/·2r'+1 [])  fe/IFORM
+      (fe/··r [])    (fe/··r' [])    fe/IFORM
+      (fe/··2r [])   (fe/··2r' [])   fe/UFORM
+      (fe/··2r+1 []) (fe/··2r'+1 []) fe/IFORM)
+
+    (are [x1 x2 y] (= (#'fe/reduce-seq-reentry (first x1) {})
+                      (#'fe/reduce-seq-reentry (first x2) {}) y)
+      (fe/·r [] [])     (fe/·r' [] [])     fe/UFORM
+      (fe/·2r [] [])    (fe/·2r' [] [])    fe/UFORM
+      (fe/·2r+1 [] [])  (fe/·2r'+1 [] [])  fe/UFORM
+      (fe/··r [] [])    (fe/··r' [] [])    fe/IFORM
+      (fe/··2r [] [])   (fe/··2r' [] [])   fe/IFORM
+      (fe/··2r+1 [] []) (fe/··2r'+1 [] []) fe/IFORM))
+
+  (testing "Reduction from all possible ambiguous cases"
+    (let [f (fn [x] (#'fe/reduce-seq-reentry (first x) {}))]
+      (is (= (f (fe/·r [fe/UFORM] []))     (f (fe/·r [fe/IFORM] []))
+             (f (fe/·2r [fe/UFORM] []))    (f (fe/·2r [fe/IFORM] []))
+             (f (fe/·2r+1 [fe/UFORM] []))  (f (fe/·2r+1 [fe/IFORM] []))
+             (f (fe/··r [fe/UFORM] []))    (f (fe/··r [fe/IFORM] []))
+             (f (fe/··2r [fe/UFORM] []))   (f (fe/··2r [fe/IFORM] []))
+             (f (fe/··2r+1 [fe/UFORM] [])) (f (fe/··2r+1 [fe/IFORM] []))
+             fe/IFORM))
+      (is (= (f (fe/··r' [fe/UFORM] []))
+             (f (fe/··2r' [fe/UFORM] [])) (f (fe/··2r'+1 [fe/UFORM] []))
+             (f (fe/··r' [fe/IFORM] []))
+             (f (fe/··2r' [fe/IFORM] [])) (f (fe/··2r'+1 [fe/IFORM] []))
+             fe/IFORM))
+      ;; Exceptions in alternative interpretation
+      (is (= (f (fe/·r' [fe/UFORM] []))
+             (f (fe/·2r' [fe/UFORM] [])) (f (fe/·2r'+1 [fe/UFORM] []))
+             fe/UFORM))
+      (is (= (f (fe/·r' [fe/IFORM] []))
+             (f (fe/·2r' [fe/IFORM] [])) (f (fe/·2r'+1 [fe/IFORM] []))
+             fe/MARK))
+      ))
+
+  (testing "Non-reduction of uninterpreted expressions"
+    (are [x y] (= (#'fe/reduce-seq-reentry (first x) {}) y)
+      (fe/·r ['a] [])     '[:<re [a] []]
+      (fe/·2r ['a] [])    '[:<..re [a] []]
+      (fe/·2r+1 ['a] [])  '[:<..re. [a] []]
+      (fe/··r ['a] [])    '[:<re_ [a] []]
+      (fe/··2r ['a] [])   '[:<..re_ [a] []]
+      (fe/··2r+1 ['a] []) '[:<..re._ [a] []]
+
+      (fe/·r' ['a] [])     '((:mn a))
+      (fe/·2r' ['a] [])    '((:mn a))
+      (fe/·2r'+1 ['a] [])  '((:mn a))
+      (fe/··r' ['a] [])    '[:<re'_ [a] []]
+      (fe/··2r' ['a] [])   '[:<..re'_ [a] []]
+      (fe/··2r'+1 ['a] []) '[:<..re'._ [a] []])
+
+    (are [x y] (= (#'fe/reduce-seq-reentry (first x) {}) y)
+      (fe/·r ['a])     '[:<re [a]]
+      (fe/·2r ['a])    '[:<..re [a]]
+      (fe/·2r+1 ['a])  '[:<..re. [a]]
+      (fe/··r ['a])    '[:<re_ [a]]
+      (fe/··2r ['a])   '[:<..re_ [a]]
+      (fe/··2r+1 ['a]) '[:<..re._ [a]]
+
+      (fe/·r' ['a])     '[:<re' [a]]
+      (fe/·2r' ['a])    '[:<..re' [a]]
+      (fe/·2r'+1 ['a])  '[:<..re'. [a]]
+      (fe/··r' ['a])    '(((:mn) a))
+      (fe/··2r' ['a])   '((:mn a))
+      (fe/··2r'+1 ['a]) '(((:mn) a)))
+
+    (are [x y] (= (#'fe/reduce-seq-reentry (first x) {}) y)
+      (fe/·r [] ['a])     '[:<re [] [a]]
+      (fe/·2r [] ['a])    '[:<..re [] [a]]
+      (fe/·2r+1 [] ['a])  '[:<..re. [] [a]]
+      (fe/··r [] ['a])    '[:<re_ [] [a]]
+      (fe/··2r [] ['a])   '[:<..re_ [] [a]]
+      (fe/··2r+1 [] ['a]) '[:<..re._ [] [a]]
+
+      (fe/·r' [] ['a])     '[:<re' [] [a]]
+      (fe/·2r' [] ['a])    '[:<..re' [] [a]]
+      (fe/·2r'+1 [] ['a])  '[:<..re'. [] [a]]
+      (fe/··r' [] ['a])    '(((:mn) a))
+      (fe/··2r' [] ['a])   '(((:mn) a))
+      (fe/··2r'+1 [] ['a]) '(((:mn) a)))
+
+    (are [x y] (= (#'fe/reduce-seq-reentry (first x) {}) y)
+      (fe/·r [] ['a] [])     '[:<re [] [a] []]
+      (fe/·2r [] ['a] [])    '[:<..re [] [a] []]
+      (fe/·2r+1 [] ['a] [])  '[:<..re. [] [a] []]
+      (fe/··r [] ['a] [])    '[:<re_ [] [a] []]
+      (fe/··2r [] ['a] [])   '[:<..re_ [] [a] []]
+      (fe/··2r+1 [] ['a] []) '[:<..re._ [] [a] []]
+
+      (fe/·r' [] ['a] [])     '(((:mn) a))
+      (fe/·2r' [] ['a] [])    '((:mn a))
+      (fe/·2r'+1 [] ['a] [])  '(((:mn) a))
+      (fe/··r' [] ['a] [])    '[:<re'_ [] [a] []]   
+      (fe/··2r' [] ['a] [])   '[:<..re'_ [] [a] []] 
+      (fe/··2r'+1 [] ['a] []) '[:<..re'._ [] [a] []])
+
+    )
+  )
 
 ;; ! check more thoroughly if these are correct
-(deftest expand-seq-re-test
-  (testing "Shape of empty expression"
-    (are [x y] (= x y)
+(let [f (fn f [opts & ctx] (fe/expand-seq-reentry
+                            (first (apply fe/·seq-re opts ctx))))]
+  (deftest expand-seq-re-test
+    (testing "Shape of empty expression"
+      (are [x y] (= x y)
          ;; ? should nil be removed or valuable to retain context?
-      (f (seqre-opts 0))  '[[:mem [[:f* [((:f* nil) nil)]] [:f1 [(:f* nil)]]] :f1]]
-      (f (seqre-opts 1))  '[[:mem [[:f* [((:f* nil) nil)]]] :f*]]
-      (f (seqre-opts 2))  '[[:mem [[:f* [((:f* nil) nil)]] [:f1 [(:f* nil)]]] :f1]]
-      (f (seqre-opts 3))  '[[:mem [[:f* [((:f* nil) nil)]] [:f2 [(:f* nil)]] [:f1 [:f2 nil]]] :f1]]
-      (f (seqre-opts 4))  '[[:mem [[:f* [((:f* nil) nil)]] [:f1 [:f* nil]]] :f1]]
-      (f (seqre-opts 5))  '[[:mem [[:f* [((:f* nil) nil)]] [:f2 [(:f* nil)]] [:f1 [:f2 nil]]] :f1]]
+        (f (seqre-opts 0))  '[[:mem [[:f* [((:f*))]] [:f1 [(:f*)]]] :f1]]
+        (f (seqre-opts 1))  '[[:mem [[:f* [((:f*))]]] :f*]]
+        (f (seqre-opts 2))  '[[:mem [[:f* [((:f*))]] [:f1 [(:f*)]]] :f1]]
+        (f (seqre-opts 3))  '[[:mem [[:f* [((:f*))]] [:f2 [(:f*)]] [:f1 [:f2]]] :f1]]
+        (f (seqre-opts 4))  '[[:mem [[:f* [((:f*))]] [:f1 [:f*]]] :f1]]
+        (f (seqre-opts 5))  '[[:mem [[:f* [((:f*))]] [:f2 [(:f*)]] [:f1 [:f2]]] :f1]]
 
-      (f (seqre-opts 6))  '[[:mem [[:f* [((:f* nil) nil)]] [:f1 [(:f* nil)]]] :f1]]
-      (f (seqre-opts 7))  '[[:mem [[:f* [((:f* nil) nil)]]] :f*]]
-      (f (seqre-opts 8))  '[[:mem [[:f* [((:f* nil) nil)]] [:f1 [(:f* nil)]]] :f1]]
-      (f (seqre-opts 9))  '[[:mem [[:f* [((:f* nil) nil)]] [:f2 [(:f* nil)]] [:f1 [:f2 nil]]] :f1]]
-      (f (seqre-opts 10)) '[[:mem [[:f* [((:f* nil) nil)]] [:f1 [:f* nil]]] :f1]]
-      (f (seqre-opts 11)) '[[:mem [[:f* [((:f* nil) nil)]] [:f2 [(:f* nil)]] [:f1 [:f2 nil]]] :f1]]))
+        (f (seqre-opts 6))  '[[:mem [[:f* [((:f*))]] [:f1 [(:f*)]]] :f1]]
+        (f (seqre-opts 7))  '[[:mem [[:f* [((:f*))]]] :f*]]
+        (f (seqre-opts 8))  '[[:mem [[:f* [((:f*))]] [:f1 [(:f*)]]] :f1]]
+        (f (seqre-opts 9))  '[[:mem [[:f* [((:f*))]] [:f2 [(:f*)]] [:f1 [:f2]]] :f1]]
+        (f (seqre-opts 10)) '[[:mem [[:f* [((:f*))]] [:f1 [:f*]]] :f1]]
+        (f (seqre-opts 11)) '[[:mem [[:f* [((:f*))]] [:f2 [(:f*)]] [:f1 [:f2]]] :f1]]))
 
-  (testing "Shape of expressions with resolution 1"
-    (are [x y] (= x y)
+    (testing "Shape of expressions with resolution 1"
+      (are [x y] (= x y)
          ;; ? should redundant content (inner 'a) be reduced?
-      (f (seqre-opts 0) 'a)  '[[:mem [[:f* [((:f* a) a)]] [:f1 [(:f* a)]]] :f1]]
-      (f (seqre-opts 1) 'a)  '[[:mem [[:f* [((:f* a) a)]]] :f*]]
-      (f (seqre-opts 2) 'a)  '[[:mem [[:f* [((:f* a) a)]] [:f1 [(:f* a)]]] :f1]]
-      (f (seqre-opts 3) 'a)  '[[:mem [[:f* [((:f* a) a)]] [:f2 [(:f* a)]] [:f1 [:f2 a]]] :f1]]
-      (f (seqre-opts 4) 'a)  '[[:mem [[:f* [((:f* a) a)]] [:f1 [:f* a]]] :f1]]
-      (f (seqre-opts 5) 'a)  '[[:mem [[:f* [((:f* a) a)]] [:f2 [(:f* a)]] [:f1 [:f2 a]]] :f1]]
+        (f (seqre-opts 0) ['a])  '[[:mem [[:f* [((:f* a) a)]] [:f1 [(:f* a)]]] :f1]]
+        (f (seqre-opts 1) ['a])  '[[:mem [[:f* [((:f* a) a)]]] :f*]]
+        (f (seqre-opts 2) ['a])  '[[:mem [[:f* [((:f* a) a)]] [:f1 [(:f* a)]]] :f1]]
+        (f (seqre-opts 3) ['a])  '[[:mem [[:f* [((:f* a) a)]] [:f2 [(:f* a)]] [:f1 [:f2 a]]] :f1]]
+        (f (seqre-opts 4) ['a])  '[[:mem [[:f* [((:f* a) a)]] [:f1 [:f* a]]] :f1]]
+        (f (seqre-opts 5) ['a])  '[[:mem [[:f* [((:f* a) a)]] [:f2 [(:f* a)]] [:f1 [:f2 a]]] :f1]]
 
-      (f (seqre-opts 6) 'a)  '[[:mem [[:f* [((:f* a) a)]] [:f1 [(:f* a)]]] :f1]]
-      (f (seqre-opts 7) 'a)  '[[:mem [[:f* [((:f* a) a)]]] :f*]]
-      (f (seqre-opts 8) 'a)  '[[:mem [[:f* [((:f* a) a)]] [:f1 [(:f* a)]]] :f1]]
-      (f (seqre-opts 9) 'a)  '[[:mem [[:f* [((:f* a) a)]] [:f2 [(:f* a)]] [:f1 [:f2 a]]] :f1]]
-      (f (seqre-opts 10) 'a) '[[:mem [[:f* [((:f* a) a)]] [:f1 [:f* a]]] :f1]]
-      (f (seqre-opts 11) 'a) '[[:mem [[:f* [((:f* a) a)]] [:f2 [(:f* a)]] [:f1 [:f2 a]]] :f1]]))
+        (f (seqre-opts 6) ['a])  '[[:mem [[:f* [((:f* a) a)]] [:f1 [(:f* a)]]] :f1]]
+        (f (seqre-opts 7) ['a])  '[[:mem [[:f* [((:f* a) a)]]] :f*]]
+        (f (seqre-opts 8) ['a])  '[[:mem [[:f* [((:f* a) a)]] [:f1 [(:f* a)]]] :f1]]
+        (f (seqre-opts 9) ['a])  '[[:mem [[:f* [((:f* a) a)]] [:f2 [(:f* a)]] [:f1 [:f2 a]]] :f1]]
+        (f (seqre-opts 10) ['a]) '[[:mem [[:f* [((:f* a) a)]] [:f1 [:f* a]]] :f1]]
+        (f (seqre-opts 11) ['a]) '[[:mem [[:f* [((:f* a) a)]] [:f2 [(:f* a)]] [:f1 [:f2 a]]] :f1]]))
 
-  (testing "Shape of expressions with even resolution"
-    (are [x y] (= x y)
+    (testing "Shape of expressions with even resolution"
+      (are [x y] (= x y)
          ;; ? should even/odd construct redundant re-entries?
-      (f (seqre-opts 0) 'a 'b)  '[[:mem [[:f* [((:f* a) b)]]] :f*]]
-      (f (seqre-opts 1) 'a 'b)  '[[:mem [[:f* [((:f* a) b)]]] :f*]]
-      (f (seqre-opts 2) 'a 'b)  '[[:mem [[:f* [((:f* a) b)]]] :f*]]
-      (f (seqre-opts 3) 'a 'b)  '[[:mem [[:f* [((:f* a) b)]] [:f1 [(:f* a) b]]] :f1]]
-      (f (seqre-opts 4) 'a 'b)  '[[:mem [[:f* [((:f* a) b)]] [:f1 [(:f* a) b]]] :f1]]
-      (f (seqre-opts 5) 'a 'b)  '[[:mem [[:f* [((:f* a) b)]] [:f1 [(:f* a) b]]] :f1]]
+        (f (seqre-opts 0) ['a] ['b])  '[[:mem [[:f* [((:f* a) b)]]] :f*]]
+        (f (seqre-opts 1) ['a] ['b])  '[[:mem [[:f* [((:f* a) b)]]] :f*]]
+        (f (seqre-opts 2) ['a] ['b])  '[[:mem [[:f* [((:f* a) b)]]] :f*]]
+        (f (seqre-opts 3) ['a] ['b])  '[[:mem [[:f* [((:f* a) b)]] [:f1 [(:f* a) b]]] :f1]]
+        (f (seqre-opts 4) ['a] ['b])  '[[:mem [[:f* [((:f* a) b)]] [:f1 [(:f* a) b]]] :f1]]
+        (f (seqre-opts 5) ['a] ['b])  '[[:mem [[:f* [((:f* a) b)]] [:f1 [(:f* a) b]]] :f1]]
 
-      (f (seqre-opts 6) 'a 'b)  '[[:mem [[:f* [((:f* a) b)]]] :f*]]
-      (f (seqre-opts 7) 'a 'b)  '[[:mem [[:f* [((:f* a) b)]]] :f*]]
-      (f (seqre-opts 8) 'a 'b)  '[[:mem [[:f* [((:f* a) b)]]] :f*]]
-      (f (seqre-opts 9) 'a 'b)  '[[:mem [[:f* [((:f* a) b)]] [:f1 [(:f* a) b]]] :f1]]
-      (f (seqre-opts 10) 'a 'b) '[[:mem [[:f* [((:f* a) b)]] [:f1 [(:f* a) b]]] :f1]]
-      (f (seqre-opts 11) 'a 'b) '[[:mem [[:f* [((:f* a) b)]] [:f1 [(:f* a) b]]] :f1]]))
-  
-  (testing "Shape of expressions with odd resolution"
-    (are [x y] (= x y)
-      (f (seqre-opts 0) 'a 'b 'c)  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f1 [(((:f* a) b) c)]]] :f1]]
-      (f (seqre-opts 1) 'a 'b 'c)  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]]] :f*]]
-      (f (seqre-opts 2) 'a 'b 'c)  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f1 [(((:f* a) b) c)]]] :f1]]
-      (f (seqre-opts 3) 'a 'b 'c)  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f2 [(((:f* a) b) c)]] [:f1 [((:f2 a) b) c]]] :f1]]
-      (f (seqre-opts 4) 'a 'b 'c)  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f1 [((:f* a) b) c]]] :f1]]
-      (f (seqre-opts 5) 'a 'b 'c)  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f2 [(((:f* a) b) c)]] [:f1 [((:f2 a) b) c]]] :f1]]
+        (f (seqre-opts 6) ['a] ['b])  '[[:mem [[:f* [((:f* a) b)]]] :f*]]
+        (f (seqre-opts 7) ['a] ['b])  '[[:mem [[:f* [((:f* a) b)]]] :f*]]
+        (f (seqre-opts 8) ['a] ['b])  '[[:mem [[:f* [((:f* a) b)]]] :f*]]
+        (f (seqre-opts 9) ['a] ['b])  '[[:mem [[:f* [((:f* a) b)]] [:f1 [(:f* a) b]]] :f1]]
+        (f (seqre-opts 10) ['a] ['b]) '[[:mem [[:f* [((:f* a) b)]] [:f1 [(:f* a) b]]] :f1]]
+        (f (seqre-opts 11) ['a] ['b]) '[[:mem [[:f* [((:f* a) b)]] [:f1 [(:f* a) b]]] :f1]]))
 
-      (f (seqre-opts 6) 'a 'b 'c)  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f1 [(((:f* a) b) c)]]] :f1]]
-      (f (seqre-opts 7) 'a 'b 'c)  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]]] :f*]]
-      (f (seqre-opts 8) 'a 'b 'c)  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f1 [(((:f* a) b) c)]]] :f1]]
-      (f (seqre-opts 9) 'a 'b 'c)  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f2 [(((:f* a) b) c)]] [:f1 [((:f2 a) b) c]]] :f1]]
-      (f (seqre-opts 10) 'a 'b 'c) '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f1 [((:f* a) b) c]]] :f1]]
-      (f (seqre-opts 11) 'a 'b 'c) '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f2 [(((:f* a) b) c)]] [:f1 [((:f2 a) b) c]]] :f1]]))) 
+    (testing "Shape of expressions with odd resolution"
+      (are [x y] (= x y)
+        (f (seqre-opts 0) ['a] ['b] ['c])  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f1 [(((:f* a) b) c)]]] :f1]]
+        (f (seqre-opts 1) ['a] ['b] ['c])  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]]] :f*]]
+        (f (seqre-opts 2) ['a] ['b] ['c])  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f1 [(((:f* a) b) c)]]] :f1]]
+        (f (seqre-opts 3) ['a] ['b] ['c])  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f2 [(((:f* a) b) c)]] [:f1 [((:f2 a) b) c]]] :f1]]
+        (f (seqre-opts 4) ['a] ['b] ['c])  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f1 [((:f* a) b) c]]] :f1]]
+        (f (seqre-opts 5) ['a] ['b] ['c])  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f2 [(((:f* a) b) c)]] [:f1 [((:f2 a) b) c]]] :f1]]
+
+        (f (seqre-opts 6) ['a] ['b] ['c])  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f1 [(((:f* a) b) c)]]] :f1]]
+        (f (seqre-opts 7) ['a] ['b] ['c])  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]]] :f*]]
+        (f (seqre-opts 8) ['a] ['b] ['c])  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f1 [(((:f* a) b) c)]]] :f1]]
+        (f (seqre-opts 9) ['a] ['b] ['c])  '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f2 [(((:f* a) b) c)]] [:f1 [((:f2 a) b) c]]] :f1]]
+        (f (seqre-opts 10) ['a] ['b] ['c]) '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f1 [((:f* a) b) c]]] :f1]]
+        (f (seqre-opts 11) ['a] ['b] ['c]) '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f2 [(((:f* a) b) c)]] [:f1 [((:f2 a) b) c]]] :f1]])))) 
 
 
 (deftest expand-fdna-test
@@ -531,7 +639,7 @@
     (is (= (fe/expand-expr (fe/·· 'x 'y))
            '((x y))))
     (is (= (fe/expand-expr (fe/·mem [['a :M] ['b :U]] (fe/·· 'x 'y)))
-           '(([:mem [[a :M] [b :U]] x y])))))) 
+           '[:mem [[a :M] [b :U]] x y])))) 
 
 (deftest expand-memory-test
       (testing "Correctness of transformation"
@@ -570,7 +678,124 @@
     (is (= (fe/·sel {'a :M} false)
            '[(a ([:<..re])) (a ([:<re]))])))) 
 
+(deftest merge-chain-test
+  (testing "Correctness of transformation"
+    (are [x y] (= (fe/merge-chain x) y)
+      '( [] [] )   '[[] []] ;; (())
+      '( [a] [] )  '[[a] []]
+      '( [] [a] )  '[[] [a]] ;; ((a))
+      '( [a] [b] ) '[[a] [b]]
+
+      '( [] [] [] )    '[[]] ;; ((())) => ()
+      '( [a] [] [] )   '[[a]]
+      '( [] [a] [] )   '[[] [a] []]
+      '( [] [] [a] )   '[[a]]
+      '( [] [a] [b] )  '[[] [a] [b]]
+      '( [a] [] [b] )  '[[a b]]
+      '( [a] [b] [] )  '[[a] [b] []]
+      '( [a] [b] [c] ) '[[a] [b] [c]]
+
+      '( [] [] [] [] )    '[[] []] ;; (((()))) => (())
+      '( [a] [b] [] [] )  '[[a] [b]]
+      '( [a] [] [] [b] )  '[[a] [b]]
+      '( [] [] [a] [b] )  '[[a] [b]]
+      '( [a] [] [b] [c] ) '[[a b] [c]]
+      '( [a] [b] [] [c] ) '[[a] [b c]]
+
+      '( [a] [] [b] [] [c] ) '[[a b c]]
+      '( [a] [] [] [b] [c] ) '[[a] [b] [c]]
+      '( [a] [b] [] [] [c] ) '[[a] [b] [c]]
+      '( [a] [] [] [] [b] )  '[[a b]]
+      '( [] [a] [] [b] [] )  '[[] [a b] []]
+      '( [] [] [] [a] [b] )  '[[] [a] [b]] ;; ((a (b)))
+      '( [a] [b] [] [] [] )  '[[a] [b] []])))
+
+;; ! needs many more tests
+(deftest reduce-context-chain-test
+  (testing "Correctness of rightward nesting-reduction"
+    (are [x y] (= (fe/reduce-context-chain x {}) y)
+      '( [] [] )   '[[] []] ;; (())
+      '( [a] [] )  '[[a] []] ;; (a ())
+      '( [] [a] )  '[[] [a]] ;; ((a))
+      '( [a] [b] ) '[[a] [b]] ;; (a (b))
+
+      '( [] [] [] )    '[[]] ;; ((())) => ()
+      '( [a] [] [] )   '[[a]] ;; (a)
+      '( [] [a] [] )   '[[] [a] []] ;; ((a ()))
+      '( [] [] [a] )   '[[a]] ;; (a)
+      '( [] [a] [b] )  '[[] [a] [b]] ;; ((a (b)))
+      '( [a] [] [b] )  '[[a b]] ;; (a b)
+      '( [a] [b] [] )  '[[a] [b] []] ;; (a (b ()))
+      '( [a] [b] [c] ) '[[a] [b] [c]] ;; (a (b (c)))
+
+      '( [] [] [] [] )    '[[] []] ;; (((()))) => (())
+      '( [a] [b] [] [] )  '[[a] [b]] ;; (a (b))
+      '( [a] [] [] [b] )  '[[a] [b]] ;; (a (b))
+      '( [] [] [a] [b] )  '[[a] [b]] ;; (a (b))
+      '( [a] [] [b] [c] ) '[[a b] [c]] ;; (a b (c))
+      '( [a] [b] [] [c] ) '[[a] [b c]] ;; (a (b c))
+
+      '( [a] [] [b] [] [c] ) '[[a b c]] ;; (a b c)
+      '( [a] [] [] [b] [c] ) '[[a] [b] [c]] ;; (a (b (c)))
+      '( [a] [b] [] [] [c] ) '[[a] [b] [c]] ;; (a (b (c)))
+      '( [a] [] [] [] [b] )  '[[a b]] ;; (a ((((b))))) => (a b)
+      '( [] [a] [] [b] [] )  '[[] [a b] []] ;; ((a b ()))
+      '( [] [] [] [a] [b] )  '[[] [a] [b]] ;; ((a (b)))
+      '( [a] [b] [] [] [] )  '[[a] [b] []])) ;; (a (b ()))
+
+  (testing "Correctness of leftward nesting-reduction"
+    (are [x y] (= (fe/reduce-context-chain x {:rtl true}) y)
+      '( [] [] )   '[[] []] ;; (())
+      '( [a] [] )  '[[a] []] ;; ((a))
+      '( [] [a] )  '[[] [a]] ;; (() a)
+      '( [a] [b] ) '[[a] [b]] ;; ((a) b)
+
+      '( [] [] [] )    '[[]] ;; ((())) => ()
+      '( [a] [] [] )   '[[a]] ;; (a)
+      '( [] [a] [] )   '[[] [a] []] ;; ((() a))
+      '( [] [] [a] )   '[[a]] ;; ((()) a) => (a)
+      '( [] [a] [b] )  '[[] [a] [b]] ;; ((() a) b)
+      '( [a] [] [b] )  '[[a b]] ;; (((a)) b) => (a b)
+      '( [a] [b] [] )  '[[a] [b] []] ;; (((a) b))
+      '( [a] [b] [c] ) '[[a] [b] [c]] ;; (((a) b) c)
+
+      '( [] [] [] [] )    '[[] []] ;; (((()))) => (())
+      '( [a] [b] [] [] )  '[[a] [b]] ;; ((((a) b))) => ((a) b)
+      '( [a] [] [] [b] )  '[[a] [b]] ;; ((((a))) b) => ((a) b)
+      '( [] [] [a] [b] )  '[[a] [b]] ;; (((()) a) b) => ((a) b)
+      '( [a] [] [b] [c] ) '[[a b] [c]] ;; ((((a)) b) c) => ((a b) c)
+      '( [a] [b] [] [c] ) '[[a] [b c]] ;; ((((a) b)) c) => ((a) b c)
+
+      '( [a] [] [b] [] [c] ) '[[a b c]] ;; (((((a)) b)) c) => (a b c)
+      '( [a] [] [] [b] [c] ) '[[a] [b] [c]] ;; (((a) b) c)
+      '( [a] [b] [] [] [c] ) '[[a] [b] [c]] ;; (((a) b) c)
+      '( [a] [] [] [] [b] )  '[[a b]] ;; (((((a)))) b) => (a b)
+      '( [] [a] [] [b] [] )  '[[] [a b] []] ;; ((((() a)) b)) => ((() a b))
+      '( [] [] [] [a] [b] )  '[[] [a] [b]] ;; ((((())) a) b) => ((() a) b)
+      '( [a] [b] [] [] [] )  '[[a] [b] []])) ;; (((((a) b)))) => (((a) b))
+
+  (testing "Correctness of context reduction"
+    (is (= (fe/reduce-context-chain [['a 'b] ['a 'c]] {})
+           '[[a b] [c]]))
+    (is (= (fe/reduce-context-chain [['a 'b] ['a 'c] ['c 'a 'd]] {})
+           '[[a b] [c] [d]]))
+    (is (= (fe/reduce-context-chain [[fe/UFORM 'b] ['a fe/IFORM]] {})
+           '[[:mn b] [()]]))
+    (is (= (fe/reduce-context-chain [[fe/UFORM 'b] ['a fe/IFORM] ['c]] {})
+           '[[:mn b] [()]]))
+
+    (is (= (fe/reduce-context-chain {:rtl? true}
+                                    [['c] ['a fe/IFORM] [fe/UFORM 'b]] {})
+           '[[()] [:mn b]]))
+    (is (= (fe/reduce-context-chain {:rtl? true}
+                                    [[:f*] [fe/UFORM 'a] [fe/UFORM 'b]] {})
+           '[[:f*] [a] [:mn b]]))
+    (is (= (fe/reduce-context-chain {:rtl? true}
+                                    [[:f*] [fe/UFORM] [fe/UFORM]] {})
+           '[[:f* :mn]])))
+  )
 
 
+ 
 
 

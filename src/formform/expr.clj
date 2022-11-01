@@ -2,52 +2,12 @@
   (:require #_[clojure.math.combinatorics :as combo]
             [clojure.string :as string]
             [clojure.set :refer [map-invert]]
+            [clojure.core.match :refer [match]]
             [formform.calc :as calc]
             [formform.utils :as utils]
             [clojure.spec.alpha :as s]
             #_[clojure.spec.gen.alpha :as gen]
-            [clojure.set :as set]))
-
-
-;; Helper
-
-(defn- merge-ctx
-  ([ctx] (merge-ctx vector? ctx))
-  ([pred ctx]
-   (reduce (fn [acc x] (if (pred x)
-                         (into acc x)
-                         (conj acc x))) [] ctx)))
-
-(defn- nest-left [ctx]
-  (if (empty? ctx)
-    '()
-    (loop [xs     (rest ctx)
-           nested (seq (merge-ctx [(first ctx)]))]
-      (if (empty? xs)
-        nested
-        (let [[x & r] xs
-              nested' (seq (merge-ctx [nested x]))]
-          (if (empty? r)
-            nested'
-            (recur r nested')))))))
-
-(defn- nest-right [ctx]
-  (if (empty? ctx)
-    '()
-    (let [[x & r] ctx]
-      (if (empty? r)
-        (seq (merge-ctx (list x)))
-        (seq (merge-ctx (list x (nest-right r))))))))
-
-(defn- chain [ctx]
-  (map #(seq (merge-ctx (list %))) ctx))
-
-(defn gen-vars
-  [n]
-  (map #(str "v__" %) (range n)))
-
-(defn rem-pairs? [xs]
-  (some? (try (into {} xs) (catch Exception _ nil))))
+            ))
 
 
 ;; Specs / Predicates
@@ -130,6 +90,23 @@
 (def memory? (partial s/valid? :formform.specs.expr/memory))
 
 
+;; Helper
+
+(defn- merge-ctx
+  ([ctx] (merge-ctx expr? ctx))
+  ([pred ctx]
+   (reduce (fn [acc x] (if (pred x)
+                         (into acc x)
+                         (conj acc x))) [] ctx)))
+
+(defn gen-vars
+  [n]
+  (map #(str "v__" %) (range n)))
+
+(defn rem-pairs? [xs]
+  (some? (try (into {} xs) (catch Exception _ nil))))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Content
 
@@ -139,8 +116,7 @@
 
 (defn FORM
   ([] MARK)
-  ([x & ys] (seq (merge-ctx #(expr? %)
-                   (cons x ys)))))
+  ([x & ys] (seq (merge-ctx (cons x ys)))))
 
 (def UFORM :mn)
 (def IFORM (FORM UFORM))
@@ -161,7 +137,7 @@
 
 ;; ? map every x to its own context
 (defn SEQ-REENTRY
-  [specs & xs]
+  [specs & ctxs]
   (let [signature
         (cond
           (keyword? specs) (if (seq-reentry-signature? specs)
@@ -171,11 +147,10 @@
           (map? specs) (seq-reentry-opts->sign specs)
           :else (throw (ex-info
                          "Invalid re-entry specifications." {})))]
-    (apply vector signature xs)))
+    (apply vector signature ctxs)))
 
 (def SEQ-REENTRY->sign first)
 (def SEQ-REENTRY->ctxs rest)
-
 
 (defn FDNA
   ([] (FDNA [] calc/N))
@@ -209,7 +184,7 @@
 (defn MEMORY
   [kv-pairs & xs]
   {:pre [(rem-pairs? kv-pairs)]}
-  (apply vector :mem kv-pairs (merge-ctx #(expr? %) xs)))
+  (apply vector :mem kv-pairs (merge-ctx xs)))
 
 (def MEMORY->rems second)
 (def MEMORY->ctx (comp rest rest))
@@ -231,7 +206,7 @@
 
 (defn make-expr
   [& ctx]
-  (with-meta (vec (merge-ctx expr? ctx)) {:expr true}))
+  (with-meta (vec (merge-ctx ctx)) {:expr true}))
 
 (defn seq->expr [xs merge-ctx?]
   (if merge-ctx?
@@ -252,6 +227,30 @@
       (if ordered?
         (sort utils/compare-names vs)
         vs))))
+
+(defn- nest-left [ctxs]
+  (if (empty? ctxs)
+    '()
+    (loop [r      (rest ctxs)
+           nested (seq (merge-ctx (first ctxs)))]
+      (if (empty? r)
+        nested
+        (let [[ctx & r] r
+              nested  (seq (merge-ctx (concat [nested] ctx)))]
+          (if (empty? r)
+            nested
+            (recur r nested)))))))
+
+(defn- nest-right [ctxs]
+  (if (empty? ctxs)
+    '()
+    (let [[ctx & r] ctxs]
+      (if (empty? r)
+        (seq (merge-ctx ctx))
+        (seq (merge-ctx (concat ctx [(nest-right r)])))))))
+
+(defn- chain [ctxs]
+  (map #(seq (merge-ctx %)) ctxs))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -281,21 +280,20 @@
 (def expr->const {·N :N ·U :U ·I :I ·M :M})
 
 (defn nested-expr
-  "Nests contents leftwards `(((…)a)b)` or rightwards `(a(b(…)))`
-  if `{:rightwards? true}`
-  - use brackets `[x y …]` to group expressions on the same level"
+  "Nests contexts leftwards `(((…)a)b)` or rightwards `(a(b(…)))` if `{:rightwards? true}`
+  - a context must be either a vector `[x y …]` or an expression `(·· x y …)`"
   [{:keys [unmarked? rightwards?]
     :or {unmarked? false rightwards? false}
-    :as env} & ctx]
-  (let [f-nested (if rightwards? (nest-right ctx) (nest-left ctx))]
+    :as env} & ctxs]
+  (let [f-nested (if rightwards? (nest-right ctxs) (nest-left ctxs))]
     (apply make-expr (if unmarked? f-nested (list f-nested)))))
 
 ;; ? choose different term than “chain”
 (defn chained-expr
-  "Chains content like `((a)(b)…)` or `(a)(b)…` if {:unmarked? true}`
-  - use brackets `[x y …]` to group expressions on the same link"
-  [{:keys [unmarked?] :or {unmarked? false} :as opts} & ctx]
-  (let [f-chained (chain ctx)]
+  "Chains contexts like `((a)(b)…)` or `(a)(b)…` if {:unmarked? true}`
+  - a context must be either a vector `[x y …]` or an expression `(·· x y …)`"
+  [{:keys [unmarked?] :or {unmarked? false} :as opts} & ctxs]
+  (let [f-chained (chain ctxs)]
     (if unmarked?
       (apply make-expr f-chained)
       (make-expr (apply · f-chained)))))
@@ -388,20 +386,20 @@
   (let [signature         (SEQ-REENTRY->sign seq-re)
         [x & ys :as ctxs] (SEQ-REENTRY->ctxs seq-re)
         {:keys [parity open? interpr]} (seq-reentry-sign->opts signature)
-        ctxs      (if (zero? (count ctxs)) (conj ctxs NONE) ctxs)
+        ctxs      (if (zero? (count ctxs)) (cons [] ctxs) ctxs)
         res-odd?  (odd? (count ctxs))
         pre-step? (and res-odd? (not (= parity :even)))
         re   [:f* (apply nested-expr {:unmarked? false :rightwards? false}
-                         (make-expr :f* x) (if res-odd?
-                                             (concat ys (cons x ys))
-                                             ys))]
+                         (vec (cons :f* x)) (if res-odd?
+                                              (concat ys (cons x ys))
+                                              ys))]
         pre  (when pre-step?
                [(if open? :f2 :f1)
                 (apply nested-expr {:unmarked? false :rightwards? false}
-                       (make-expr :f* x) ys)])
+                       (vec (cons :f* x)) ys)])
         open (when open?
                [:f1 (apply nested-expr {:unmarked? true :rightwards? false}
-                           (make-expr (if pre-step? :f2 :f*) x) ys)])
+                           (vec (cons (if pre-step? :f2 :f*) x)) ys)])
         init (if (or pre-step? open?) :f1 :f*)]
     (·mem (vec (remove nil? [re pre open])) init)))
 
@@ -417,7 +415,11 @@
 
 (defn expand-expr
   [expr]
-  (FORM (apply FORM expr)))
+  (if (<= (count expr) 1)
+    (first expr)            ;; [x] => x | [] => nil
+    (list (sequence expr))) ;; [x y …] => ((x y …))
+  ; (FORM (apply FORM expr))
+  )
 
 ; (defn ctx< [ctx]
 ;   (...expand context recursively))
@@ -498,8 +500,52 @@
   [seq-re env]
   (let [sign (SEQ-REENTRY->sign seq-re)
         ctxs (SEQ-REENTRY->ctxs seq-re)
-        [ctxs env] (reduce-context-chain {:rtl? true} ctxs env)]
-    :TODO))
+        {:keys [parity open? interpr] :as specs} (seq-reentry-sign->opts sign)
+        [x y z & r :as ctxs] (reduce-context-chain {:rtl? true} ctxs env)
+        >< (fn [expr] (expand-expr (reduce-context expr env)))
+        U UFORM, I IFORM]
+    (if (= x [MARK])
+      ;; rule of dominance applies for innermost mark:
+      (>< (apply nested-expr {:unmarked? open? :rightwards? false}
+                 (rest ctxs)))
+      ;; try all possible cases for re-entry reduction:
+      (if (empty? r)
+        (match [interpr open? parity  x y z]
+          ;; primitive cases:
+          [_ _     :even [] nil nil] U ;; ((f))
+          [_ _     _     [] nil nil] I ;; (f)
+          [_ false _     [] []  nil] U ;; ((f))
+          [_ true  _     [] []  nil] I ;; (((f))) => (f)
+
+          ;; if interpretation of `mn` is “recursive identity”
+          ;; and `f = ((f))` can be separated from the rest:
+          ;; f x      |  (f) x 
+          [:rec-ident true  :even [& xs] nil nil] (>< (apply ·· U xs))
+          [:rec-ident true  _     [& xs] nil nil] (>< (apply ·· I xs))
+          ;; (f) x    |  ((f x))
+          [:rec-ident true  _     [] [& ys] nil]  (>< (apply ·· I ys))
+          [:rec-ident false _     [& xs] [] nil]  (>< (apply ·· U xs))
+          ;; ((f x))  |  (((f) x))
+          [:rec-ident false :even [] [& ys] []]   (>< (apply ·· U ys)) 
+          [:rec-ident false _     [] [& ys] []]   (>< (apply ·· I ys))
+
+          ;; by case distinction:
+          [_ _     _     [(:or U I)] [] nil]  I ;; ((f U/I))
+          [_ _     _     [] [(:or U I)] nil]  U ;; ((f) U/I)
+
+          [_ false :even [(:or U I)] nil nil] U ;; (f U/I)
+          [_ true  _     [(:or U I)] nil nil] U ;; (f U/I)
+          [_ true  :even [(:or U I)] nil nil] I ;; (f U/I)
+          [_ false _     [(:or U I)] nil nil] I ;; (f U/I)
+
+          [_ false :even [] [(:or U I)] []]   I ;; (((f) U/I))
+          [_ true  _     [] [(:or U I)] []]   I ;; (((f) U/I))
+          [_ true  :even [] [(:or U I)] []]   U ;; (((f) U/I))
+          [_ false _     [] [(:or U I)] []]   U ;; (((f) U/I))
+
+           ;; if nothing applies, return the reduced seq-reentry FORM:
+          :else (apply SEQ-REENTRY specs ctxs))
+        (apply SEQ-REENTRY specs ctxs)))))
 
 (defn- reduce-content
   [x env]
@@ -514,32 +560,23 @@
         (memory? x)      (let [[rems env] (reduce-rems (MEMORY->rems x) env)
                                ctx (reduce-context (MEMORY->ctx x) env)]
                            (if (empty? rems)
-                             (if (<= (count ctx) 1)
-                               (first ctx)
-                               (list (sequence ctx)))
+                             (expand-expr ctx)
                              (apply MEMORY rems ctx)))
         (unclear? x)     (FDNA [(UNCLEAR->label x)]
                                (calc/make-dna :N :U :U :U))
-        (seq-reentry? x) (let [seq-re (reduce-seq-reentry x env)]
-                           seq-re)
+        (seq-reentry? x) (let [res (reduce-seq-reentry x env)]
+                           res)
         (form? x)        (let [ctx (reduce-context x env)]
                            (reduce-matching-content (sequence ctx)))
         :else (let [interpr (get env x :not-found)] ;; nil punning!
                 (if (= interpr :not-found)
                   x
                   (let [env' (dissoc env x)]
-                  ; (println "---")
-                  ; (println env)
-                  ; (println env')
                     (cond
                   ; (keyword? interpr) interpr
                   ;; ? reduce env at beginning, then just substitute value?
                       (expr? interpr) (let [ctx (reduce-context interpr env')]
-                                        (if (<= (count ctx) 1)
-                                        ;; return as content:
-                                          (first ctx)
-                                        ;; ((…)) for reduce by crossing:
-                                          (list (sequence ctx))))
+                                        (expand-expr ctx))
                       :else (reduce-content interpr env')))))))))
 
 
@@ -594,45 +631,71 @@
               (conj ctx x)))]
     (reduce f [] ctx)))
 
-(defn- reduce-context-chain
-  "Reduces a sequence of contexts, each intended as subsequent links in a (nesting-)chain (assumes leftwards-nesting, e.g. `[[[…] …] …]`) to a sequence of reduced contexts, possibly shortened via inference."
+;; ? obsolete
+(defn merge-chain [ctxs]
+  (reduce (fn [merged ctx]
+            (if (and (> (count merged) 1) (empty? (last merged)))
+              (let [[before xs] (split-at (- (count merged) 2) merged)]
+                (conj (vec before)
+                      (vec (concat (first xs) ctx))))
+              (conj merged ctx)))
+          (vector (first ctxs))
+          (rest ctxs)))
+
+(defn reduce-context-chain
+  "Reduces a sequence of FORM contexts, intended to be linked in a nesting-chain, to a sequence of reduced contexts, possibly merged or shortened via inference.
+  - assumes rightward-nesting, e.g. `(…(…(…)))`
+  - for leftward-nesting, e.g. `(((…)…)…)`, pass `{:rtl? true}`"
   ([ctxs env] (reduce-context-chain {} ctxs env))
   ([{:keys [rtl?] :or {rtl? false}} ctxs env]
    (vec
     (loop [[ctx & r] (if rtl? (reverse ctxs) ctxs)
            env       env
-           ctxs'     (if rtl? '() [])]
-      (let [ctx (reduce-context ctx env)
+           red-ctxs  (if rtl? '() [])]
+      (let [ctx      (reduce-context ctx env)
+            red-ctxs (if (and (> (count red-ctxs) 1)
+                              (empty? ((if rtl? first last) red-ctxs)))
+                       ;; reduce by crossing
+                       (if rtl?
+                         (let [[xs before] (split-at 2 red-ctxs)]
+                           (conj before
+                                 (vec (concat ctx (second xs)))))
+                         (let [[before xs] (split-at (- (count red-ctxs) 2)
+                                                     red-ctxs)]
+                           (conj (vec before)
+                                 (vec (concat (first xs) ctx)))))
+                       (conj red-ctxs ctx))
             ;; needs upstream env to reduce with observed values
             ;; ? is there a cleaner approach than using meta
             env (:env-next (meta ctx))]
         (cond
-          ;; ? reduce to '[()] if all contexts are unmarked
-          (= ctx '( () )) (conj ctxs' ctx)
-          (empty? r) (conj ctxs' ctx)
-          :else (recur r env (conj ctxs' ctx))))))))
+          (= ctx '( () )) red-ctxs
+          (empty? r)      red-ctxs
+          :else (recur r env red-ctxs)))))))
 
 ;; ? add optim option to not observe values for (de)generation
 (defn- reduce-context
   [ctx env]
-  (loop [ctx ctx
-         i   0]
-    (let [[ctx env-next] (reduce-by-calling ctx env)]
-      (if (= ctx '( () ))
-        (vary-meta (seq->expr ctx false)
-                   #(assoc % :env-next env-next))
-        (let [env-next (observed-merge env-next ctx)
-              ctx' (->> (map #(reduce-content % (observed-disj env-next %))
-                             ctx)
-                        reduce-by-crossing
-                        (remove nil?))]
-          (assert (< i 3)) ;; hypothesis
-          (cond
-            (= ctx' ctx) (vary-meta (seq->expr ctx' false)
-                                    #(assoc % :env-next env-next))
-            ; (> i 10000)  (throw (ex-info "Too many reduction attempts!"
-            ;                              {:expr (seq->expr ctx' false)}))
-            :else (recur ctx' (inc i))))))))
+  (let [env (update env :depth #(if (nil? %) 0 (inc %)))]
+    (if (< (:depth env) 500)
+      (loop [ctx ctx
+             i   0]
+        (let [[ctx env-next] (reduce-by-calling ctx env)]
+          (if (= ctx '( () ))
+            (vary-meta (seq->expr ctx false)
+                       #(assoc % :env-next env-next))
+            (let [env-next (observed-merge env-next ctx)
+                  ctx' (->> (map #(reduce-content % (observed-disj env-next %))
+                                 ctx)
+                            reduce-by-crossing
+                            (remove nil?))]
+              (cond
+                (= ctx' ctx) (vary-meta (seq->expr ctx' false)
+                                        #(assoc % :env-next env-next))
+                (> i 3)      (throw (ex-info "Too many reduction attempts!"
+                                             {:expr (seq->expr ctx' false)}))
+                :else (recur ctx' (inc i)))))))
+      (throw (ex-info "Context too deeply nested, possibly caused by a self-contradicting re-entry definition." {:expr (seq->expr ctx false)})))))
 
 
 (defn cnt>
@@ -766,8 +829,7 @@
 
    (= (reduce-context-chain {:rtl? true}
                             [(·· :f*) (·· ·uform) (·· ·uform)] {})
-      '[[:f*] [] [:mn]])
-
+      '[[:f* :mn]])
 
    ))
 
@@ -834,6 +896,9 @@
    (= (ctx> (·· 'x) {'x 'y})
       '[y])
 
+   ;; ? should rems have priority over degeneration from env
+   (= (ctx> (·· 'y (·mem [['y 'z]] 'y)))
+      '[y])
    (= (ctx> (·· 'x (·mem [['y 'z]] 'x)) {'x 'y})
       (ctx> (·· 'x (·mem [['x 'z]] 'x)) {'x 'y})
       '[y z])
@@ -872,7 +937,92 @@
 
    ))
 
+(comment
+  (reduce-seq-reentry (first (·r)) {})
+  (reduce-content (·r) {})
+  (and
+
+   (= (ctx> (·r)) '[(:mn)])
+   (= (ctx> (·2r)) '[:mn])
+   (= (ctx> (·2r+1)) '[(:mn)])
+   (= (ctx> (··r)) '[(:mn)])
+   (= (ctx> (··2r)) '[:mn])
+   (= (ctx> (··2r+1)) '[(:mn)])
+
+   )
+  (and
+   
+   (= (ctx> (·r ['a])) '[[:<re [a]]])
+   (= (ctx> (·2r ['a])) '[[:<..re [a]]])
+   (= (ctx> (·2r+1 ['a])) '[[:<..re. [a]]])
+   (= (ctx> (··r ['a])) '[[:<re_ [a]]])
+   (= (ctx> (··2r ['a])) '[[:<..re_ [a]]])
+   (= (ctx> (··2r+1 ['a])) '[[:<..re._ [a]]])
+   ))
+
+(comment
+  (nested-expr {} ['a] ['b])
+  (nested-expr {:unmarked? true} ['a] ['b])
+
+  (nested-expr {} [:f 'a] [] ['b] [])
+  (reduce-context-chain {:rtl? true}
+                        [[:f 'a] [] []] {})
+
+  (case [[1] [2] []]
+   [[_] [_] []] true
+    false)
+
+  (expand-seq-reentry (first (··2r [] ['x] [])))
+
+
+  (expand-seq-reentry (first (·r' [UFORM] [])))
+  ;; [[:mem [[:f* [((:f* :mn))]]] :f*]]
+  ;; ((f* U)) => f* U
+  (reduce-seq-reentry (first (·r' [UFORM] [])) {})
+
+
+  (expand-seq-reentry (first (·r' ['a])))
+  '[[:mem [[:f* [((:f* a) a)]] [:f1 [(:f* a)]]] :f1]]
+  ;; f* = ((f*) a), f1 = (f* a)
+  ;; (((f*)) a) => (f* a)
+
+  (reduce-seq-reentry (first (·r' ['a])) {})
+  (reduce-seq-reentry (first (·2r' ['a])) {})
+  (reduce-seq-reentry (first (·2r'+1 ['a])) {})
+  ;; (f a)
+
+  (expand-seq-reentry (first (··r' ['a])))
+  '[[:mem [[:f* [((:f* a) a)]] [:f2 [(:f* a)]] [:f1 [:f2 a]]] :f1]]
+  ;; f* = ((f*) a), f2 = (f* a), f1 = f2 a
+  ;; (((f*))) a => (f*) a
+
+  ;; f a
+  (reduce-seq-reentry (first (··r' ['a])) {})
+  (reduce-seq-reentry (first (··2r' ['a])) {})
+  (reduce-seq-reentry (first (··2r'+1 ['a])) {})
+
+  (reduce-seq-reentry (SEQ-REENTRY {} ['a] ['a]) {'a :N})
+
+  (reduce-seq-reentry 
+    (SEQ-REENTRY {} ['a] []) {'a :M})
+  (reduce-seq-reentry
+    (SEQ-REENTRY {} [MARK 'a] ['a]) {})
+  (reduce-seq-reentry
+    (SEQ-REENTRY {} ['b] [MARK 'a] ['a]) {})
+
+  (reduce-seq-reentry
+    (SEQ-REENTRY {} ['b] [IFORM 'a] ['a]) {})
+
+  (reduce-seq-reentry
+    (SEQ-REENTRY {} ['b IFORM] ['a] [UFORM]) {})
+
+
+  (ctx> [ '((a) a) ])
+
+  (reduce-context-chain {:rtl? true}
+                        (SEQ-REENTRY->ctxs (SEQ-REENTRY {} ['a] ['a])) {})
 
 
 
+  )
 
