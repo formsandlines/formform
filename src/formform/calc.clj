@@ -5,6 +5,10 @@
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]))
 
+;; ========================================================================
+;;     formform calculation module
+;;     -- created 08/2022, (c) Peter Hofmann
+;; ========================================================================
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Constant
@@ -240,7 +244,7 @@
 (defn dna->digits
   "Converts formDNA to a string of digits.
   
-  Note that `nuim-code` is the default ordering."
+  Note that `nuim-code` is the default ordering. If a different `sort-code` is specified, `dna` will be reordered to match the code."
   ([dna] (dna->digits dna nuim-code))
   ([dna sort-code]
    (let [dna-seq (map #(-> ((comp keyword str) %)
@@ -252,7 +256,7 @@
 (defn digits->dna
   "Converts a `seqable?` of digits to formDNA.
   
-  Note that `sort-code` will only affect digit interpretation, not ordering."
+  Note that `nuim-code` is the default ordering. If a different `sort-code` is specified, `digits` will be reordered to match the code."
   ([digits] (digits->dna digits nuim-code))
   ([digits sort-code]
    (let [dna-seq (if (= sort-code nuim-code)
