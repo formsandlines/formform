@@ -60,28 +60,39 @@
 
 (def expr-tag? (partial s/valid? :formform.specs.expr/expr-tag))
 
-;; ? underspecified
+(s/def :formform.specs.expr/variable (s/or :str string? :sym symbol?))
+
+;; ? does it need to be a vector
 (s/def :formform.specs.expr/expr
   (s/and vector? :formform.specs.expr/expr-tag))
 
 (s/def :formform.specs.expr/fdna
-  (s/and vector? #(= (first %) :fdna)
-    #(if-let [[_ vars dna] %] ;; too much overhead?
-       (and
-         (vector? vars)
-         (calc/dna? dna)
-         (== (count vars) (calc/dna-dim dna)))
-       false)))
+  (s/and (s/nonconforming
+          (s/cat :tag     #(= % :fdna)
+                 :varlist (s/coll-of :formform.specs.expr/variable
+                                    ; :count (calc/dna-dim (nth % 2))
+                                     )
+                 :dna     :formform.specs.calc/dna))
+         #(== (count (second %)) (calc/dna-dim (nth % 2)))))
 
 (s/def :formform.specs.expr/unclear
-  (s/and vector? #(= (first %) :uncl)))
+  (s/cat :tag   #(= % :uncl)
+         :label string?))
 
 (s/def :formform.specs.expr/seq-reentry
-  (s/and vector? #(s/valid? :formform.specs.expr/seq-reentry-signature
-                    (first %))))
+  (s/cat :tag  #(s/valid? :formform.specs.expr/seq-reentry-signature %)
+         :ctxs (s/* vector?)))
+
+(s/def :formform.specs.expr/rem-pairs
+  (s/coll-of (s/tuple #(not (s/valid? :formform.specs.expr/expr %))
+                      vector?) :into []))
 
 (s/def :formform.specs.expr/memory
-  (s/and vector? #(= (first %) :mem)))
+  (s/cat :tag  #(= % :mem)
+         :rems :formform.specs.expr/rem-pairs
+         :ctx  (s/* constantly)))
+
+; (s/conform :formform.specs.expr/memory [:mem [['a (·· :M)]] 'a nil :N '(a (:U))])
 
 (def special-form-tags (into #{:mem :fdna :uncl}
                              (keys seq-reentry-sign->opts)))
@@ -91,7 +102,7 @@
 (def special-form? #(and (form? %) (some? (special-form-tags (first %)))))
 (def pure-form? #(and (form? %) (not (special-form? %))))
 
-(defn variable? [x] (or (string? x) (symbol? x)))
+(def variable? (partial s/valid? :formform.specs.expr/variable))
 
 (def unclear? (partial s/valid? :formform.specs.expr/unclear))
 (def seq-reentry? (partial s/valid? :formform.specs.expr/seq-reentry))
@@ -175,24 +186,16 @@
 (def FDNA->varlist second)
 (def FDNA->dna (comp second next))
 
-(defn FDNA-filter-dna
-  "Filters the `dna` by values from given `vdict` whose keys match variables in the `varlist` of the formDNA."
-  [fdna vdict]
-  (let [varlist (FDNA->varlist fdna)
-        ;; assumes only constant values
-        ;; ? what about unevaluated FORMs and formDNA?
-        matches (remove nil? (map #(let [v (get vdict % :_)]
-                                     (assert (or (= :_ v) (calc/const? v)))
-                                     (vector % v)) varlist))
-        vpoint  (map second matches)]
-    (FDNA (mapv first (filter #(= (second %) :_) matches))
-      (calc/filter-dna (FDNA->dna fdna) vpoint))))
 
+(declare make-expr)
 
 (defn MEMORY
   [kv-pairs & xs]
-  {:pre [(rem-pairs? kv-pairs)]}
-  (apply vector :mem kv-pairs (merge-ctx xs)))
+  ; {:pre [(rem-pairs? kv-pairs)]}
+  (let [kv-pairs (map #(if (expr? (second %))
+                         [(first %) (into [] (second %))]
+                         [(first %) (vector (second %))]) kv-pairs)]
+    (apply vector :mem kv-pairs (merge-ctx xs))))
 
 (def MEMORY->rems second)
 (def MEMORY->ctx (comp rest rest))
@@ -290,7 +293,8 @@
 (def ·I (make-expr calc/I))
 
 (def const->expr {:N ·N :U ·U :I ·I :M ·M})
-(def expr->const {·N :N ·U :U ·I :I ·M :M})
+(def expr->const {·N :N ·U :U ·I :I ·M :M
+                  ·none :N ·mark :M ·uform :U ·iform :I})
 
 ;; ? "nested" or "chained"?
 (defn nested-expr
@@ -420,7 +424,7 @@
 (defn expand-memory
   [mem]
   {:pre [(memory? mem)]}
-  (let [eqs (map (fn [[k v]] (· (· k v) (· (· k) (· v))))
+  (let [eqs (map (fn [[k v]] (· (apply · k v) (· (· k) (apply · v))))
               (MEMORY->rems mem))]
     (FORM (apply ·· eqs) (apply · (MEMORY->ctx mem)))))
 
@@ -497,10 +501,6 @@
   (let [ctx (reduce-context form env)]
     (reduce-matching-content (sequence ctx))))
 
-(defn reduce-unclear
-  [uncl env]
-  (FDNA [(UNCLEAR->label uncl)]
-        (calc/make-dna :N :U :U :U)))
 
 (defn- reduce-rems
   [rems env]
@@ -509,11 +509,11 @@
     (loop [[[k v] & r] rems
            rems-reduced []
            env env]
-      (let [v-red (if (expr? v)
-                    (reduce-context v env)
-                    (reduce-content v env))
-            rems-reduced (conj rems-reduced [k v-red])
-            env (assoc env k v-red)]
+      (assert (vector? v))
+      (let [v (reduce-context v env)
+            rems-reduced (conj rems-reduced [k v])
+            env (assoc env k (if (== 1 (count v))
+                               (first v) v))]
         (if (empty? r)
           [rems-reduced env]
           (recur r rems-reduced env))))))
@@ -525,14 +525,16 @@
     (first (reduce
             (fn [[acc rem-vars varlist-next] [v x :as rem]]
               (if (some? (rem-vars v))
-                (let [opts {:vars (set varlist-next)}
-                      vars (cond
-                             (expr? x) (find-vars x opts)
-                             (form? x) (find-vars (·· x) opts)
-                             :else '())]
-                  [(conj acc rem)
-                   (disj (into rem-vars vars) v)
-                   (rest varlist-next)])
+                (if (= (list v) x) ;; remove self-reference [x [x]]
+                  [acc rem-vars (rest varlist-next)]
+                  (let [opts {:vars (set varlist-next)}
+                        vars (cond
+                               (expr? x) (find-vars x opts)
+                               (form? x) (find-vars (·· x) opts)
+                               :else '())]
+                    [(conj acc rem)
+                     (disj (into rem-vars vars) v)
+                     (rest varlist-next)]))
                 [acc rem-vars (rest varlist-next)]))
             [[] rem-vars (map first (rest rev-rems))]
             rev-rems))))
@@ -540,11 +542,12 @@
 (defn reduce-memory
   [mem env]
   (let [[rems env] (reduce-rems (MEMORY->rems mem) env)
-        ctx (reduce-context (MEMORY->ctx mem) env)
+        ctx  (reduce-context (MEMORY->ctx mem) env)
         rems (filter-rems rems ctx)]
     (if (empty? rems)
       (expand-expr ctx)
       (apply MEMORY rems ctx))))
+
 
 (declare reduce-context-chain)
 
@@ -579,34 +582,57 @@
           [:rec-ident true  _     [] [& ys] nil]  (>< (apply ·· I ys))
           [:rec-ident false _     [& xs] [] nil]  (>< (apply ·· U xs))
           ;; ((f x))  |  (((f) x))
-          [:rec-ident false :even [] [& ys] []]   (>< (apply ·· U ys)) 
+          [:rec-ident false :even [] [& ys] []]   (>< (apply ·· U ys))
           [:rec-ident false _     [] [& ys] []]   (>< (apply ·· I ys))
 
           ;; by case distinction:
-          [_ _     _     [(:or U I)] [] nil]  I ;; ((f U/I))
-          [_ _     _     [] [(:or U I)] nil]  U ;; ((f) U/I)
+          [_ _     _     [(:or :mn ([:mn] :seq))] [] nil]  I ;; ((f U/I))
+          [_ _     _     [] [(:or :mn ([:mn] :seq))] nil]  U ;; ((f) U/I)
 
-          [_ false :even [(:or U I)] nil nil] U ;; (f U/I)
-          [_ true  :even [(:or U I)] nil nil] I ;; (f U/I)
-          [_ true  _     [(:or U I)] nil nil] U ;; (f U/I)
-          [_ false _     [(:or U I)] nil nil] I ;; (f U/I)
+          [_ false :even [(:or :mn ([:mn] :seq))] nil nil] U ;; (f U/I)
+          [_ true  :even [(:or :mn ([:mn] :seq))] nil nil] I ;; (f U/I)
+          [_ true  _     [(:or :mn ([:mn] :seq))] nil nil] U ;; (f U/I)
+          [_ false _     [(:or :mn ([:mn] :seq))] nil nil] I ;; (f U/I)
 
-          [_ false :even [] [(:or U I)] []]   I ;; (((f) U/I))
-          [_ true  :even [] [(:or U I)] []]   U ;; (((f) U/I))
-          [_ true  _     [] [(:or U I)] []]   I ;; (((f) U/I))
-          [_ false _     [] [(:or U I)] []]   U ;; (((f) U/I))
+          [_ false :even [] [(:or :mn ([:mn] :seq))] []]   I ;; (((f) U/I))
+          [_ true  :even [] [(:or :mn ([:mn] :seq))] []]   U ;; (((f) U/I))
+          [_ true  _     [] [(:or :mn ([:mn] :seq))] []]   I ;; (((f) U/I))
+          [_ false _     [] [(:or :mn ([:mn] :seq))] []]   U ;; (((f) U/I))
 
            ;; if nothing applies, return the reduced seq-reentry FORM:
           :else (apply SEQ-REENTRY specs ctxs))
         (apply SEQ-REENTRY specs ctxs)))))
 
+
+(defn- filter-fdna
+  "Filters the `dna` by values from given `env` whose keys match variables in the `varlist` of the formDNA."
+  [fdna env]
+  (let [;; assumes only constant values
+        ;; ? what about unevaluated FORMs and formDNA?
+        matches (map #(let [v (get env % :_)
+                            v (if (or (= :_ v) (calc/const? v))
+                                v
+                                (let [expr (if (expr? v)
+                                             v (make-expr v))]
+                                  (expr->const expr)))]
+                        (vector % v))
+                     (FDNA->varlist fdna))
+        vpoint (map second matches)]
+    (FDNA (mapv first (filter #(= (second %) :_) matches))
+          (calc/filter-dna (FDNA->dna fdna) vpoint))))
+
 (defn reduce-fdna
   [fdna env]
-  (let [fdna (FDNA-filter-dna fdna env)]
+  (let [fdna (filter-fdna fdna env)]
     (if (empty? (FDNA->varlist fdna))
       (FDNA->dna fdna)
       fdna)))
 
+(defn reduce-unclear
+  [uncl env]
+  (let [lbl  (UNCLEAR->label uncl)
+        fdna (FDNA [lbl] (calc/make-dna :N :U :U :U))]
+    (reduce-fdna fdna env)))
 
 (defn- reduce-content
   [x env]
@@ -619,25 +645,7 @@
         (unclear? x)     (reduce-unclear x env)
         (seq-reentry? x) (reduce-seq-reentry x env)
         (pure-form? x)   (reduce-form x env)
-        :else
-        (let [interpr (get env x :not-found)]
-          (if (= interpr :not-found)
-            x
-            (let [env (dissoc env x)]
-              (if (expr? interpr)
-                (let [ctx (reduce-context interpr env)]
-                  (expand-expr ctx))
-                (reduce-content interpr env)))))))))
-
-;; ? should env be reduced completely before substitution?
-(defn cnt>
-  "Reduces a FORM content recursively until it cannot be further reduced.
-  All reductions are justified by the axioms of FORM logic.
-  - if `x` is a complex FORM, calls `reduce-context` on `x`
-  - if no reduction applies, tries to retrieve the value from given `env`
-  - if retrieval was unsuccessful, returns `x` as is"
-  ([x]     (cnt> x {}))
-  ([x env] (reduce-content x env)))
+        :else x))))
 
 
 ;;-------------------------------------------------------------------------
@@ -676,7 +684,7 @@
                    obs (observed-get env)]
                (if (nil? obs)
                  ctx
-                 (remove obs ctx)))
+                 (remove #(and (obs %) (not (env %))) ctx)))
              env-next]))))))
 
 (defn- reduce-by-crossing
@@ -722,20 +730,35 @@
           (empty? r)      red-ctxs
           :else (recur r env red-ctxs)))))))
 
+
+(defn- substitute-from-env
+  [ctx env]
+  (loop [ctx  ctx
+         i    0]
+    (let [ctx' (map #(let [x (get env % :not-found)]
+                       (if (= x :not-found) % x)) ctx)]
+      (cond
+        (= ctx' ctx) (merge-ctx ctx')
+        (> i 400)    (throw (ex-info "Too many substitutions! Possibly caused by two mutually recursive associations in the env."
+                                     {:type :infinite-substitution}))
+        :else (recur ctx' (inc i))))))
+
 ;; ? add optim option to not observe values for (de)generation
 ;; ? add option for assumption mn ≠ mn to prevent relation of U/I
 (defn- reduce-context
   [ctx env]
   (let [env (update env :depth #(if (nil? %) 0 (inc %)))]
-    (if (< (:depth env) 500)
-      (loop [ctx ctx
+    (if (< (:depth env) 400)
+      ;; substitute matches from env upfront
+      (loop [ctx (substitute-from-env ctx env)
              i   0]
         (let [[ctx env-next] (reduce-by-calling ctx env)]
-          (if (= ctx '( () ))
+          (if (or (= ctx '( () )) (= ctx '()))
             (vary-meta (seq->expr ctx false)
                        #(assoc % :env-next env-next))
             (let [env-next (observed-merge env-next ctx)
-                  ctx' (->> (map #(reduce-content % (observed-disj env-next %))
+                  ctx' (->> (map #(reduce-content
+                                   % (observed-disj env-next %))
                                  ctx)
                             reduce-by-crossing
                             (remove nil?))]
@@ -743,16 +766,33 @@
                 (= ctx' ctx) (vary-meta (seq->expr ctx' false)
                                         #(assoc % :env-next env-next))
                 (> i 3)      (throw (ex-info "Too many reduction attempts!"
-                                             {:expr (seq->expr ctx' false)}))
+                                             {:type :infinite-reduction}))
                 :else (recur ctx' (inc i)))))))
-      (throw (ex-info "Context too deeply nested, possibly caused by a self-contradicting re-entry definition." {:expr (seq->expr ctx false)})))))
+      (throw (ex-info "Context too deeply nested, possibly caused by a self-contradicting re-entry definition." {:type :stack-overflow})))))
+
+(defn- reduce-env
+  [env]
+  (update-vals env #(if (expr? %)
+                      (reduce-context % {})
+                      (reduce-content % {}))))
+
+;; ? should env be reduced completely before substitution?
+(defn cnt>
+  "Reduces a FORM content recursively until it cannot be further reduced.
+  All reductions are justified by the axioms of FORM logic.
+  - if `x` is a complex FORM, calls `reduce-context` on `x`
+  - if no reduction applies, tries to retrieve the value from given `env`
+  - if retrieval was unsuccessful, returns `x` as is"
+  ([x]     (cnt> x {}))
+  ([x env] (expand-expr
+             (reduce-context (make-expr x) (reduce-env env)))))
 
 (defn ctx>
   "Reduces a FORM context recursively until it cannot be further reduced.
   All reductions are justified by the axioms of FORM logic.
   - for complex expressions, calls `reduce-content` on every unique element"
   ([ctx]     (ctx> ctx {}))
-  ([ctx env] (vec (reduce-context ctx env))))
+  ([ctx env] (vec (reduce-context ctx (reduce-env env)))))
 
 (def reduce-expr ctx>)
 
@@ -838,4 +878,5 @@
         ->expr-str
         escape-uncl
         read-string)))
+
 

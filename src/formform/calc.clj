@@ -123,11 +123,10 @@
   {:pre [(keyword? dna)]}
   (dna-seq-dim (name dna)))
 
-(defn dna?
-  [x]
-  (and (keyword? x)
-    (some? (dna-dim x))
-    (every? #{\N \U \I \M} (name x))))
+(s/def :formform.specs.calc/dna
+  (s/and keyword? #(some? (dna-dim %)) #(every? #{\N \U \I \M} (name %))))
+
+(def dna? (partial s/valid? :formform.specs.calc/dna))
 
 (defn rand-dna
   "Generates a random formDNA of dimension `dim`."

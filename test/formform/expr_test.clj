@@ -22,12 +22,18 @@
     (is (= (find-vars '(x y) {})
            (find-vars '((x (y x))) {})
            '(x y)))
-    (is (= (find-vars (FDNA ['x "y"] :NUIMNUIMNUIMNUIM) {})
+    (is (= (find-vars (·dna ['x "y"] :NUIMNUIMNUIMNUIM) {})
+           (find-vars (FDNA ['x "y"] :NUIMNUIMNUIMNUIM) {})
            '(x "y")))
-    (is (= (find-vars (MEMORY [['a '(x y)] ["b" "z"]] 'a) {})
+    (is (= (find-vars (·mem [['a '(x y)] ["b" "z"]] 'a) {})
+           (find-vars (MEMORY [['a '(x y)] ["b" "z"]] 'a) {})
            '(a x y "b" "z")))
     (is (= (find-vars (·uncl "foo") {})
-           '("foo"))))
+           (find-vars (UNCLEAR "foo") {})
+           '("foo")))
+    (is (= (find-vars (·r ['a 'b] ['c]) {})
+           (find-vars (SEQ-REENTRY {} ['a 'b] ['c]) {})
+           '(a b c))))
 
   (testing "In nested special FORMs"
     (is (= (find-vars (·r ['a :M] ['(b) (·2r ['c])]) {})
@@ -121,7 +127,7 @@
       (is (= (cnt> '(a b b a b a))
              '(a b)))
       (is (= (cnt> '((a) (a) (a)))
-             '((a))))
+             'a))
       (is (= (cnt> '((a (b)) (a (b))))
              '((a (b))))))
 
@@ -142,14 +148,14 @@
              nil))
       (is (= (cnt> '(((a))))
              '(a)))
+      (is (= (cnt> '((a)))
+             'a))
       (is (= (cnt> '(((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((x))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) {'x :U})
              '(:mn))))
 
     (testing "irreducable"
       (is (= (cnt> '(a b))
              '(a b)))
-      (is (= (cnt> '((a)))
-             '((a))))
       ;; should these be reducable? pattern-matching?
       ;; -> might get too complex for eval
       (is (= (cnt> '((a (b)) ((b) a)))
@@ -487,35 +493,13 @@
     (is (= (expand-expr (·· 'x 'y))
            '((x y))))
     (is (= (expand-expr (·mem [['a :M] ['b :U]] (·· 'x 'y)))
-           '[:mem [[a :M] [b :U]] x y]))))
+           '[:mem [[a [:M]] [b [:U]]] x y]))))
 
 
 (deftest dna-expr?-test
   (testing "Validity of dna-expr"
     (is (fdna? ^:expr [:fdna ['a 'b] :IUMNIUMNIUMNIUMN])))) 
 
-
-(deftest FDNA-filter-dna-test
-  (testing "Partial matches in dictionary"
-    (is (= (FDNA-filter-dna (FDNA ['a] :NUIM) {'x :M})
-           '[:fdna [a] :NUIM]))
-    (is (= (FDNA-filter-dna (FDNA ['a] :NUIM) {'x :M 'a :U})
-           '[:fdna [] :I])))
-
-  (testing "Correctness of transformations"
-    (are [x y] (= (FDNA-filter-dna (FDNA ['a] :NUIM) {'a x}) y)
-      :N '[:fdna [] :M]
-      :U '[:fdna [] :I]
-      :I '[:fdna [] :U]
-      :M '[:fdna [] :N])
-
-    (is (= (FDNA-filter-dna
-            (FDNA ['a 'b] (calc/consts->dna [:N :U :I :M
-                                             :U :I :M :I
-                                             :I :M :I :U
-                                             :M :I :U :N])) {'a :U})
-           '[:fdna [b] :IMIU]))
-    )) 
 
 (deftest reduce-dna-test
   (testing "Basic functionality"
@@ -525,8 +509,29 @@
                                              :U :I :M :I
                                              :I :M :I :U
                                              :M :I :U :N])) {'a :M})
-           '[:fdna [b] :NUIM]))
-    ))
+           '[:fdna [b] :NUIM])))
+
+  (testing "Partial matches in dictionary"
+    (is (= (reduce-fdna (FDNA ['a] :NUIM) {'x :M})
+           '[:fdna [a] :NUIM]))
+    (is (= (reduce-fdna (FDNA ['a] :NUIM) {'x :M 'a :U})
+           :I)))
+
+  (testing "Correctness of transformations"
+    (are [x y] (= (reduce-fdna (FDNA ['a] :NUIM) {'a x}) y)
+      :N :M
+      :U :I
+      :I :U
+      :M :N)
+
+    (is (= (reduce-fdna
+            (FDNA ['a 'b] (calc/consts->dna [:N :U :I :M
+                                             :U :I :M :I
+                                             :I :M :I :U
+                                             :M :I :U :N])) {'a :U})
+           '[:fdna [b] :IMIU])))
+
+  )
 
 (deftest expand-fdna-test
   ;; ! unchecked
@@ -579,6 +584,12 @@
     (is (= (reduce-unclear (UNCLEAR "hey") {})
            '[:fdna ["hey"] :NUUU]))
 
+    (are [x y] (= (reduce-unclear (UNCLEAR "unkFo") {"unkFo" x}) y)
+      :N :U
+      :U :U
+      :I :U
+      :M :N)
+
     (is (= (ctx> (·uncl "hey") {"hey" :M})
            '[])))) 
 
@@ -616,15 +627,21 @@
            '[(:mn) b]))
     (is (= (ctx> (·· (·mem [['a :U]] 'a) 'b))
            '[:mn b]))
-    ;; ? should rems have priority over degeneration from env
+    ;; env substitution has priority over degeneration from observed values
     (is (= (ctx> (·· 'y (·mem [['y 'z]] 'y)))
-           '[y]))
+           '[y z]))
+    ;; rems can shadow previous rems or given reduction env
     (is (= (ctx> (·· 'x (·mem [['y 'z]] 'x)) {'x 'y})
            (ctx> (·· 'x (·mem [['x 'z]] 'x)) {'x 'y})
-           '[y z])) ;; fails!
-    ;; ? should an already interpreted variable be interpreted again in the 
-    ;;   outer FORM
-    ;; ? is this problematic for nested re-entries?
+           '[y z]))
+    (is (= (ctx> (·mem [['y 'x]] 'x) {'x 'y})
+           (ctx> (·mem [['y (·· 'x)]] 'x) {'x 'y})
+           '[y]))
+    (is (= (ctx> (·mem [['x 'y] ['y 'z]] 'w) {'w 'x})
+           (ctx> (·mem [['y 'z] ['x 'y]] 'w) {'w 'x})
+           '[z]))
+    (is (= (ctx> (·mem [['x (·· 'x 'z)]] 'x) {'x 'y})
+           '[y z]))
     (is (= (ctx> (·· 'x (·mem [['y 'x]] 'x)) {'x 'y})
            '[y]))
     )
@@ -632,16 +649,19 @@
   (testing "Substitution of values from recursive rems"
     ;; (= ctx' ctx) because reduce-by-calling:
     (is (= (reduce-memory (MEMORY [[:x (·· :x)]] :x) {})
-           '[:mem [[:x [:x]]] :x]))
+           :x))
+    ;; ? merge context during repeated substitution or only once afterwards?
     (is (= (reduce-memory (MEMORY [[:x (·· 'a (·· :x))]] :x) {})
-           '[:mem [[:x [a :x]]] a :x]))
+           '[:mem [[:x [a :x]]] a :x])))
 
+  (testing "Exception in infinite reduction (stack overflow)"
     ;; infinite recursion because outer expr env nullifies previous dissoc:
-    ; (is (= (reduce-memory (MEMORY [[:x (· :x)]] :x) {})
-    ;        '[:mem [[:x [(:x)]]] (:x)]))
-    ; (is (= (reduce-memory (MEMORY [[:x (·· (· :x))]] :x) {})
-    ;        (reduce-memory (MEMORY [[:x (· (·· :x))]] :x) {})
-    ;        '[:mem [[:x [(:x)]]] (:x)]))
+    (is (thrown-with-msg? Exception #"Context too deeply nested"
+                          (reduce-memory (MEMORY [[:x (· :x)]] :x) {})))
+    (is (thrown-with-msg? Exception #"Context too deeply nested"
+                          (reduce-memory (MEMORY [[:x (·· (· :x))]] :x) {})))
+    (is (thrown-with-msg? Exception #"Context too deeply nested"
+                          (reduce-memory (MEMORY [[:x (· (·· :x))]] :x) {})))
     )
 
   (testing "Combined with outer env"
@@ -653,8 +673,8 @@
            '(((x) :mn)))))) 
 
 (deftest expand-memory-test
-      (testing "Correctness of transformation"
-        (is (= (expand-memory (first (·mem [['a :M] ['b :U]] 'x 'y)))
+  (testing "Correctness of transformation"
+    (is (= (expand-memory (first (·mem [['a :M] ['b :U]] 'x 'y)))
            '(((a :M) ((a) (:M))) ((b :U) ((b) (:U))) (x y))))))
 
 
