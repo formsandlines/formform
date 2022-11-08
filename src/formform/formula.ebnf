@@ -1,0 +1,20 @@
+(* formula notation for FORM logic
+   -- created 11/2022, (c) Peter Hofmann *)
+
+S        = CTX;
+<CTX>    = {FORM | SEQRE | VAR | (<':'> CONST | CDIGIT) | UNCLEAR | FDNA};
+FORM     = <'('> CTX <')'>;
+TERM     = CTX;
+SEQRE    = <'{'> [RE_SIGN | RE_OPTS <'|'>] [TERM | TERM {<','> TERM}] <'}'>;
+VAR      = <'"'> TEXT <'"'> | <"'"> TEXT <"'"> | LABEL;
+UNCLEAR  = <'/'> TEXT <'/'>;
+VARLIST  = <'['> [VAR {<','> VAR}] <']'>;
+FDNA     = <'['>VARLIST (':' | '::' | '⁘') (* remove brackets? *)
+           (CONST {CONST} | CDIGIT {CDIGIT})<']'>;
+RE_SIGN  = #'@~?_?' | #'\.\.@~?\.?_?';
+RE_OPTS  = RE_OPT {<'|'> RE_OPT};
+CONST    = 'N' | 'U' | 'I' | 'M';
+CDIGIT   = '0' | '1' | '2' | '3';
+<RE_OPT> = #'2r(\+1)?' | 'alt' | 'open';
+<LABEL>  = #'[a-zA-Z]\w*';
+<TEXT>   = #'[^\(\)\[\]\{\}\,\.\/⁘;\`\"\']+';

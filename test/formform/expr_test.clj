@@ -1,7 +1,8 @@
 (ns formform.expr-test
   (:require [clojure.test :as t :refer [deftest is are testing]]
             [formform.calc :as calc]
-            [formform.expr :as expr :refer :all]))
+            [formform.expr :as expr :refer :all]
+            [instaparse.core :as insta]))
 
 (deftest find-vars-test
   (testing "At root level"
@@ -1093,3 +1094,138 @@
     (is (= (·sel {'a :M} false)
            '[(a ([:<..re])) (a ([:<re]))])))) 
 
+(def tree formula->parsetree)
+(def fail? insta/failure?)
+
+(deftest formula->parsetree-test
+  (testing "Quoted labels"
+    (testing "incomplete match"
+      (is (fail? (tree "''")))
+      (is (fail? (tree "\"\"")))
+      (is (fail? (tree "//")))
+
+      (is (fail? (tree "'")))
+      (is (fail? (tree "\"")))
+      (is (fail? (tree "/")))
+
+      (is (fail? (tree "'\"")))
+      (is (fail? (tree "\"'")))
+      (is (fail? (tree "\"/")))
+      (is (fail? (tree "/\"")))
+      (is (fail? (tree "'/")))
+      (is (fail? (tree "/'")))
+
+      (is (fail? (tree "a'")))
+      (is (fail? (tree "a\"")))
+      (is (fail? (tree "a/")))
+      (is (fail? (tree "'a")))
+      (is (fail? (tree "\"a")))
+      (is (fail? (tree "/a"))))
+
+    (testing "interfering matches"
+      (is (fail? (tree "'a''")))
+      (is (fail? (tree "''a'")))
+      (is (fail? (tree "\"a\"\"")))
+      (is (fail? (tree "\"\"a\"")))
+      (is (fail? (tree "/a//")))
+      (is (fail? (tree "//a/")))
+
+      ;; ? should this be allowed
+      (is (fail? (tree "'\"a\"'")))
+      (is (fail? (tree "\"'a'\"")))
+      (is (fail? (tree "'/a/'")))
+      (is (fail? (tree "/'a'/")))
+      (is (fail? (tree "/\"a\"/")))
+
+      (is (fail? (tree "'a\"'b\"")))
+      (is (fail? (tree "'\"a'b\"")))
+      (is (fail? (tree "'a\"b'\"")))
+      (is (fail? (tree "'a/'b/")))
+      (is (fail? (tree "'/a'b/")))
+      (is (fail? (tree "'a/b'/")))
+      (is (fail? (tree "\"a/\"b/")))
+      (is (fail? (tree "\"/a\"b/")))
+      (is (fail? (tree "\"a/b\"/"))))
+
+    (testing "valid match"
+      (is (= (tree "'a'") [:S [:VAR "a"]]))
+      (is (= (tree "\"a\"") [:S [:VAR "a"]]))
+      (is (= (tree "/a/") [:S [:UNCLEAR "a"]]))
+
+      (is (= (tree "'a'\"a\"") [:S [:VAR "a"] [:VAR "a"]]))
+      (is (= (tree "\"a\"'a'") [:S [:VAR "a"] [:VAR "a"]]))
+      (is (= (tree "/a/'a'") [:S [:UNCLEAR "a"] [:VAR "a"]]))
+      (is (= (tree "'a'/a/") [:S [:VAR "a"] [:UNCLEAR "a"]]))
+      (is (= (tree "/a/\"a\"") [:S [:UNCLEAR "a"] [:VAR "a"]]))
+      (is (= (tree "\"a\"/a/") [:S [:VAR "a"] [:UNCLEAR "a"]]))
+      ))
+
+  (testing "Parentheses"
+    (testing "incomplete match"
+      (is (fail? (tree "("))) (is (fail? (tree ")")))
+      (is (fail? (tree "["))) (is (fail? (tree "]")))
+      (is (fail? (tree "{"))) (is (fail? (tree "}")))
+
+      (is (fail? (tree ")(")))
+      (is (fail? (tree "][")))
+      (is (fail? (tree "}{")))
+      )
+
+    (testing "invalid term"
+      ;; ? maybe this has a use-case
+      (is (fail? (tree "[]")))
+      )
+
+    (testing "interfering matches"
+      (is (fail? (tree "([)]")))
+      (is (fail? (tree "[(])")))
+      (is (fail? (tree "({)}")))
+      (is (fail? (tree "{(})")))
+      (is (fail? (tree "[{]}")))
+      (is (fail? (tree "[(])")))
+
+      )
+
+    (testing "valid empty pairs"
+      (is (= (tree "()") [:S [:FORM]]))
+      (is (= (tree "{}") [:S [:SEQRE]]))
+      (is (= (tree "[[]:N]") [:S [:FDNA [:VARLIST] ":" [:CONST "N"]]]))
+
+      (is (= (tree "(){}") [:S [:FORM] [:SEQRE]]))
+      )
+
+    (testing "valid nested pairs"
+      (is (= (tree "(())") [:S [:FORM [:FORM]]]))
+      (is (= (tree "(((()))()(()))()(()())")
+             [:S [:FORM [:FORM [:FORM [:FORM]]] [:FORM] [:FORM [:FORM]]]
+              [:FORM] [:FORM [:FORM] [:FORM]]]))
+      (is (= (tree "{{}}") [:S [:SEQRE [:TERM [:SEQRE]]]]))
+      (is (= (tree "{{{{}}}{}{{}}}{}{{}{}}")
+             [:S [:SEQRE [:TERM [:SEQRE [:TERM [:SEQRE [:TERM [:SEQRE]]]]]
+                          [:SEQRE] [:SEQRE [:TERM [:SEQRE]]]]]
+              [:SEQRE] [:SEQRE [:TERM [:SEQRE] [:SEQRE]]]]))
+
+      (is (= (tree "({})") [:S [:FORM [:SEQRE]]]))
+      (is (= (tree "{()}") [:S [:SEQRE [:TERM [:FORM]]]]))
+      (is (= (tree "({({})}(){()})(){(){}}")
+             [:S [:FORM [:SEQRE [:TERM [:FORM [:SEQRE]]]] [:FORM]
+                  [:SEQRE [:TERM [:FORM]]]]
+              [:FORM] [:SEQRE [:TERM [:FORM] [:SEQRE]]]]))
+      )
+
+    )
+
+  ; (testing "Allowed characters"
+  ;   (testing "in unquoted variables"
+  ;     (is (fail? (tree "1a")))
+  ;     (is (fail? (tree ":Na")))
+  ;     (is (fail? (tree "1:N")))
+  ;     (is (fail? (tree ":NUIM")))
+  ;     )
+  ;   )
+
+  ) 
+
+; (deftest parse-test
+;   (testing "Context of the test assertions"
+;     (is (= assertion-values)))) 
