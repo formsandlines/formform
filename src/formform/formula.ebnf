@@ -1,20 +1,25 @@
 (* formula notation for FORM logic
    -- created 11/2022, (c) Peter Hofmann *)
 
-S        = CTX;
-<CTX>    = {FORM | SEQRE | VAR | (<':'> CONST | CDIGIT) | UNCLEAR | FDNA};
-FORM     = <'('> CTX <')'>;
-TERM     = CTX;
-SEQRE    = <'{'> [RE_SIGN | RE_OPTS <'|'>] [TERM | TERM {<','> TERM}] <'}'>;
-VAR      = <'"'> TEXT <'"'> | <"'"> TEXT <"'"> | LABEL;
-UNCLEAR  = <'/'> TEXT <'/'>;
-VARLIST  = <'['> [VAR {<','> VAR}] <']'>;
-FDNA     = <'['>VARLIST (':' | '::' | '⁘') (* remove brackets? *)
-           (CONST {CONST} | CDIGIT {CDIGIT})<']'>;
-RE_SIGN  = #'@~?_?' | #'\.\.@~?\.?_?';
-RE_OPTS  = RE_OPT {<'|'> RE_OPT};
-CONST    = 'N' | 'U' | 'I' | 'M';
-CDIGIT   = '0' | '1' | '2' | '3';
-<RE_OPT> = #'2r(\+1)?' | 'alt' | 'open';
-<LABEL>  = #'[a-zA-Z]\w*';
-<TEXT>   = #'[^\(\)\[\]\{\}\,\.\/⁘;\`\"\']+';
+EXPR      = [LITERAL] CTX;
+<CTX>     = NODE [LITERAL] CTX
+          | <#'\s+'> LITERAL CTX
+          | Epsilon;
+<NODE>    = FORM | SEQRE | UNCLEAR | VAR_QUOT;
+<LITERAL> = VAR | VALUE;
+FORM      = <'('> [LITERAL] CTX <')'>;
+TERM      = CTX;
+SEQRE     = <'{'> [RE_SIGN | RE_OPTS <'|'>] TERM {<','> TERM} <'}'>;
+RE_SIGN   = #'@~?_?' | #'\.\.@~?\.?_?';
+RE_OPTS   = RE_OPT {<'|'> RE_OPT};
+(* no auto-whitespace between value / fdna components! *)
+<VALUE>   = <':'> (CONST | CDIGIT) | FDNA
+FDNA      = VARLIST (':' | '::' | '⁘') (CONST {CONST} | CDIGIT {CDIGIT});
+CONST     = 'N' | 'U' | 'I' | 'M';
+CDIGIT    = '0' | '1' | '2' | '3';
+UNCLEAR   = <'/'> TEXT <'/'>;
+VARLIST   = <'['> [(VAR_QUOT | VAR) {<','> (VAR_QUOT | VAR)}] <']'>;
+VAR_QUOT  = <'"'> TEXT <'"'> | <"'"> TEXT <"'">;
+VAR       = #'[a-zA-Z]\w*';
+<RE_OPT>  = #'2r(\+1)?' | 'alt' | 'open';
+<TEXT>    = #'[^\(\)\[\]\{\}\,\.\/⁘;\`\"\']+';
