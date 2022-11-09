@@ -5,18 +5,17 @@ EXPR      = [LITERAL] CTX;
 <CTX>     = NODE [LITERAL] CTX
           | <#'\s+'> LITERAL CTX
           | Epsilon;
-<NODE>    = FORM | SEQRE | UNCLEAR | VAR_QUOT;
-<LITERAL> = VAR | VALUE;
+<NODE>    = FORM | SEQRE | UNCLEAR | FDNA_SPEC | VAR_QUOT;
+<LITERAL> = VAR | FDNA;
 FORM      = <'('> [LITERAL] CTX <')'>;
-TERM      = CTX;
+TERM      = [LITERAL] CTX;
 SEQRE     = <'{'> [RE_SIGN | RE_OPTS <'|'>] TERM {<','> TERM} <'}'>;
 RE_SIGN   = #'@~?_?' | #'\.\.@~?\.?_?';
 RE_OPTS   = RE_OPT {<'|'> RE_OPT};
-(* no auto-whitespace between value / fdna components! *)
-<VALUE>   = <':'> (CONST | CDIGIT) | FDNA
-FDNA      = VARLIST (':' | '::' | '⁘') (CONST {CONST} | CDIGIT {CDIGIT});
-CONST     = 'N' | 'U' | 'I' | 'M';
-CDIGIT    = '0' | '1' | '2' | '3';
+FDNA_SPEC = <'['> VARLIST (CONSTS | DIGITS) <']'>;
+FDNA      = CONSTS | DIGITS;
+<CONSTS>  = #':[NUIM]+';
+<DIGITS>  = #':[0123]+';
 UNCLEAR   = <'/'> TEXT <'/'>;
 VARLIST   = <'['> [(VAR_QUOT | VAR) {<','> (VAR_QUOT | VAR)}] <']'>;
 VAR_QUOT  = <'"'> TEXT <'"'> | <"'"> TEXT <"'">;

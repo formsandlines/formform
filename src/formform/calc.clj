@@ -43,15 +43,18 @@
 (def nuim-code [N U I M])
 (def nmui-code [N M U I])
 
-(defn int->const
-  ([n] (int->const n nuim-code))
+(defn digit->const
+  ([n] (digit->const n nuim-code))
   ([n sort-code]
-   (if (== n -1)
-    :_ ;; “hole” or variable value
-    (sort-code n))))
+   (let [n (if (int? n)
+             n
+             (clojure.edn/read-string (if (char? n) (str n) n)))]
+     (if (== n -1)
+       :_ ;; “hole” or variable value
+       (sort-code n)))))
 
-(defn const->int
-  ([c] (const->int c nuim-code))
+(defn const->digit
+  ([c] (const->digit c nuim-code))
   ([c sort-code]
    (if (= c :_)
      -1 ;; “hole” or variable value
@@ -144,7 +147,7 @@
   "Converts formDNA to its corresponding quaternary number (as a string, prefixed by '4r').
   - use `read-string` to obtain the decimal value as a BigInt"
   [dna]
-  {:pre  [(dna? dna)]
+  {; :pre  [(dna? dna)]
    :post [(string? %)]}
   (let [digits (dna->digits dna)]
     (apply str "4r" digits)))
@@ -180,16 +183,6 @@
 ;; convenience function
 (def compare-dna (make-compare-dna nuim-code))
 
-(defn dna->consts
-  [dna]
-  {:pre [(dna? dna)]}
-  (->> (name dna)
-       (map (comp keyword str))))
-
-(defn consts->dna
-  [cs]
-  (keyword (apply str (map name cs))))
-
 (defn reorder-dna-seq
   "Reorders a `dna-seq` from `sort-code-from` to `sort-code-to`.
   
@@ -217,6 +210,66 @@
     (aux dna-seq)))
 
 
+(defn prod=dna-seq->dna
+  "Produces a converter function from a `dna-seq` of any type to `dna`.
+  Requires a mapping function `sort+x->const` that takes a `sort-code` and an item `x` of the type expected in a to-be-converted `dna-seq` and returns a constant.
+  - if `sort+x->const` is `nil`, the expected type of `x` is `const`"
+  [sort+x->const]
+  (fn f
+    ([dna-seq] (f dna-seq nuim-code))
+    ([dna-seq sort-code]
+     (let [dna-seq (if (= sort-code nuim-code)
+                     dna-seq
+                     (reorder-dna-seq dna-seq sort-code nuim-code))
+           mapfn   (if (nil? sort+x->const)
+                     name
+                     (comp name (partial sort+x->const sort-code)))]
+       (keyword (apply str (map mapfn dna-seq)))))))
+
+(defn prod=dna->dna-seq
+  "Produces a converter function from `dna` to a `dna-seq` of any type.
+  Requires a mapping function `sort+const->x` that takes a `sort-code` and a constant from the to-be-converted `dna` and returns an item of the desired type.
+  - if `sort+x->const` is `nil`, the expected type of `x` is `const`"
+  [sort+const->x]
+  (fn f
+    ([dna] (f dna nuim-code))
+    ([dna sort-code]
+     {:pre [(dna? dna)]}
+     (let [mapfn  (if (nil? sort+const->x)
+                     (comp keyword str)
+                     (comp (partial sort+const->x sort-code) keyword str))
+           dna-seq (map mapfn (name dna))]
+       (if (= sort-code nuim-code)
+         dna-seq
+         (reorder-dna-seq dna-seq nuim-code sort-code))))))
+
+(def consts->dna
+  "Converts a `seqable?` of constants to formDNA.
+  
+  Note that `nuim-code` is the default ordering. If a different `sort-code` is specified, `consts` will be reordered to match the code."
+  (prod=dna-seq->dna (fn [sort-code x] (if (keyword? x)
+                                         x
+                                         (keyword (if (char? x) (str x) x))))))
+
+(def dna->consts
+  "Converts formDNA to a sequence of constants.
+  
+  Note that `nuim-code` is the default ordering. If a different `sort-code` is specified, `dna` will be reordered to match the code."
+  (prod=dna->dna-seq nil))
+
+(def digits->dna
+  "Converts a `seqable?` of digits (as string/char or integer) to formDNA.
+  
+  Note that `nuim-code` is the default ordering. If a different `sort-code` is specified, `digits` will be reordered to match the code."
+  (prod=dna-seq->dna (fn [sort-code x] (digit->const x sort-code))))
+
+(def dna->digits
+  "Converts formDNA to a sequence of digits corresponding to a `sort-code`.
+  
+  Note that `nuim-code` is the default ordering. If a different `sort-code` is specified, `dna` will be reordered to match the code."
+  (prod=dna->dna-seq (fn [sort-code x] (const->digit x sort-code))))
+
+
 ;; ? is this correct expansion for dim > 2 (see `rel`)
 (defn expand-dna-seq
   "Expands a `dna-seq` to a given target dimension by repeating elements.
@@ -239,32 +292,6 @@
 ;   [dna-seq]
 ;   ...)
 
-
-(defn dna->digits
-  "Converts formDNA to a string of digits.
-  
-  Note that `nuim-code` is the default ordering. If a different `sort-code` is specified, `dna` will be reordered to match the code."
-  ([dna] (dna->digits dna nuim-code))
-  ([dna sort-code]
-   (let [dna-seq (map #(-> ((comp keyword str) %)
-                           (const->int sort-code)) (name dna))]
-     (if (= sort-code nuim-code)
-       dna-seq
-       (reorder-dna-seq dna-seq nuim-code sort-code)))))
-
-(defn digits->dna
-  "Converts a `seqable?` of digits to formDNA.
-  
-  Note that `nuim-code` is the default ordering. If a different `sort-code` is specified, `digits` will be reordered to match the code."
-  ([digits] (digits->dna digits nuim-code))
-  ([digits sort-code]
-   (let [dna-seq (if (= sort-code nuim-code)
-                   digits
-                   (reorder-dna-seq digits sort-code nuim-code))]
-     (->> dna-seq
-          (map #(name (int->const % sort-code)))
-          (apply str)
-          keyword))))
 
 ;; ! unchecked
 (defn flatten-dna-seq
@@ -306,7 +333,7 @@
   "Filters a `dna` by selecting specific parts corresponding to a given `vpoint`, which acts as a coordinate vector in its value space.
   - use holes `:_` to indicate a variable selection"
   [dna vpoint]
-  (consts->dna (filter-dna-seq (dna->consts dna) (map const->int vpoint))))
+  (consts->dna (filter-dna-seq (dna->consts dna) (map const->digit vpoint))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
