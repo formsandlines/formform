@@ -470,16 +470,83 @@
 ;; fast with up to 9 dimensions
 (defn vdict->vmap
   "Generates a vmap from a given vdict."
-  [vdict]
-  (let [vspc (keys vdict)
-        dim  (count (first vspc))
-        aux  (fn f [i vspc]
-               (if (< i dim)
-                 (let [group (group-by #(nth % i) vspc)]
-                   (update-vals group
-                                #(f (inc i) %)))
-                 (vdict (first vspc))))]
-    (aux 0 vspc)))
+  ([vdict] (vdict->vmap nil vdict))
+  ([fmap vdict]
+   (let [vspc (keys vdict)
+         dim  (count (first vspc))
+         aux  (fn f [depth vspc]
+                (if (< depth dim)
+                  (let [group (group-by #(nth % depth) vspc)
+                        vmap  (update-vals group #(f (inc depth) %))]
+                    (if (nil? fmap)
+                      vmap
+                      (fmap vmap vspc depth dim)))
+                  (vdict (first vspc))))]
+     (aux 0 vspc))))
+
+;; ? can a custom algo be more efficient here
+(defn dna->vmap
+  [dna]
+  (vdict->vmap (dna->vdict dna {})))
+
+
+(defn vmap-geometry
+  [{:keys [cellsize gap-bounds gap-growth]
+    :or {gap-bounds [0.5 ##Inf] gap-growth 1.5}}
+   vdict]
+  (let [dim      (count (ffirst vdict))
+        cellsize (if (nil? cellsize)
+                   ;; proprtional cellsize
+                   ;; -> reduction by 2px for each additional var if dim > 3
+                   ;; (based on observation, should be refined)
+                   (let [n (- 17 (if (> dim 3)
+                                   (* 2 (- dim 3))
+                                   0))]
+                     (max 2 n)) ;; min size of 2px
+                   cellsize)
+        margins  (let [growth-fn (fn [part-dim]
+                                   (min (max (* part-dim gap-growth)
+                                             (first gap-bounds))
+                                        (second gap-bounds)))]
+                   ;; margins for dim 0 … n
+                   (mapv growth-fn (range 0 (inc dim))))
+
+        add-geometry
+        (fn [vmap _ depth dim]
+          (let [part-dim    (- dim depth 1)
+                part-size   (if (== part-dim 0)
+                              cellsize
+                              (+ (* (get-in vmap [:N :nodes 0 :size]) 2)
+                                 (get-in vmap [:N :nodes 0 :margin])))
+                part-margin (margins part-dim)
+                part-shift  (+ part-size part-margin)]
+            {:nodes (mapv
+                     (fn [[k vmap-quadrant]]
+                       (let [shift-x? (case k (:M :I) true false) ;; N I
+                             shift-y? (case k (:M :U) true false) ;; U M
+                             geometry {:key    k
+                                       :pos    [(if shift-x? part-shift 0)
+                                                (if shift-y? part-shift 0)]
+                                       :size   part-size
+                                       :margin part-margin}]
+                         (if (== part-dim 0)
+                           (into {:value vmap-quadrant} geometry)
+                           (merge vmap-quadrant geometry))))
+                     vmap)}))]
+
+    (if (== dim 0)
+      {:value  (vdict '())
+       :key    nil
+       :pos    [0 0]
+       :size   cellsize
+       :margin (margins 0)}
+      (let [vmap-geom (vdict->vmap add-geometry vdict)]
+        (assoc vmap-geom
+               :key    nil
+               :pos    [0 0]
+               :size   (+ (* (get-in vmap-geom [:nodes 0 :size]) 2)
+                          (get-in vmap-geom [:nodes 0 :margin]))
+               :margin (margins dim))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -538,3 +605,15 @@
 
 
 
+(comment
+
+  (vmap-geometry {} (dna->vdict (rand-dna 3) {}))
+  (vmap-geometry {} (dna->vdict (rand-dna 2) {}))
+  (vmap-geometry {} (dna->vdict (rand-dna 1) {}))
+  (vmap-geometry {} (dna->vdict (rand-dna 0) {}))
+
+  (vdict->vmap (dna->vdict (rand-dna 1) {}))
+  (vdict->vmap (dna->vdict (rand-dna 0) {}))
+
+
+  )
