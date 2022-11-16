@@ -1,7 +1,7 @@
-(ns formform.formula-test
+(ns formform.io-test
   (:require [clojure.test :as t :refer [deftest is are testing]]
             ; [formform.calc :as calc]
-            [formform.formula :as fml :refer :all]
+            [formform.io :as io :refer :all]
             [formform.calc :as calc]
             [formform.expr :as expr :refer :all]
             [instaparse.core :as insta]))

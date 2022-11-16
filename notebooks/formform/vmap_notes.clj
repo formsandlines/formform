@@ -2,7 +2,8 @@
   (:require [nextjournal.clerk :as clerk]
             [formform.calc :as calc :refer :all]
             [formform.expr :as expr :refer :all]
-            [formform.formula :refer [parse]]))
+            [formform.layout :refer [vmap-geometry]]
+            [formform.io :refer [parse]]))
 
 (def KRGB {:N "#000000"
            :U "#FF0000"
@@ -73,6 +74,8 @@
 (def expr (parse input))
 
 (def dna (FDNA->dna (first (=>* expr {:vars ["L" "E" "R"]}))))
+
+(vdict->vmap (dna->vdict dna {}))
 
 (def vmap-geom (vmap-geometry {:gap-bounds [1.0 ##Inf]
                                :cellsize 16

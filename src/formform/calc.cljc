@@ -1,5 +1,6 @@
 (ns formform.calc
-  (:require [clojure.math :as math]
+  (:require [clojure.edn :as edn]
+            [clojure.math :as math]
             [clojure.math.combinatorics :as combo]
             [formform.utils :as utils]
             [clojure.spec.alpha :as s]
@@ -48,7 +49,7 @@
   ([n sort-code]
    (let [n (if (int? n)
              n
-             (clojure.edn/read-string (if (char? n) (str n) n)))]
+             (edn/read-string (if (char? n) (str n) n)))]
      (if (== n -1)
        :_ ;; “hole” or variable value
        (sort-code n)))))
@@ -167,7 +168,7 @@
                               ;;   parse BigInt here
                               ;;   -> maybe use interop with js/BigInt
                               ;;   or a different approach
-                              (read-string (dna->quaternary x))
+                              (edn/read-string (dna->quaternary x))
                               (sort-map x)))]
       (cond
         (and (coll? a) (coll? b))
@@ -357,12 +358,12 @@
                                                    dim "0"))
              perm-dna-seq
              (map (fn [i]
-                    (let [qtn-key (mapv (comp read-string str)
+                    (let [qtn-key (mapv (comp edn/read-string str)
                                         (int->quat-str i))
                           perm-key (apply str "4r"
                                           (map #(qtn-key (perm-order %))
                                                (range dim)))
-                          i-perm (read-string perm-key)]
+                          i-perm (edn/read-string perm-key)]
                       (dna-vec i-perm)))
                   (range (count dna-seq)))]
          [perm-order perm-dna-seq])))))
@@ -482,71 +483,12 @@
                       vmap
                       (fmap vmap vspc depth dim)))
                   (vdict (first vspc))))]
-     (aux 0 vspc))))
+     (with-meta (aux 0 vspc) {:dim dim}))))
 
 ;; ? can a custom algo be more efficient here
 (defn dna->vmap
   [dna]
   (vdict->vmap (dna->vdict dna {})))
-
-
-(defn vmap-geometry
-  [{:keys [cellsize gap-bounds gap-growth]
-    :or {gap-bounds [0.5 ##Inf] gap-growth 1.5}}
-   vdict]
-  (let [dim      (count (ffirst vdict))
-        cellsize (if (nil? cellsize)
-                   ;; proprtional cellsize
-                   ;; -> reduction by 2px for each additional var if dim > 3
-                   ;; (based on observation, should be refined)
-                   (let [n (- 17 (if (> dim 3)
-                                   (* 2 (- dim 3))
-                                   0))]
-                     (max 2 n)) ;; min size of 2px
-                   cellsize)
-        margins  (let [growth-fn (fn [part-dim]
-                                   (min (max (* part-dim gap-growth)
-                                             (first gap-bounds))
-                                        (second gap-bounds)))]
-                   ;; margins for dim 0 … n
-                   (mapv growth-fn (range 0 (inc dim))))
-
-        add-geometry
-        (fn [vmap _ depth dim]
-          (let [part-dim    (- dim depth 1)
-                part-size   (if (== part-dim 0)
-                              cellsize
-                              (+ (* (get-in vmap [:N :nodes 0 :size]) 2)
-                                 (get-in vmap [:N :nodes 0 :margin])))
-                part-margin (margins part-dim)
-                part-shift  (+ part-size part-margin)]
-            {:nodes (mapv
-                     (fn [[k vmap-quadrant]]
-                       (let [shift-x? (case k (:M :I) true false) ;; N I
-                             shift-y? (case k (:M :U) true false) ;; U M
-                             geometry {:key    k
-                                       :pos    [(if shift-x? part-shift 0)
-                                                (if shift-y? part-shift 0)]
-                                       :size   part-size
-                                       :margin part-margin}]
-                         (if (== part-dim 0)
-                           (into {:value vmap-quadrant} geometry)
-                           (merge vmap-quadrant geometry))))
-                     vmap)}))]
-
-    (if (== dim 0)
-      {:value  (vdict '())
-       :key    nil
-       :pos    [0 0]
-       :size   cellsize
-       :margin (margins 0)}
-      (let [vmap-geom (vdict->vmap add-geometry vdict)]
-        (assoc vmap-geom
-               :key    nil
-               :pos    [0 0]
-               :size   (+ (* (get-in vmap-geom [:nodes 0 :size]) 2)
-                          (get-in vmap-geom [:nodes 0 :margin]))
-               :margin (margins dim))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -603,17 +545,3 @@
 
 
 
-
-
-(comment
-
-  (vmap-geometry {} (dna->vdict (rand-dna 3) {}))
-  (vmap-geometry {} (dna->vdict (rand-dna 2) {}))
-  (vmap-geometry {} (dna->vdict (rand-dna 1) {}))
-  (vmap-geometry {} (dna->vdict (rand-dna 0) {}))
-
-  (vdict->vmap (dna->vdict (rand-dna 1) {}))
-  (vdict->vmap (dna->vdict (rand-dna 0) {}))
-
-
-  )

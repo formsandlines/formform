@@ -21,19 +21,19 @@
 (def seq-reentry-sign->opts
   "Maps signatures for self-equivalent re-entry FORMs to their corresponding option-maps."
   (let [ds seq-reentry-defaults]
-    {:<re      (merge ds {})
-     :<..re    (merge ds {:parity :even})
-     :<..re.   (merge ds {:parity :odd})
-     :<re_     (merge ds {:open? true})
-     :<..re_   (merge ds {:open? true :parity :even})
-     :<..re._  (merge ds {:open? true :parity :odd})
+    {:<r      (merge ds {})
+     :<..r    (merge ds {:parity :even})
+     :<..r.   (merge ds {:parity :odd})
+     :<r_     (merge ds {:open? true})
+     :<..r_   (merge ds {:open? true :parity :even})
+     :<..r._  (merge ds {:open? true :parity :odd})
 
-     :<re'     (merge ds {:interpr :rec-ident})
-     :<..re'   (merge ds {:interpr :rec-ident :parity :even})
-     :<..re'.  (merge ds {:interpr :rec-ident :parity :odd})
-     :<re'_    (merge ds {:interpr :rec-ident :open? true})
-     :<..re'_  (merge ds {:interpr :rec-ident :open? true :parity :even})
-     :<..re'._ (merge ds {:interpr :rec-ident :open? true :parity :odd})}))
+     :<r'     (merge ds {:interpr :rec-ident})
+     :<..r'   (merge ds {:interpr :rec-ident :parity :even})
+     :<..r'.  (merge ds {:interpr :rec-ident :parity :odd})
+     :<r'_    (merge ds {:interpr :rec-ident :open? true})
+     :<..r'_  (merge ds {:interpr :rec-ident :open? true :parity :even})
+     :<..r'._ (merge ds {:interpr :rec-ident :open? true :parity :odd})}))
 
 (defn seq-reentry-opts->sign
   "Inverse map of seq-reentry-sign->opts with default args."
@@ -92,7 +92,7 @@
          :rems :formform.specs.expr/rem-pairs
          :ctx  (s/* constantly)))
 
-; (s/conform :formform.specs.expr/memory [:mem [['a (·· :M)]] 'a nil :N '(a (:U))])
+; (s/conform :formform.specs.expr/memory [:mem [['a (<-> :M)]] 'a nil :N '(a (:U))])
 
 (def special-form-tags (into #{:mem :fdna :uncl}
                              (keys seq-reentry-sign->opts)))
@@ -109,6 +109,9 @@
 (def fdna? (partial s/valid? :formform.specs.expr/fdna))
 (def memory? (partial s/valid? :formform.specs.expr/memory))
 
+(def uform? #(= :mn %))
+(def iform? #(= '(:mn) %))
+
 
 ;; Helper
 
@@ -124,8 +127,7 @@
   (map #(str "v__" %) (range n)))
 
 (defn rem-pairs? [xs]
-  (some? (try (into {} xs) (catch Exception _ nil))))
-
+  (and (seqable? xs) (every? seqable? xs)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Content
@@ -277,31 +279,31 @@
 ;;-------------------------------------------------------------------------
 ;; Atomic expressions
 
-(def ·· make-expr)
+(def <-> make-expr)
 
-(def ·      (comp make-expr FORM))
-(def ·?     (comp make-expr VAR))
-(def ·none  (make-expr NONE))
-(def ·mark  (make-expr MARK))
-(def ·uform (make-expr UFORM))
-(def ·iform (make-expr IFORM))
-(def ·uncl  (comp make-expr UNCLEAR))
-(def ·dna   (comp make-expr FDNA))
-(def ·mem   (comp make-expr MEMORY))
+(def <>      (comp make-expr FORM))
+(def <?>     (comp make-expr VAR))
+(def <none>  (make-expr NONE))
+(def <mark>  (make-expr MARK))
+(def <uform> (make-expr UFORM))
+(def <iform> (make-expr IFORM))
+(def <uncl>  (comp make-expr UNCLEAR))
+(def <fdna>  (comp make-expr FDNA))
+(def <mem>   (comp make-expr MEMORY))
 
-(def ·N (make-expr calc/N))
-(def ·M (make-expr calc/M))
-(def ·U (make-expr calc/U))
-(def ·I (make-expr calc/I))
+(def <N> (make-expr calc/N))
+(def <M> (make-expr calc/M))
+(def <U> (make-expr calc/U))
+(def <I> (make-expr calc/I))
 
-(def const->expr {:N ·N :U ·U :I ·I :M ·M})
-(def expr->const {·N :N ·U :U ·I :I ·M :M
-                  ·none :N ·mark :M ·uform :U ·iform :I})
+(def const->expr {:N <N> :U <U> :I <I> :M <M>})
+(def expr->const {<N> :N <U> :U <I> :I <M> :M
+                  <none> :N <mark> :M <uform> :U <iform> :I})
 
 ;; ? "nested" or "chained"?
 (defn nested-expr
   "Nests contexts leftwards `(((…)a)b)` or rightwards `(a(b(…)))` if `{:rightwards? true}`
-  - a context must be either a vector `[x y …]` or an expression `(·· x y …)`"
+  - a context must be either a vector `[x y …]` or an expression `(<-> x y …)`"
   [{:keys [unmarked? rightwards?]
     :or {unmarked? false rightwards? false}} ctx & ctxs]
   (let [ctxs (cons ctx ctxs)
@@ -311,64 +313,63 @@
 ;; ? choose different term than “chain”
 (defn chained-expr
   "Chains contexts like `((a)(b)…)` or `(a)(b)…` if {:unmarked? true}`
-  - a context must be either a vector `[x y …]` or an expression `(·· x y …)`"
+  - a context must be either a vector `[x y …]` or an expression `(<-> x y …)`"
   [{:keys [unmarked?] :or {unmarked? false}} & ctxs]
   (let [f-chained (chain ctxs)]
     (if unmarked?
       (apply make-expr f-chained)
-      (make-expr (apply · f-chained)))))
+      (make-expr (apply <> f-chained)))))
 
-;; ? find a different solution to represent special FORM syntrax
-(def ·<  (partial nested-expr {:unmarked? false :rightwards? false}))
-(def ·>  (partial nested-expr {:unmarked? false :rightwards? true}))
-(def ··< (partial nested-expr {:unmarked? true :rightwards? false}))
-(def ··> (partial nested-expr {:unmarked? true :rightwards? true}))
-(def ·*  (partial chained-expr {:unmarked? false}))
-(def ··* (partial chained-expr {:unmarked? true}))
+(def <<  (partial nested-expr {:unmarked? false :rightwards? false}))
+(def >>  (partial nested-expr {:unmarked? false :rightwards? true}))
+(def <-< (partial nested-expr {:unmarked? true :rightwards? false}))
+(def >-> (partial nested-expr {:unmarked? true :rightwards? true}))
+(def <+> (partial chained-expr {:unmarked? false}))
+(def <|> (partial chained-expr {:unmarked? true}))
 
-(def ·seq-re (comp make-expr SEQ-REENTRY))
+(def <seq-re> (comp make-expr SEQ-REENTRY))
 
-(def ·r     (comp make-expr (partial SEQ-REENTRY :<re)))
-(def ·2r    (comp make-expr (partial SEQ-REENTRY :<..re)))
-(def ·2r+1  (comp make-expr (partial SEQ-REENTRY :<..re.)))
-(def ··r    (comp make-expr (partial SEQ-REENTRY :<re_)))
-(def ··2r   (comp make-expr (partial SEQ-REENTRY :<..re_)))
-(def ··2r+1 (comp make-expr (partial SEQ-REENTRY :<..re._)))
+(def <r     (comp make-expr (partial SEQ-REENTRY :<r)))
+(def <2r    (comp make-expr (partial SEQ-REENTRY :<..r)))
+(def <2r+1  (comp make-expr (partial SEQ-REENTRY :<..r.)))
+(def <r_    (comp make-expr (partial SEQ-REENTRY :<r_)))
+(def <2r_   (comp make-expr (partial SEQ-REENTRY :<..r_)))
+(def <2r+1_ (comp make-expr (partial SEQ-REENTRY :<..r._)))
 
-(def ·r'     (comp make-expr (partial SEQ-REENTRY :<re')))
-(def ·2r'    (comp make-expr (partial SEQ-REENTRY :<..re')))
-(def ·2r'+1  (comp make-expr (partial SEQ-REENTRY :<..re'.)))
-(def ··r'    (comp make-expr (partial SEQ-REENTRY :<re'_)))
-(def ··2r'   (comp make-expr (partial SEQ-REENTRY :<..re'_)))
-(def ··2r'+1 (comp make-expr (partial SEQ-REENTRY :<..re'._)))
+(def <r'     (comp make-expr (partial SEQ-REENTRY :<r')))
+(def <2r'    (comp make-expr (partial SEQ-REENTRY :<..r')))
+(def <2r'+1  (comp make-expr (partial SEQ-REENTRY :<..r'.)))
+(def <r'_    (comp make-expr (partial SEQ-REENTRY :<r'_)))
+(def <2r'_   (comp make-expr (partial SEQ-REENTRY :<..r'_)))
+(def <2r'+1_ (comp make-expr (partial SEQ-REENTRY :<..r'._)))
 
 ;;-------------------------------------------------------------------------
 ;; Compound expressions
 
 ;; Isolator FORMs/class
-(defn ·N->M [x] (· (·r [(· x)]) (·2r [(· x)])))
-(defn ·M->M [x] (· (·r [x]) (·2r [x])))
-(defn ·U->M [x] (· (· (·r [(· x)]) x) (· (·2r [x]) (· x))))
-(defn ·I->M [x] (· (· (·r [x]) (· x)) (· (·2r [(· x)]) x)))
+(defn <N>->M [x] (<> (<r [(<> x)]) (<2r [(<> x)])))
+(defn <M>->M [x] (<> (<r [x]) (<2r [x])))
+(defn <U>->M [x] (<> (<> (<r [(<> x)]) x) (<> (<2r [x]) (<> x))))
+(defn <I>->M [x] (<> (<> (<r [x]) (<> x)) (<> (<2r [(<> x)]) x)))
 
-(def const->isolator {:N ·N->M :M ·M->M :U ·U->M :I ·I->M})
+(def const->isolator {:N <N>->M :M <M>->M :U <U>->M :I <I>->M})
 
 ;; Selector FORMs/class
 ;; ? extend with flipped U/I for vcross (maybe a wrapper)
-(defn ·sel
-  ([vars->consts] (·sel vars->consts true))
+(defn <sel>
+  ([vars->consts] (<sel> vars->consts true))
   ([vars->consts simplify?]
    (if (and simplify? (every? #{calc/M calc/N} (vals vars->consts)))
-     (apply · (map (fn [[v c]]
-                     (if (= c calc/M) (· v) v)) vars->consts))
+     (apply <> (map (fn [[v c]]
+                     (if (= c calc/M) (<> v) v)) vars->consts))
      (let [select-UI (fn [[v c]] (case c
-                                   :N [(· v) (· v)]
+                                   :N [(<> v) (<> v)]
                                    :M [v v]
-                                   :U [v (· v)]
-                                   :I [(· v) v]))
+                                   :U [v (<> v)]
+                                   :I [(<> v) v]))
            all-selections (map select-UI vars->consts)]
-       (·· (· (apply ·· (map first all-selections)) (· (·2r)))
-           (· (apply ·· (map second all-selections)) (· (·r))))))))
+       (<-> (<> (apply <-> (map first all-selections)) (<> (<2r)))
+            (<> (apply <-> (map second all-selections)) (<> (<r))))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -377,14 +378,14 @@
 ;;-------------------------------------------------------------------------
 ;; content -> context
 
-(def ·expanded-uform (·r NONE NONE))
-(def ·expanded-iform (· ·expanded-uform))
+(def <expanded-uform> (<r NONE NONE))
+(def <expanded-iform> (<> <expanded-uform>))
 
 (defn expand-unclear
   [uncl]
   {:pre [(unclear? uncl)]}
-  (let [v (·? (UNCLEAR->label uncl))]
-    (·r v v)))
+  (let [v (<?> (UNCLEAR->label uncl))]
+    (<r v v)))
 
 (defn expand-fdna
   [fdna]
@@ -392,13 +393,13 @@
   (let [vars (FDNA->varlist fdna)
         dna  (FDNA->dna fdna)]
     (if (empty? vars)
-      (·· dna)
+      (<-> dna)
       (let [vdict (calc/dna->vdict dna {})]
-        (apply ·· (map (fn [[vpoint res]]
-                         (apply ·
-                           (· (const->expr res))
-                           (map #(· ((const->isolator %1) %2)) vpoint vars)))
-                    vdict))))))
+        (apply <-> (map (fn [[vpoint res]]
+                          (apply <>
+                                 (<> (const->expr res))
+                                 (map #(<> ((const->isolator %1) %2)) vpoint vars)))
+                        vdict))))))
 
 (defn expand-seq-reentry
   [seq-re]
@@ -420,14 +421,14 @@
                [:f1 (apply nested-expr {:unmarked? true :rightwards? false}
                            (vec (cons (if pre-step? :f2 :f*) x)) ys)])
         init (if (or pre-step? open?) :f1 :f*)]
-    (·mem (vec (remove nil? [re pre open])) init)))
+    (<mem> (vec (remove nil? [re pre open])) init)))
 
 (defn expand-memory
   [mem]
   {:pre [(memory? mem)]}
-  (let [eqs (map (fn [[k v]] (· (apply · k v) (· (· k) (apply · v))))
+  (let [eqs (map (fn [[k v]] (<> (apply <> k v) (<> (<> k) (apply <> v))))
               (MEMORY->rems mem))]
-    (FORM (apply ·· eqs) (apply · (MEMORY->ctx mem)))))
+    (FORM (apply <-> eqs) (apply <> (MEMORY->ctx mem)))))
 
 ;;-------------------------------------------------------------------------
 ;; context -> content
@@ -484,16 +485,16 @@
   "Tries to reduce given content `x` to its simplest FORM if it matches a simple equivalent representation."
   ([x] (reduce-matching-content x x))
   ([x default]
-   (case x
-     (() :M (nil) (:N) ((())) ((:M)) (((nil))) (((:N)))
+   (case x ;; [] = '() in cases! (cljs doesn’t like ((…)) in cases)
+     ([] :M [nil] [:N] [[[]]] [[:M]] [[[nil]]] [[[:N]]]
          ((:U :I)) ((:I :U)))
      '()
-     (nil :N (()) (:M) ((nil)) ((:N))
+     (nil :N [[]] [:M] [[nil]] [[:N]]
           (:U :I) (:I :U))
      nil
-     (:mn :U (:I) ((:mn)) ((:U)) (((:I))))
+     (:mn :U [:I] [[:mn]] [[:U]] [[[:I]]])
      :mn
-     ((:mn) :I (:U) (((:mn))) ((:I)) (((:U))))
+     ([:mn] :I [:U] [[[:mn]]] [[:I]] [[[:U]]])
      '(:mn)
      default)))
 
@@ -531,7 +532,7 @@
                   (let [opts {:vars (set varlist-next)}
                         vars (cond
                                (expr? x) (find-vars x opts)
-                               (form? x) (find-vars (·· x) opts)
+                               (form? x) (find-vars (<-> x) opts)
                                :else '())]
                     [(conj acc rem)
                      (disj (into rem-vars vars) v)
@@ -577,14 +578,14 @@
           ;; if interpretation of `mn` is “recursive identity”
           ;; and `f = ((f))` can be separated from the rest:
           ;; f x      |  (f) x 
-          [:rec-ident true  :even [& xs] nil nil] (>< (apply ·· U xs))
-          [:rec-ident true  _     [& xs] nil nil] (>< (apply ·· I xs))
+          [:rec-ident true  :even [& xs] nil nil] (>< (apply <-> U xs))
+          [:rec-ident true  _     [& xs] nil nil] (>< (apply <-> I xs))
           ;; (f) x    |  ((f x))
-          [:rec-ident true  _     [] [& ys] nil]  (>< (apply ·· I ys))
-          [:rec-ident false _     [& xs] [] nil]  (>< (apply ·· U xs))
+          [:rec-ident true  _     [] [& ys] nil]  (>< (apply <-> I ys))
+          [:rec-ident false _     [& xs] [] nil]  (>< (apply <-> U xs))
           ;; ((f x))  |  (((f) x))
-          [:rec-ident false :even [] [& ys] []]   (>< (apply ·· U ys))
-          [:rec-ident false _     [] [& ys] []]   (>< (apply ·· I ys))
+          [:rec-ident false :even [] [& ys] []]   (>< (apply <-> U ys))
+          [:rec-ident false _     [] [& ys] []]   (>< (apply <-> I ys))
 
           ;; by case distinction:
           [_ _     _     [(:or :mn ([:mn] :seq))] [] nil]  I ;; ((f U/I))
@@ -811,10 +812,10 @@
    (let [[res & more :as ctx] (ctx> expr env)
          v (when (empty? more)
              (case res
-               (( )   :M) calc/M
+               ([ ]   :M) calc/M
                (nil   :N) calc/N
                (:mn   :U) calc/U
-               ((:mn) :I) calc/I
+               ([:mn] :I) calc/I
                nil))
          m {:expr ctx :env env}]
      (if (some? v)
@@ -837,7 +838,7 @@
      (if to-fdna?
        (let [consts (mapv (comp first (partial => expr)) envs)]
          ;; ? dna or dna-seq (performance?)
-         (·dna (vec vars) (calc/consts->dna (rseq consts))))
+         (<fdna> (vec vars) (calc/consts->dna (rseq consts))))
        (let [results (map (partial => expr) envs)]
          (with-meta results {:vars vars :vspc vspc}))))))
 
@@ -854,7 +855,7 @@
 (defn eval-all
   "Calls `=>*` but instead of an expression returns a `vdict`"
   [expr {:keys [sorted?] :or {sorted? true}}]
-  (let [rs (=>* expr false)
+  (let [rs (=>* expr {:to-fdna? false})
         {:keys [vars vspc]} (meta rs)]
     (with-meta
       (->> rs
@@ -867,46 +868,51 @@
 
 
 (comment
-  (ctx> (·r)) ;=> [(:mn)]
-  (ctx> (expand-seq-reentry (first (·r))))
+  (ctx> (<r)) ;=> [(:mn)]
+  (ctx> (expand-seq-reentry (first (<r))))
   ;; [:<re]
   ;; => [[:mem ([:f* [((:f*))]] [:f1 [(:f*)]]) :f1]]
   ;; => [(:f*)]
 
-  (ctx> (··r)) ;=> [(:mn)]
-  (ctx> (expand-seq-reentry (first (··r))))
+  (ctx> (<r_)) ;=> [(:mn)]
+  (ctx> (expand-seq-reentry (first (<r_))))
   ;; => [[:mem ([:f* [((:f*))]] [:f2 [(:f*)]] [:f1 [:f2]]) :f1]]
   ;; => [(:f*)]
 
-  (ctx> (·2r)) ;=> [:mn]
-  (ctx> (expand-seq-reentry (first (·2r))))
+  (ctx> (<2r)) ;=> [:mn]
+  (ctx> (expand-seq-reentry (first (<2r))))
   ;; => [[:mem ([:f* [((:f*))]]) :f*]]
   ;; => [:f*]
 
-  (ctx> (··2r)) ;=> [:mn]
-  (ctx> (expand-seq-reentry (first (··2r))))
+  (ctx> (<2r_)) ;=> [:mn]
+  (ctx> (expand-seq-reentry (first (<2r_))))
   ;; => [[:mem ([:f* [((:f*))]] [:f1 [:f*]]) :f1]]
   ;; => [:f*]
 
-  (ctx> (·2r+1)) ;=> [(:mn)]
-  (ctx> (expand-seq-reentry (first (·2r+1))))
+  (ctx> (<2r+1)) ;=> [(:mn)]
+  (ctx> (expand-seq-reentry (first (<2r+1))))
   ;; => [[:mem ([:f* [((:f*))]] [:f1 [(:f*)]]) :f1]]
   ;; => [(:f*)]
 
-  (ctx> (··2r+1)) ;=> [(:mn)]
-  (ctx> (expand-seq-reentry (first (··2r+1))))
+  (ctx> (<2r+1_)) ;=> [(:mn)]
+  (ctx> (expand-seq-reentry (first (<2r+1_))))
   ;; => [[:mem ([:f* [((:f*))]] [:f2 [(:f*)]] [:f1 [:f2]]) :f1]]
   ;; => [(:f*)]
 
 
-  (ctx> (·r ['a])) ;=> [[:<re [a]]]
-  (ctx> (expand-seq-reentry (first (·r ['a]))))
+  (ctx> (<r ['a])) ;=> [[:<re [a]]]
+  (ctx> (expand-seq-reentry (first (<r ['a]))))
   ;;=> [[:mem ([:f* [((:f* a) a)]] [:f1 [(:f* a)]]) :f1]]
   ;; ERROR too deeply nested
 
-  (ctx> (·r [:U])) ;=> [(:mn)]
-  (ctx> (expand-seq-reentry (first (·r [:U]))))
+  (ctx> (<r [:U])) ;=> [(:mn)]
+  (ctx> (expand-seq-reentry (first (<r [:U]))))
   ;;=> [[:mem ([:f* [((:f* :U) :U)]] [:f1 [(:f* :U)]]) :f1]]
   ;; ERROR too deeply nested
 
+  )
+
+(comment
+  (<r ['l] ['e] ['r])
+  (SEQ-REENTRY {} ['l] ['e] ['r])
   )

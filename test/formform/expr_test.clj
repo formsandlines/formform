@@ -23,21 +23,21 @@
     (is (= (find-vars '(x y) {})
            (find-vars '((x (y x))) {})
            '(x y)))
-    (is (= (find-vars (·dna ['x "y"] :NUIMNUIMNUIMNUIM) {})
+    (is (= (find-vars (<fdna> ['x "y"] :NUIMNUIMNUIMNUIM) {})
            (find-vars (FDNA ['x "y"] :NUIMNUIMNUIMNUIM) {})
            '(x "y")))
-    (is (= (find-vars (·mem [['a '(x y)] ["b" "z"]] 'a) {})
+    (is (= (find-vars (<mem> [['a '(x y)] ["b" "z"]] 'a) {})
            (find-vars (MEMORY [['a '(x y)] ["b" "z"]] 'a) {})
            '(a x y "b" "z")))
-    (is (= (find-vars (·uncl "foo") {})
+    (is (= (find-vars (<uncl> "foo") {})
            (find-vars (UNCLEAR "foo") {})
            '("foo")))
-    (is (= (find-vars (·r ['a 'b] ['c]) {})
+    (is (= (find-vars (<r ['a 'b] ['c]) {})
            (find-vars (SEQ-REENTRY {} ['a 'b] ['c]) {})
            '(a b c))))
 
   (testing "In nested special FORMs"
-    (is (= (find-vars (·r ['a :M] ['(b) (·2r ['c])]) {})
+    (is (= (find-vars (<r ['a :M] ['(b) (<2r ['c])]) {})
            '(a b c)))
     (is (= (find-vars (MEMORY [['a (MEMORY [['b :U]] 'c)]] 'd) {})
            '(a b c d))))
@@ -108,11 +108,11 @@
         (is (= (cnt> "a") "a")))
 
       (testing "with env"
-        (is (= (cnt> 'a {'a ·M})
-               (cnt> '(a) {'a ·N})
-               (cnt> '((a (b))) {'a ·I 'b ·I})
+        (is (= (cnt> 'a {'a <M>})
+               (cnt> '(a) {'a <N>})
+               (cnt> '((a (b))) {'a <I> 'b <I>})
                '()))
-        (is (= (cnt> "a" {"a" ·U}) :mn)))))
+        (is (= (cnt> "a" {"a" <U>}) :mn)))))
 
   (testing "Nested content"
     (testing "reduced by calling"
@@ -197,17 +197,17 @@
                [ :mn ]))
         (is (= (ctx> [ 'a 'b ] {'a :U 'b :I})
                [ '() ]))
-        (is (= (ctx> [ 'a "a" ] {'a ·U "a" ·I}) ;; should be equal?
+        (is (= (ctx> [ 'a "a" ] {'a <U> "a" <I>}) ;; should be equal?
                [ '() ]))
-        (is (= (ctx> [ 'a 'b ] {'a ·U})
+        (is (= (ctx> [ 'a 'b ] {'a <U>})
                [ :mn 'b ]))
-        (is (= (ctx> (·· 'x) {'x 'y})
+        (is (= (ctx> (<-> 'x) {'x 'y})
                [ 'y ])))
 
       (testing "with recursive env"
         ;; ? infinite recursion or dissoc from env on first interpretation
-        (is (= (ctx> (·· 'x) {'x 'x})
-               (ctx> (·· 'x) {'x (·· 'x)})
+        (is (= (ctx> (<-> 'x) {'x 'x})
+               (ctx> (<-> 'x) {'x (<-> 'x)})
                '[x]))))
 
     (testing "mixed"
@@ -386,104 +386,104 @@
               [:M] [:M] [:M] [:M]])))
 
     (testing "Correctness of evaluation for simple seq-re FORMs"
-      (is (= (=>* (·r ['a])) (=>* (·2r+1 ['a]))
+      (is (= (=>* (<r ['a])) (=>* (<2r+1 ['a]))
              '[[:fdna [a] :NIII]]))
-      (is (= (=>* (·2r ['a]))
+      (is (= (=>* (<2r ['a]))
              '[[:fdna [a] :NUUU]]))
 
-      (is (= (=>* (··r ['a])) (=>* (··2r+1 ['a]))
+      (is (= (=>* (<r_ ['a])) (=>* (<2r+1_ ['a]))
              '[[:fdna [a] :MUUI]]))
-      (is (= (=>* (··2r ['a]))
+      (is (= (=>* (<2r_ ['a]))
              '[[:fdna [a] :MIIU]]))
 
-      (is (= (=>* (·r' ['a])) (=>* (·2r'+1 ['a]))
+      (is (= (=>* (<r' ['a])) (=>* (<2r'+1 ['a]))
              '[[:fdna [a] :NIII]]))
-      (is (= (=>* (·2r' ['a]))
+      (is (= (=>* (<2r' ['a]))
              '[[:fdna [a] :NUUU]]))
 
-      (is (= (=>* (··r' ['a])) (=>* (··2r'+1 ['a]))
+      (is (= (=>* (<r'_ ['a])) (=>* (<2r'+1_ ['a]))
              '[[:fdna [a] :MIMI]]))
-      (is (= (=>* (··2r' ['a]))
+      (is (= (=>* (<2r'_ ['a]))
              '[[:fdna [a] :MMUU]])))
 
     (testing "Correctness of evaluation in complex seq-re FORMs"
-      (is (= (=>* (·r ['b] [IFORM 'a] ['a]))
+      (is (= (=>* (<r ['b] [IFORM 'a] ['a]))
              '[[:fdna [a b] :NNNNNINIIIIIIUIU]])))
 
     (testing "Congruence of evaluated formDNA with formform 1 results"
     ;; SelFi Collection (see https://observablehq.com/@formsandlines/1d-ca-for-4-valued-form-logic-selfis)
 
     ;; Mark1
-      (is (= (->nmui (=>* (·· (·r ['l] ['e] ['r])
-                              (·r ['l] ['r] ['e])) {:vars ['l 'e 'r]}))
+      (is (= (->nmui (=>* (<-> (<r ['l] ['e] ['r])
+                               (<r ['l] ['r] ['e])) {:vars ['l 'e 'r]}))
              "[l e r]::3121103223011213012313312301311301231032230132103121133123011113"))
 
     ;; StripesD100000
-      (is (= (->nmui (=>* (·· (·r ['l] ['e] ['r])) {:vars ['l 'e 'r]}))
+      (is (= (->nmui (=>* (<-> (<r ['l] ['e] ['r])) {:vars ['l 'e 'r]}))
              "[l e r]::3302200223013003030323022301030303032002230100003302230223013303"))
 
     ;; StripesL000100
-      (is (= (->nmui (=>* (·· (·r ['l] ['r] ['e])) {:vars ['l 'e 'r]}))
+      (is (= (->nmui (=>* (<-> (<r ['l] ['r] ['e])) {:vars ['l 'e 'r]}))
              "[l e r]::3223303000002213022033330000321302203030000032103223333300002213"))
 
     ;; Mono000101
-      (is (= (->nmui (=>* (·· (·r ['l] ['r] ['e])
-                              (·r ['e] ['l] ['r])) {:vars ['l 'e 'r]}))
+      (is (= (->nmui (=>* (<-> (<r ['l] ['r] ['e])
+                               (<r ['e] ['l] ['r])) {:vars ['l 'e 'r]}))
              "[l e r]::3121333303031111222213312002111121211331230111113223333300001113"))
 
     ;; Rhythm101101
-      (is (= (->nmui (=>* (·· (·r ['l] ['e] ['r])
-                              (·r ['e] ['r] ['l])
-                              (·r ['l] ['r] ['e])
-                              (·r ['e] ['l] ['r])) {:vars ['l 'e 'r]}))
+      (is (= (->nmui (=>* (<-> (<r ['l] ['e] ['r])
+                               (<r ['e] ['r] ['l])
+                               (<r ['l] ['r] ['e])
+                               (<r ['e] ['l] ['r])) {:vars ['l 'e 'r]}))
              "[l e r]::3121111121211111111113311331111121211331230111111111111111111113"))
 
     ;; NewSense
-      (is (= (->nmui (=>* (·· (·r ['l] ['e] ['r])
-                              (·r ['r] ['e] ['l])
-                              (·r ['l] ['r] ['e])) {:vars ['l 'e 'r]}))
+      (is (= (->nmui (=>* (<-> (<r ['l] ['e] ['r])
+                               (<r ['r] ['e] ['l])
+                               (<r ['l] ['r] ['e])) {:vars ['l 'e 'r]}))
              "[l e r]::3121121221211213311313311331311301231032230132101111111111111113"))
 
     ;; Slit / xor4vRnd
-      (is (= (->nmui (=>* (·· (· (· 'l) 'r) (· (· 'r) 'l))))
+      (is (= (->nmui (=>* (<-> (<> (<> 'l) 'r) (<> (<> 'r) 'l))))
              "[l r]::0123103223013210"))
 
     ;; or4v
-      (is (= (->nmui (=>* (·· 'l 'r)))
+      (is (= (->nmui (=>* (<-> 'l 'r)))
              "[l r]::3113121211113210"))
 
     ;; xorReId / xorReIdRnd
-      (is (= (->nmui (=>* (·· (·r' ['l] ['r]) (·r' ['r] ['l]))))
+      (is (= (->nmui (=>* (<-> (<r' ['l] ['r]) (<r' ['r] ['l]))))
              "[l r]::2121123223011212"))
 
     ;; Rule4v30
-      (is (= (->nmui (=>* (·· (· (· 'l) 'e 'r)
-                              (· (· 'e) 'l) (· (· 'r) 'l)) {:vars ['l 'e 'r]}))
+      (is (= (->nmui (=>* (<-> (<> (<> 'l) 'e 'r)
+                               (<> (<> 'e) 'l) (<> (<> 'r) 'l)) {:vars ['l 'e 'r]}))
              "[l e r]::0220212122220123133130303333103220020303000023013113121211113210"))
 
     ;; Rule4v111
-      (is (= (->nmui (=>* (·· (· (· (· 'l) 'e) 'r)
-                              (· (· (· 'l) 'r) 'e)
-                              (· (· (· 'e) 'r) 'l)) {:vars ['l 'e 'r]}))
+      (is (= (->nmui (=>* (<-> (<> (<> (<> 'l) 'e) 'r)
+                               (<> (<> (<> 'l) 'r) 'e)
+                               (<> (<> (<> 'e) 'r) 'l)) {:vars ['l 'e 'r]}))
              "[l e r]::2121121221211212311313311331311301231032230132101111111111111111"))
 
     ;; Structure111Re / Co(mprehend)OneAnother (identical to “NewSense”)
-      (is (= (->nmui (=>* (·· (·r ['l] ['e] ['r])
-                              (·r ['e] ['r] ['l])
-                              (·r ['l] ['r] ['e])) {:vars ['l 'e 'r]}))
+      (is (= (->nmui (=>* (<-> (<r ['l] ['e] ['r])
+                               (<r ['e] ['r] ['l])
+                               (<r ['l] ['r] ['e])) {:vars ['l 'e 'r]}))
              "[l e r]::3121121221211213311313311331311301231032230132101111111111111113"))
 
     ;; Rule4v110
-      (is (= (->nmui (=>* (·· (· (· 'e) 'r)
-                              (· (· 'r) 'e)
-                              (· (· 'r) 'l)) {:vars ['l 'e 'r]}))
+      (is (= (->nmui (=>* (<-> (<> (<> 'e) 'r)
+                               (<> (<> 'r) 'e)
+                               (<> (<> 'r) 'l)) {:vars ['l 'e 'r]}))
              "[l e r]::0123121221213210311310321331321001231032230132103113121211113210"))
 
     ;; uniTuringReRnd
-      (is (= (->nmui (=>* (· (· (·r ['l] ['e] ['r])
-                                (·r ['e] ['r] ['l])
-                                (·r ['l] ['r] ['e]))
-                             (· 'l 'e 'r)) {:vars ['l 'e 'r]}))
+      (is (= (->nmui (=>* (<> (<> (<r ['l] ['e] ['r])
+                                  (<r ['e] ['r] ['l])
+                                  (<r ['l] ['r] ['e]))
+                              (<> 'l 'e 'r)) {:vars ['l 'e 'r]}))
              "[l e r]::3123121221213213311310321331321001231032230132103113121211113210"))
 
       ))) 
@@ -491,9 +491,9 @@
 
 (deftest expand-expr-test
   (testing "Correctness of transformation"
-    (is (= (expand-expr (·· 'x 'y))
+    (is (= (expand-expr (<-> 'x 'y))
            '((x y))))
-    (is (= (expand-expr (·mem [['a :M] ['b :U]] (·· 'x 'y)))
+    (is (= (expand-expr (<mem> [['a :M] ['b :U]] (<-> 'x 'y)))
            '[:mem [[a [:M]] [b [:U]]] x y]))))
 
 
@@ -541,43 +541,43 @@
     (is (= (expand-fdna (FDNA :U)) '[:U]))
     (is (= (expand-fdna (FDNA [] :M)) '[:M]))
     (is (= (expand-fdna (FDNA ['a] :NUIM))
-           '[((:M) (([:<re [(a)]] [:<..re [(a)]])))
-             ((:I) ((([:<re [(a)]] a) ([:<..re [a]] (a)))))
-             ((:U) ((([:<re [a]] (a)) ([:<..re [(a)]] a))))
-             ((:N) (([:<re [a]] [:<..re [a]])))]))
+           '[((:M) (([:<r [(a)]] [:<..r [(a)]])))
+             ((:I) ((([:<r [(a)]] a) ([:<..r [a]] (a)))))
+             ((:U) ((([:<r [a]] (a)) ([:<..r [(a)]] a))))
+             ((:N) (([:<r [a]] [:<..r [a]])))]))
     (is (= (expand-fdna (FDNA ['a 'b] :MINIUMINUMNIMMIM))
-           '[((:I) (([:<re [a]] [:<..re [a]]))
-                   (([:<re [(b)]] [:<..re [(b)]])))
-             ((:I) (([:<re [a]] [:<..re [a]]))
-                   ((([:<re [b]] (b)) ([:<..re [(b)]] b))))
-             ((:U) ((([:<re [(a)]] a) ([:<..re [a]] (a))))
-                   (([:<re [b]] [:<..re [b]])))
-             ((:M) (([:<re [a]] [:<..re [a]]))
-                   (([:<re [b]] [:<..re [b]])))
-             ((:M) (([:<re [(a)]] [:<..re [(a)]]))
-                   (([:<re [b]] [:<..re [b]])))
-             ((:M) (([:<re [(a)]] [:<..re [(a)]]))
-                   (([:<re [(b)]] [:<..re [(b)]])))
-             ((:M) ((([:<re [(a)]] a) ([:<..re [a]] (a))))
-                   ((([:<re [b]] (b)) ([:<..re [(b)]] b))))
-             ((:U) ((([:<re [a]] (a)) ([:<..re [(a)]] a)))
-                   (([:<re [b]] [:<..re [b]])))
-             ((:N) ((([:<re [(a)]] a) ([:<..re [a]] (a))))
-                   ((([:<re [(b)]] b) ([:<..re [b]] (b)))))
-             ((:M) (([:<re [(a)]] [:<..re [(a)]]))
-                   ((([:<re [b]] (b)) ([:<..re [(b)]] b))))
-             ((:M) ((([:<re [a]] (a)) ([:<..re [(a)]] a)))
-                   ((([:<re [b]] (b)) ([:<..re [(b)]] b))))
-             ((:N) ((([:<re [a]] (a)) ([:<..re [(a)]] a)))
-                   (([:<re [(b)]] [:<..re [(b)]])))
-             ((:N) (([:<re [a]] [:<..re [a]]))
-                   ((([:<re [(b)]] b) ([:<..re [b]] (b)))))
-             ((:I) ((([:<re [(a)]] a) ([:<..re [a]] (a))))
-                   (([:<re [(b)]] [:<..re [(b)]])))
-             ((:I) ((([:<re [a]] (a)) ([:<..re [(a)]] a)))
-                   ((([:<re [(b)]] b) ([:<..re [b]] (b)))))
-             ((:I) (([:<re [(a)]] [:<..re [(a)]]))
-                   ((([:<re [(b)]] b) ([:<..re [b]] (b)))))]))))
+           '[((:I) (([:<r [a]] [:<..r [a]]))
+                   (([:<r [(b)]] [:<..r [(b)]])))
+             ((:I) (([:<r [a]] [:<..r [a]]))
+                   ((([:<r [b]] (b)) ([:<..r [(b)]] b))))
+             ((:U) ((([:<r [(a)]] a) ([:<..r [a]] (a))))
+                   (([:<r [b]] [:<..r [b]])))
+             ((:M) (([:<r [a]] [:<..r [a]]))
+                   (([:<r [b]] [:<..r [b]])))
+             ((:M) (([:<r [(a)]] [:<..r [(a)]]))
+                   (([:<r [b]] [:<..r [b]])))
+             ((:M) (([:<r [(a)]] [:<..r [(a)]]))
+                   (([:<r [(b)]] [:<..r [(b)]])))
+             ((:M) ((([:<r [(a)]] a) ([:<..r [a]] (a))))
+                   ((([:<r [b]] (b)) ([:<..r [(b)]] b))))
+             ((:U) ((([:<r [a]] (a)) ([:<..r [(a)]] a)))
+                   (([:<r [b]] [:<..r [b]])))
+             ((:N) ((([:<r [(a)]] a) ([:<..r [a]] (a))))
+                   ((([:<r [(b)]] b) ([:<..r [b]] (b)))))
+             ((:M) (([:<r [(a)]] [:<..r [(a)]]))
+                   ((([:<r [b]] (b)) ([:<..r [(b)]] b))))
+             ((:M) ((([:<r [a]] (a)) ([:<..r [(a)]] a)))
+                   ((([:<r [b]] (b)) ([:<..r [(b)]] b))))
+             ((:N) ((([:<r [a]] (a)) ([:<..r [(a)]] a)))
+                   (([:<r [(b)]] [:<..r [(b)]])))
+             ((:N) (([:<r [a]] [:<..r [a]]))
+                   ((([:<r [(b)]] b) ([:<..r [b]] (b)))))
+             ((:I) ((([:<r [(a)]] a) ([:<..r [a]] (a))))
+                   (([:<r [(b)]] [:<..r [(b)]])))
+             ((:I) ((([:<r [a]] (a)) ([:<..r [(a)]] a)))
+                   ((([:<r [(b)]] b) ([:<..r [b]] (b)))))
+             ((:I) (([:<r [(a)]] [:<..r [(a)]]))
+                   ((([:<r [(b)]] b) ([:<..r [b]] (b)))))]))))
 
 
 (deftest reduce-unclear-test
@@ -591,78 +591,78 @@
       :I :U
       :M :N)
 
-    (is (= (ctx> (·uncl "hey") {"hey" :M})
+    (is (= (ctx> (<uncl> "hey") {"hey" :M})
            '[])))) 
 
 (deftest expand-unclear-test
   (testing "Correctness of transformation"
     (is (= (expand-unclear (UNCLEAR "foo"))
-           [[:<re ["foo"] ["foo"]]]))
+           [[:<r ["foo"] ["foo"]]]))
     (is (= (expand-unclear (UNCLEAR #{:X :Y} #".+"))
-           [[:<re ["#{:Y :X}.+"] ["#{:Y :X}.+"]]])))) 
+           [[:<r ["#{:Y :X}.+"] ["#{:Y :X}.+"]]])))) 
 
 
 (deftest filter-rems-test
   (testing "Removal of unreferenced shadowed rems"
-    (is (= (#'expr/filter-rems [['a '(x)] ['x 'a] ['x :M]] (·· 'x))
+    (is (= (#'expr/filter-rems [['a '(x)] ['x 'a] ['x :M]] (<-> 'x))
            '[[x :M]]))
-    (is (= (#'expr/filter-rems [['a :N] ['x :M] ['a '(x)]] (·· 'a))
+    (is (= (#'expr/filter-rems [['a :N] ['x :M] ['a '(x)]] (<-> 'a))
            '[[a (x)] [x :M]])))) 
 
 (deftest reduce-memory-test
   (testing "Correctness of reduction"
     (is (= (reduce-memory (MEMORY [['a :M]] 'a) {})
            (reduce-memory (MEMORY [['a MARK]] 'a) {})
-           (reduce-memory (MEMORY [['a ·mark]] 'a) {})
-           (reduce-memory (MEMORY [['a (·· MARK)]] 'a) {})
+           (reduce-memory (MEMORY [['a <mark>]] 'a) {})
+           (reduce-memory (MEMORY [['a (<-> MARK)]] 'a) {})
            '()))
-    (is (= (reduce-memory (MEMORY [['a :U]] (· 'b) 'a) {})
+    (is (= (reduce-memory (MEMORY [['a :U]] (<> 'b) 'a) {})
            '(((b) :mn))))
     (is (= (reduce-memory (MEMORY [['x :N]] 'y) {})
            'y))
     )
 
   (testing "In expression context"
-    (is (= (ctx> (·mem [['a :U]] (· 'a) 'b))
-           (ctx> (·· (·mem [['a :U]] (· 'a)) 'b))
+    (is (= (ctx> (<mem> [['a :U]] (<> 'a) 'b))
+           (ctx> (<-> (<mem> [['a :U]] (<> 'a)) 'b))
            '[(:mn) b]))
-    (is (= (ctx> (·· (·mem [['a :U]] 'a) 'b))
+    (is (= (ctx> (<-> (<mem> [['a :U]] 'a) 'b))
            '[:mn b]))
     ;; env substitution has priority over degeneration from observed values
-    (is (= (ctx> (·· 'y (·mem [['y 'z]] 'y)))
+    (is (= (ctx> (<-> 'y (<mem> [['y 'z]] 'y)))
            '[y z]))
     ;; rems can shadow previous rems or given reduction env
-    (is (= (ctx> (·· 'x (·mem [['y 'z]] 'x)) {'x 'y})
-           (ctx> (·· 'x (·mem [['x 'z]] 'x)) {'x 'y})
+    (is (= (ctx> (<-> 'x (<mem> [['y 'z]] 'x)) {'x 'y})
+           (ctx> (<-> 'x (<mem> [['x 'z]] 'x)) {'x 'y})
            '[y z]))
-    (is (= (ctx> (·mem [['y 'x]] 'x) {'x 'y})
-           (ctx> (·mem [['y (·· 'x)]] 'x) {'x 'y})
+    (is (= (ctx> (<mem> [['y 'x]] 'x) {'x 'y})
+           (ctx> (<mem> [['y (<-> 'x)]] 'x) {'x 'y})
            '[y]))
-    (is (= (ctx> (·mem [['x 'y] ['y 'z]] 'w) {'w 'x})
-           (ctx> (·mem [['y 'z] ['x 'y]] 'w) {'w 'x})
+    (is (= (ctx> (<mem> [['x 'y] ['y 'z]] 'w) {'w 'x})
+           (ctx> (<mem> [['y 'z] ['x 'y]] 'w) {'w 'x})
            '[z]))
-    (is (= (ctx> (·mem [['x (·· 'x 'z)]] 'x) {'x 'y})
+    (is (= (ctx> (<mem> [['x (<-> 'x 'z)]] 'x) {'x 'y})
            '[y z]))
-    (is (= (ctx> (·· 'x (·mem [['y 'x]] 'x)) {'x 'y})
+    (is (= (ctx> (<-> 'x (<mem> [['y 'x]] 'x)) {'x 'y})
            '[y]))
     )
 
   (testing "Substitution of values from recursive rems"
     ;; (= ctx' ctx) because reduce-by-calling:
-    (is (= (reduce-memory (MEMORY [[:x (·· :x)]] :x) {})
+    (is (= (reduce-memory (MEMORY [[:x (<-> :x)]] :x) {})
            :x))
     ;; ? merge context during repeated substitution or only once afterwards?
-    (is (= (reduce-memory (MEMORY [[:x (·· 'a (·· :x))]] :x) {})
+    (is (= (reduce-memory (MEMORY [[:x (<-> 'a (<-> :x))]] :x) {})
            '[:mem [[:x [a :x]]] a :x])))
 
   (testing "Exception in infinite reduction (stack overflow)"
     ;; infinite recursion because outer expr env nullifies previous dissoc:
     (is (thrown-with-msg? Exception #"Context too deeply nested"
-                          (reduce-memory (MEMORY [[:x (· :x)]] :x) {})))
+                          (reduce-memory (MEMORY [[:x (<> :x)]] :x) {})))
     (is (thrown-with-msg? Exception #"Context too deeply nested"
-                          (reduce-memory (MEMORY [[:x (·· (· :x))]] :x) {})))
+                          (reduce-memory (MEMORY [[:x (<-> (<> :x))]] :x) {})))
     (is (thrown-with-msg? Exception #"Context too deeply nested"
-                          (reduce-memory (MEMORY [[:x (· (·· :x))]] :x) {})))
+                          (reduce-memory (MEMORY [[:x (<> (<-> :x))]] :x) {})))
     )
 
   (testing "Combined with outer env"
@@ -670,12 +670,12 @@
        :mn))
 
   (testing "Reduction of shadowed rems"
-    (is (= (reduce-memory (MEMORY [['a '(x)] ['b (·· 'a :U)]] (·· 'b)) {})
+    (is (= (reduce-memory (MEMORY [['a '(x)] ['b (<-> 'a :U)]] (<-> 'b)) {})
            '(((x) :mn)))))) 
 
 (deftest expand-memory-test
   (testing "Correctness of transformation"
-    (is (= (expand-memory (first (·mem [['a :M] ['b :U]] 'x 'y)))
+    (is (= (expand-memory (first (<mem> [['a :M] ['b :U]] 'x 'y)))
            '(((a :M) ((a) (:M))) ((b :U) ((b) (:U))) (x y))))))
 
 
@@ -688,50 +688,50 @@
 (deftest seq-reentry-sign-test
   (testing "All possible inputs"
     (are [x y] (= x y)
-      (seq-reentry-opts->sign (seqre-opts 0))  :<re
-      (seq-reentry-opts->sign (seqre-opts 1))  :<..re
-      (seq-reentry-opts->sign (seqre-opts 2))  :<..re.
-      (seq-reentry-opts->sign (seqre-opts 3))  :<re_
-      (seq-reentry-opts->sign (seqre-opts 4))  :<..re_
-      (seq-reentry-opts->sign (seqre-opts 5))  :<..re._
+      (seq-reentry-opts->sign (seqre-opts 0))  :<r
+      (seq-reentry-opts->sign (seqre-opts 1))  :<..r
+      (seq-reentry-opts->sign (seqre-opts 2))  :<..r.
+      (seq-reentry-opts->sign (seqre-opts 3))  :<r_
+      (seq-reentry-opts->sign (seqre-opts 4))  :<..r_
+      (seq-reentry-opts->sign (seqre-opts 5))  :<..r._
 
-      (seq-reentry-opts->sign (seqre-opts 6))  :<re'
-      (seq-reentry-opts->sign (seqre-opts 7))  :<..re'
-      (seq-reentry-opts->sign (seqre-opts 8))  :<..re'.
-      (seq-reentry-opts->sign (seqre-opts 9))  :<re'_
-      (seq-reentry-opts->sign (seqre-opts 10)) :<..re'_
-      (seq-reentry-opts->sign (seqre-opts 11)) :<..re'._)))
+      (seq-reentry-opts->sign (seqre-opts 6))  :<r'
+      (seq-reentry-opts->sign (seqre-opts 7))  :<..r'
+      (seq-reentry-opts->sign (seqre-opts 8))  :<..r'.
+      (seq-reentry-opts->sign (seqre-opts 9))  :<r'_
+      (seq-reentry-opts->sign (seqre-opts 10)) :<..r'_
+      (seq-reentry-opts->sign (seqre-opts 11)) :<..r'._)))
 
 (deftest seq-reentry-sign->opts-test
   (testing "Basic functionality"
-    (is (= (seq-reentry-sign->opts :<re) (seqre-opts 0)))
-    (is (= (seq-reentry-sign->opts :<..re'._) (seqre-opts 11))))) 
+    (is (= (seq-reentry-sign->opts :<r) (seqre-opts 0)))
+    (is (= (seq-reentry-sign->opts :<..r'._) (seqre-opts 11))))) 
 
 (deftest seq-reentry-expr-test
   (testing "Empty expressions"
     (are [x y] (= x y)
-      (·seq-re (seqre-opts 0))  [[:<re []]]
-      (·seq-re (seqre-opts 1))  [[:<..re []]]
-      (·seq-re (seqre-opts 2))  [[:<..re. []]]
-      (·seq-re (seqre-opts 3))  [[:<re_ []]]
-      (·seq-re (seqre-opts 4))  [[:<..re_ []]]
-      (·seq-re (seqre-opts 5))  [[:<..re._ []]]
+      (<seq-re> (seqre-opts 0))  [[:<r []]]
+      (<seq-re> (seqre-opts 1))  [[:<..r []]]
+      (<seq-re> (seqre-opts 2))  [[:<..r. []]]
+      (<seq-re> (seqre-opts 3))  [[:<r_ []]]
+      (<seq-re> (seqre-opts 4))  [[:<..r_ []]]
+      (<seq-re> (seqre-opts 5))  [[:<..r._ []]]
 
-      (·seq-re (seqre-opts 6))  [[:<re' []]]
-      (·seq-re (seqre-opts 7))  [[:<..re' []]]
-      (·seq-re (seqre-opts 8))  [[:<..re'. []]]
-      (·seq-re (seqre-opts 9))  [[:<re'_ []]]
-      (·seq-re (seqre-opts 10)) [[:<..re'_ []]]
-      (·seq-re (seqre-opts 11)) [[:<..re'._ []]]))
+      (<seq-re> (seqre-opts 6))  [[:<r' []]]
+      (<seq-re> (seqre-opts 7))  [[:<..r' []]]
+      (<seq-re> (seqre-opts 8))  [[:<..r'. []]]
+      (<seq-re> (seqre-opts 9))  [[:<r'_ []]]
+      (<seq-re> (seqre-opts 10)) [[:<..r'_ []]]
+      (<seq-re> (seqre-opts 11)) [[:<..r'._ []]]))
 
   (testing "Default type"
-    (is (= (·seq-re {}) '[[:<re []]])))
+    (is (= (<seq-re> {}) '[[:<r []]])))
 
   (testing "Content number and type"
-    (is (= (·seq-re {} ['x]) '[[:<re [x]]]))
-    (is (= (·seq-re {} ['x] ['y]) '[[:<re [x] [y]]]))
-    (is (expr? (·seq-re {})))
-    (is (vector? (second (first (·seq-re {} (·· 'x 'y) ['z])))))))
+    (is (= (<seq-re> {} ['x]) '[[:<r [x]]]))
+    (is (= (<seq-re> {} ['x] ['y]) '[[:<r [x] [y]]]))
+    (is (expr? (<seq-re> {})))
+    (is (vector? (second (first (<seq-re> {} (<-> 'x 'y) ['z])))))))
 
 
 (deftest reduce-context-chain-test
@@ -808,13 +808,13 @@
            '[[:mn b] [()]]))
 
     (is (= (reduce-context-chain {:rtl? true}
-                                    [['c] ['a IFORM] [UFORM 'b]] {})
+                                 [['c] ['a IFORM] [UFORM 'b]] {})
            '[[()] [:mn b]]))
     (is (= (reduce-context-chain {:rtl? true}
-                                    [[:f*] [UFORM 'a] [UFORM 'b]] {})
+                                 [[:f*] [UFORM 'a] [UFORM 'b]] {})
            '[[:f*] [a] [:mn b]]))
     (is (= (reduce-context-chain {:rtl? true}
-                                    [[:f*] [UFORM] [UFORM]] {})
+                                 [[:f*] [UFORM] [UFORM]] {})
            '[[:f* :mn]])))
   )
 
@@ -822,119 +822,119 @@
   (testing "Reduction of primitive seq-re types"
     (are [x1 x2 y] (= (reduce-seq-reentry (first x1) {})
                       (reduce-seq-reentry (first x2) {}) y)
-      (·r [])     (·r' [])     IFORM
-      (·2r [])    (·2r' [])    UFORM
-      (·2r+1 [])  (·2r'+1 [])  IFORM
-      (··r [])    (··r' [])    IFORM
-      (··2r [])   (··2r' [])   UFORM
-      (··2r+1 []) (··2r'+1 []) IFORM)
+      (<r [])     (<r' [])     IFORM
+      (<2r [])    (<2r' [])    UFORM
+      (<2r+1 [])  (<2r'+1 [])  IFORM
+      (<r_ [])    (<r'_ [])    IFORM
+      (<2r_ [])   (<2r'_ [])   UFORM
+      (<2r+1_ []) (<2r'+1_ []) IFORM)
 
     (are [x1 x2 y] (= (reduce-seq-reentry (first x1) {})
                       (reduce-seq-reentry (first x2) {}) y)
-      (·r [] [])     (·r' [] [])     UFORM
-      (·2r [] [])    (·2r' [] [])    UFORM
-      (·2r+1 [] [])  (·2r'+1 [] [])  UFORM
-      (··r [] [])    (··r' [] [])    IFORM
-      (··2r [] [])   (··2r' [] [])   IFORM
-      (··2r+1 [] []) (··2r'+1 [] []) IFORM))
+      (<r [] [])     (<r' [] [])     UFORM
+      (<2r [] [])    (<2r' [] [])    UFORM
+      (<2r+1 [] [])  (<2r'+1 [] [])  UFORM
+      (<r_ [] [])    (<r'_ [] [])    IFORM
+      (<2r_ [] [])   (<2r'_ [] [])   IFORM
+      (<2r+1_ [] []) (<2r'+1_ [] []) IFORM))
 
   (testing "Reduction from all possible ambiguous cases"
     (let [f (fn [x] (reduce-seq-reentry (first x) {}))]
-      (is (= (f (·r [UFORM] []))     (f (·r [IFORM] []))
-             (f (·2r [UFORM] []))    (f (·2r [IFORM] []))
-             (f (·2r+1 [UFORM] []))  (f (·2r+1 [IFORM] []))
-             (f (··r [UFORM] []))    (f (··r [IFORM] []))
-             (f (··2r [UFORM] []))   (f (··2r [IFORM] []))
-             (f (··2r+1 [UFORM] [])) (f (··2r+1 [IFORM] []))
+      (is (= (f (<r [UFORM] []))     (f (<r [IFORM] []))
+             (f (<2r [UFORM] []))    (f (<2r [IFORM] []))
+             (f (<2r+1 [UFORM] []))  (f (<2r+1 [IFORM] []))
+             (f (<r_ [UFORM] []))    (f (<r_ [IFORM] []))
+             (f (<2r_ [UFORM] []))   (f (<2r_ [IFORM] []))
+             (f (<2r+1_ [UFORM] [])) (f (<2r+1_ [IFORM] []))
              IFORM))
-      (is (= (f (··r' [UFORM] []))
-             (f (··2r' [UFORM] [])) (f (··2r'+1 [UFORM] []))
-             (f (··r' [IFORM] []))
-             (f (··2r' [IFORM] [])) (f (··2r'+1 [IFORM] []))
+      (is (= (f (<r'_ [UFORM] []))
+             (f (<2r'_ [UFORM] [])) (f (<2r'+1_ [UFORM] []))
+             (f (<r'_ [IFORM] []))
+             (f (<2r'_ [IFORM] [])) (f (<2r'+1_ [IFORM] []))
              IFORM))
       ;; Exceptions in alternative interpretation
-      (is (= (f (·r' [UFORM] []))
-             (f (·2r' [UFORM] [])) (f (·2r'+1 [UFORM] []))
+      (is (= (f (<r' [UFORM] []))
+             (f (<2r' [UFORM] [])) (f (<2r'+1 [UFORM] []))
              UFORM))
-      (is (= (f (·r' [IFORM] []))
-             (f (·2r' [IFORM] [])) (f (·2r'+1 [IFORM] []))
+      (is (= (f (<r' [IFORM] []))
+             (f (<2r' [IFORM] [])) (f (<2r'+1 [IFORM] []))
              MARK))
       ))
 
   (testing "Non-reduction of uninterpreted expressions"
     (are [x y] (= (reduce-seq-reentry (first x) {}) y)
-      (·r ['a] [])     '[:<re [a] []]
-      (·2r ['a] [])    '[:<..re [a] []]
-      (·2r+1 ['a] [])  '[:<..re. [a] []]
-      (··r ['a] [])    '[:<re_ [a] []]
-      (··2r ['a] [])   '[:<..re_ [a] []]
-      (··2r+1 ['a] []) '[:<..re._ [a] []]
+      (<r ['a] [])     '[:<r [a] []]
+      (<2r ['a] [])    '[:<..r [a] []]
+      (<2r+1 ['a] [])  '[:<..r. [a] []]
+      (<r_ ['a] [])    '[:<r_ [a] []]
+      (<2r_ ['a] [])   '[:<..r_ [a] []]
+      (<2r+1_ ['a] []) '[:<..r._ [a] []]
 
-      (·r' ['a] [])     '((:mn a))
-      (·2r' ['a] [])    '((:mn a))
-      (·2r'+1 ['a] [])  '((:mn a))
-      (··r' ['a] [])    '[:<re'_ [a] []]
-      (··2r' ['a] [])   '[:<..re'_ [a] []]
-      (··2r'+1 ['a] []) '[:<..re'._ [a] []])
-
-    (are [x y] (= (reduce-seq-reentry (first x) {}) y)
-      (·r ['a])     '[:<re [a]]
-      (·2r ['a])    '[:<..re [a]]
-      (·2r+1 ['a])  '[:<..re. [a]]
-      (··r ['a])    '[:<re_ [a]]
-      (··2r ['a])   '[:<..re_ [a]]
-      (··2r+1 ['a]) '[:<..re._ [a]]
-
-      (·r' ['a])     '[:<re' [a]]
-      (·2r' ['a])    '[:<..re' [a]]
-      (·2r'+1 ['a])  '[:<..re'. [a]]
-      (··r' ['a])    '(((:mn) a))
-      (··2r' ['a])   '((:mn a))
-      (··2r'+1 ['a]) '(((:mn) a)))
+      (<r' ['a] [])     '((:mn a))
+      (<2r' ['a] [])    '((:mn a))
+      (<2r'+1 ['a] [])  '((:mn a))
+      (<r'_ ['a] [])    '[:<r'_ [a] []]
+      (<2r'_ ['a] [])   '[:<..r'_ [a] []]
+      (<2r'+1_ ['a] []) '[:<..r'._ [a] []])
 
     (are [x y] (= (reduce-seq-reentry (first x) {}) y)
-      (·r [] ['a])     '[:<re [] [a]]
-      (·2r [] ['a])    '[:<..re [] [a]]
-      (·2r+1 [] ['a])  '[:<..re. [] [a]]
-      (··r [] ['a])    '[:<re_ [] [a]]
-      (··2r [] ['a])   '[:<..re_ [] [a]]
-      (··2r+1 [] ['a]) '[:<..re._ [] [a]]
+      (<r ['a])     '[:<r [a]]
+      (<2r ['a])    '[:<..r [a]]
+      (<2r+1 ['a])  '[:<..r. [a]]
+      (<r_ ['a])    '[:<r_ [a]]
+      (<2r_ ['a])   '[:<..r_ [a]]
+      (<2r+1_ ['a]) '[:<..r._ [a]]
 
-      (·r' [] ['a])     '[:<re' [] [a]]
-      (·2r' [] ['a])    '[:<..re' [] [a]]
-      (·2r'+1 [] ['a])  '[:<..re'. [] [a]]
-      (··r' [] ['a])    '(((:mn) a))
-      (··2r' [] ['a])   '(((:mn) a))
-      (··2r'+1 [] ['a]) '(((:mn) a)))
+      (<r' ['a])     '[:<r' [a]]
+      (<2r' ['a])    '[:<..r' [a]]
+      (<2r'+1 ['a])  '[:<..r'. [a]]
+      (<r'_ ['a])    '(((:mn) a))
+      (<2r'_ ['a])   '((:mn a))
+      (<2r'+1_ ['a]) '(((:mn) a)))
 
     (are [x y] (= (reduce-seq-reentry (first x) {}) y)
-      (·r [] ['a] [])     '[:<re [] [a] []]
-      (·2r [] ['a] [])    '[:<..re [] [a] []]
-      (·2r+1 [] ['a] [])  '[:<..re. [] [a] []]
-      (··r [] ['a] [])    '[:<re_ [] [a] []]
-      (··2r [] ['a] [])   '[:<..re_ [] [a] []]
-      (··2r+1 [] ['a] []) '[:<..re._ [] [a] []]
+      (<r [] ['a])     '[:<r [] [a]]
+      (<2r [] ['a])    '[:<..r [] [a]]
+      (<2r+1 [] ['a])  '[:<..r. [] [a]]
+      (<r_ [] ['a])    '[:<r_ [] [a]]
+      (<2r_ [] ['a])   '[:<..r_ [] [a]]
+      (<2r+1_ [] ['a]) '[:<..r._ [] [a]]
 
-      (·r' [] ['a] [])     '(((:mn) a))
-      (·2r' [] ['a] [])    '((:mn a))
-      (·2r'+1 [] ['a] [])  '(((:mn) a))
-      (··r' [] ['a] [])    '[:<re'_ [] [a] []]
-      (··2r' [] ['a] [])   '[:<..re'_ [] [a] []]
-      (··2r'+1 [] ['a] []) '[:<..re'._ [] [a] []]))
+      (<r' [] ['a])     '[:<r' [] [a]]
+      (<2r' [] ['a])    '[:<..r' [] [a]]
+      (<2r'+1 [] ['a])  '[:<..r'. [] [a]]
+      (<r'_ [] ['a])    '(((:mn) a))
+      (<2r'_ [] ['a])   '(((:mn) a))
+      (<2r'+1_ [] ['a]) '(((:mn) a)))
+
+    (are [x y] (= (reduce-seq-reentry (first x) {}) y)
+      (<r [] ['a] [])     '[:<r [] [a] []]
+      (<2r [] ['a] [])    '[:<..r [] [a] []]
+      (<2r+1 [] ['a] [])  '[:<..r. [] [a] []]
+      (<r_ [] ['a] [])    '[:<r_ [] [a] []]
+      (<2r_ [] ['a] [])   '[:<..r_ [] [a] []]
+      (<2r+1_ [] ['a] []) '[:<..r._ [] [a] []]
+
+      (<r' [] ['a] [])     '(((:mn) a))
+      (<2r' [] ['a] [])    '((:mn a))
+      (<2r'+1 [] ['a] [])  '(((:mn) a))
+      (<r'_ [] ['a] [])    '[:<r'_ [] [a] []]
+      (<2r'_ [] ['a] [])   '[:<..r'_ [] [a] []]
+      (<2r'+1_ [] ['a] []) '[:<..r'._ [] [a] []]))
 
   (testing "Reduction to binary FORMs (in case of mark)"
-    (is (= (reduce-seq-reentry (first (·r ['a] [])) {'a :M})
+    (is (= (reduce-seq-reentry (first (<r ['a] [])) {'a :M})
            '()))
-    (is (= (reduce-seq-reentry (first (·r [MARK 'a] ['a])) {})
+    (is (= (reduce-seq-reentry (first (<r [MARK 'a] ['a])) {})
            '(a)))
-    (is (= (reduce-seq-reentry (first (·r ['b] [MARK 'a] ['a])) {})
+    (is (= (reduce-seq-reentry (first (<r ['b] [MARK 'a] ['a])) {})
            '(a)))
-    (is (= (reduce-seq-reentry (first (·r ['b IFORM] ['a] [UFORM])) {})
+    (is (= (reduce-seq-reentry (first (<r ['b IFORM] ['a] [UFORM])) {})
            '((a) :mn))))
 
   (testing "Irreducable cases"
-    (is (= (reduce-seq-reentry (first (·r ['b] [IFORM 'a] ['a])) {})
-           '[:<re [b] [(:mn)] [a]])) )
+    (is (= (reduce-seq-reentry (first (<r ['b] [IFORM 'a] ['a])) {})
+           '[:<r [b] [(:mn)] [a]])) )
 
   )
 
@@ -988,7 +988,7 @@
 
 ;; ! check more thoroughly if these are correct
 (let [f (fn f [opts & ctx] (expand-seq-reentry
-                            (first (apply ·seq-re opts ctx))))]
+                            (first (apply <seq-re> opts ctx))))]
   (deftest expand-seq-re-test
     (testing "Shape of empty expression"
       (are [x y] (= x y)
@@ -1058,41 +1058,41 @@
         (f (seqre-opts 11) ['a] ['b] ['c]) '[[:mem [[:f* [((((((:f* a) b) c) a) b) c)]] [:f2 [(((:f* a) b) c)]] [:f1 [((:f2 a) b) c]]] :f1]]))
 
     (testing "Arbitrary expressions"
-      (is (= (expand-seq-reentry (first (··2r [] ['x] [])))
+      (is (= (expand-seq-reentry (first (<2r_ [] ['x] [])))
              '[[:mem [[:f* [((((((:f*) x))) x))]] [:f1 [((:f*) x)]]] :f1]])))
     )) 
 
 
-(deftest ·N->M-test
-  (is (= (·N->M 'a) '[([:<re [(a)]] [:<..re [(a)]])]))) 
+(deftest <N>->M-test
+  (is (= (<N>->M 'a) '[([:<r [(a)]] [:<..r [(a)]])]))) 
 
-(deftest ·M->M-test
-  (is (= (·M->M 'a) '[([:<re [a]] [:<..re [a]])])))
+(deftest <M>->M-test
+  (is (= (<M>->M 'a) '[([:<r [a]] [:<..r [a]])])))
 
-(deftest ·U->M-test
-  (is (= (·U->M 'a) '[(([:<re [(a)]] a) ([:<..re [a]] (a)))])))
+(deftest <U>->M-test
+  (is (= (<U>->M 'a) '[(([:<r [(a)]] a) ([:<..r [a]] (a)))])))
 
-(deftest ·I->M-test
-  (is (= (·I->M 'a) '[(([:<re [a]] (a)) ([:<..re [(a)]] a))])))
+(deftest <I>->M-test
+  (is (= (<I>->M 'a) '[(([:<r [a]] (a)) ([:<..r [(a)]] a))])))
 
-(deftest ·sel-test
+(deftest <sel>-test
   (testing "Correct expression"
-    (is (= (·sel {})
+    (is (= (<sel> {})
            '[()]))
-    (is (= (·sel {'a :M})
+    (is (= (<sel> {'a :M})
            '[((a))]))
-    (is (= (·sel {'a :I})
-           '[((a) ([:<..re []])) (a ([:<re []]))]))
-    (is (= (·sel {'a :M 'b :N 'c :M})
+    (is (= (<sel> {'a :I})
+           '[((a) ([:<..r []])) (a ([:<r []]))]))
+    (is (= (<sel> {'a :M 'b :N 'c :M})
            '[((a) b (c))]))
-    (is (= (·sel {'a :M, 'b :N, 'c :U})
-           '[(a (b) c ([:<..re []])) (a (b) (c) ([:<re []]))])))
+    (is (= (<sel> {'a :M, 'b :N, 'c :U})
+           '[(a (b) c ([:<..r []])) (a (b) (c) ([:<r []]))])))
 
   (testing "Without simplification"
-    (is (= (·sel {} false)
-           '[(([:<..re []])) (([:<re []]))]))
-    (is (= (·sel {'a :M} false)
-           '[(a ([:<..re []])) (a ([:<re []]))])))) 
+    (is (= (<sel> {} false)
+           '[(([:<..r []])) (([:<r []]))]))
+    (is (= (<sel> {'a :M} false)
+           '[(a ([:<..r []])) (a ([:<r []]))])))) 
 
  
 

@@ -9,60 +9,60 @@
 
 ;; ### Construction
 
-;; To construct an expression of a single FORM, use the function `·`:
+;; To construct an expression of a single FORM, use the function `<>`:
 
-(·)
+(<>)
 
-(def form-a (· (· 'a) 'b))
+(def <form-a> (<> (<> 'a) 'b))
 
-(def form-b (· 'a (· 'b)))
+(def <form-b> (<> 'a (<> 'b)))
 
-;; Multiple FORMs can be combined/related in an expression using `··`:
+;; Multiple FORMs can be combined/related in an expression using `<->`:
 
-(··)
+(<->)
 
-(·· (·) (·) (·))
+(<-> (<>) (<>) (<>))
 
-(def rel (·· form-a form-b))
+(def <rel> (<-> <form-a> <form-b>))
 
 ;; ### Evaluation
 
 ;; Simple expressions can be evaluated using `eval-expr`:
 
-(eval-expr (· (·) (·)))
+(eval-expr (<> (<>) (<>)))
 
 ;; However, variables are not simple:
 
-(eval-expr (· 'x))
+(eval-expr (<> 'x))
 
 ;; The `:_` here is a value “hole”, which means we are missing information
 ;; to interpret the expression. We can provide an interpretation of the 
 ;; variables in the expression as a map:
 
-(eval-expr (· 'x) {'x :U})
+(eval-expr (<> 'x) {'x :U})
 
 ;; We can also use `eval-all` to apply each possible interpretation to an 
 ;; expression and evaluate all interpreted expressions to get a value table:
 
-(eval-all rel {:sorted? true})
+(eval-all <rel> {:sorted? true})
 
 ;; ### Reduction
 
 ;; To just simplify an expression without evaluation, use `reduce-expr`:
 
-(reduce-expr (·· (· (· 'a)) (· (·)) 'b))
+(reduce-expr (<-> (<> (<> 'a)) (<> (<>)) 'b))
 
 ;; ### Special FORMs
 
 ;; There are a number of expressions for simple values and FORMs:
 
-(·· ·N ·M ·U ·I)
+(<-> <N> <M> <U> <I>)
 
-(·· ·none ·mark ·uform ·iform)
+(<-> <none> <mark> <uform> <iform>)
 
 ;; Unclear FORMs can be expressed like this:
 
-(def uncl (·uncl "foo"))
+(def uncl (<uncl> "foo"))
 
 (expand-unclear (first uncl))
 
@@ -72,9 +72,9 @@
 ;; - using an options map
 ;; - using a re-entry “signature”
 
-(def seq-re (·seq-re {:parity :odd} 'a 'b))
+(def seq-re (<seq-re> {:parity :odd} ['a] ['b]))
 
-(·2r+1 'a 'b)
+(<2r+1 ['a] ['b])
 
 (expand-seq-reentry (first seq-re))
 
@@ -84,33 +84,34 @@
 ;; can help:
 
 (clerk/table
-  (clerk/use-headers
-    [["Nest to left"       "Nest undirected"    "Nest to right"]
-     [(·< 'a 'b 'c 'd 'e)  (·* 'a 'b 'c 'd 'e)  (·> 'a 'b 'c 'd 'e)]
-     [(··< 'a 'b 'c 'd 'e) (··* 'a 'b 'c 'd 'e) (··> 'a 'b 'c 'd 'e)]]))
+ (clerk/use-headers
+  (let [ctxs [['a] ['b] ['c] ['d] ['e]]]
+    [["Nest to left"    "Nest undirected"   "Nest to right"]
+     [(apply << ctxs)   (apply <+> ctxs)    (apply >> ctxs)]
+     [(apply <-< ctxs)  (apply <|> ctxs)    (apply >-> ctxs)]])))
 
-;; To put multiple FORMs into the same nesting space, just use `··`:
+;; To put multiple FORMs into the same nesting space, just use `<->`:
 
-(·> (·· 'a 'b) 'c (·· 'd 'e 'f))
+(>> (<-> 'a 'b) ['c] (<-> 'd 'e 'f))
 
-(··* (·· 'a 'b) 'c (·· 'd 'e 'f))
+(<|> (<-> 'a 'b) ['c] (<-> 'd 'e 'f))
 
 ;; You can also compose nestings like any other expression:
 
-(··< (·< 'a 'b) (·> 'a 'b))
+(<-< (<< ['a] ['b]) (>> ['a] ['b]))
 
-(·< (··< (·? 'x1) (·? 'x2) (·? 'x3)) (·? 'x1) (·? 'x2) (·? 'x3))
+(<< (<-< ['x1] ['x2] ['x3]) ['x1] ['x2] ['x3])
 
 ;; Or write your own construction shortcuts:
 
-(defn ··<n [n & xs]
+(defn <n-< [n & xs]
   (if (> n 1)
-    (apply ··< (apply ··<n (dec n) xs) xs)
-    (apply ··< xs)))
+    (apply <-< (apply <n-< (dec n) xs) xs)
+    (apply <-< xs)))
 
-(defn ·<n [n & xs] (· (apply ··<n n xs)))
+(defn <n< [n & xs] (<> (apply <n-< n xs)))
 
-(·<n 4 (·? 'x1) (·? 'x2) (·? 'x3))
+(<n< 4 ['x1] ['x2] ['x3])
 
 
 ;; ## Defining expressions
@@ -118,29 +119,29 @@
 ;; Expressions can be defined using ordinary Clojure functions that return
 ;; new expressions.
 
-;; The convention is to prefix “expression constructors” with a mid-dot `·`, 
-;; as we have already seen from built-in expression constructors:
+;; The convention is to surround “expression constructors” with angular brackets
+;; `<name>`, as we have already seen from built-in expression constructors:
 
-(defn ·and [a b] (· (· a) (· b)))
+(defn <and> [a b] (<> (<> a) (<> b)))
 
-(·and ·I ·U)
+(<and> <I> <U>)
 
 ;; However, these definitions are internal to your programming environment
 ;; and will disappear in the resulting expression data.
 
 ;; To “remember” a definition, you can create them as part of an expression,
-;; by using expression-local environments:
+;; by using so called “memory FORMs” (like expression-local environments):
 
-(·· {'a ·M} (· 'a))
+(<mem> [['a <M>]] (<> 'a))
 
 ;; Here, we defined `a` as being equivalent to `:M` in the context `(a)`.
 
-;; Recreating a parameterized function definition like the above `·and` is a 
+;; Recreating a parameterized function definition like the above `<and>` is a 
 ;; bit trickier and requires each “calling” expression to also have a local
 ;; environment with the arguments bound to their values:
 
-(·· {:and (· (· 'a) (· 'b))}
-    (·· {'a ·I, 'b ·U} :and))
+(<mem> [[:and (<> (<> 'a) (<> 'b))]]
+       (<mem> [['a <I>] ['b <U>]] :and))
 
 ;; This can be annoying, but is necessary since FORM logic expressions have no
 ;; order assumption for their contents and therefore there is no telling which
@@ -169,7 +170,7 @@
 ;; Expression-local definitions can be recursive, but will not be evaluated
 ;; since the evaluator cannot assume them to be self-equivalent.
 
-(·· {:f* (· :f*)} :f*)
+(<-> {:f* (<> :f*)} :f*)
 
 ;; However, they serve as a low-level representation of self-equivalent 
 ;; re-entry FORMs and will be used more generally in the `comp` module to
@@ -178,16 +179,16 @@
 (clerk/table (clerk/use-headers
                [["uFORM" "iFORM"]
                 [UFORM IFORM]
-                [·expanded-uform ·expanded-iform]
-                [(expand-seq-reentry (first ·expanded-uform))
-                 (apply ·· (map (comp FORM expand-seq-reentry)
-                             (first ·expanded-iform)))]]))
+                [<expanded-uform> <expanded-iform>]
+                [(expand-seq-reentry (first <expanded-uform>))
+                 (apply <-> (map (comp FORM expand-seq-reentry)
+                             (first <expanded-iform>)))]]))
 
 
 ;; If you want to evaluate self-equivalent re-entry FORMs, use the dedicated
 ;; expression constructors instead.
 
-(·r 'a 'b)
+(<r ['a] ['b])
 
-(expand-seq-reentry (first (·r 'a 'b)))
+(expand-seq-reentry (first (<r ['a] ['b])))
 
