@@ -7,6 +7,11 @@
 
 (defn geom-seq [k r] (map (fn [n] (* k (pow-nat r n))) (range)))
 
+;; ? might not be worth it - performance diff. to split-at minimal
+(defn splitv-at [i v]
+  (vector (vec (subvec v 0 i))
+          (vec (subvec v i (count v)))))
+
 ;; -> see https://stackoverflow.com/questions/26082594/converting-a-number-from-base-10-to-another-base-in-clojure for other suggestions
 (defn int->nbase [n base]
   #?(:clj

@@ -545,3 +545,13 @@
 
 
 
+(comment
+
+
+  (def dna (rand-dna 3))
+
+  (rand-dna-seq 3)
+
+
+  )
+
