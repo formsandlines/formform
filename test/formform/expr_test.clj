@@ -396,3 +396,17 @@
 
   )
 
+
+(comment
+  
+  (valid-op? (make :fdna ['a 'b] :MNUIMMMMUUUUIIII))
+
+  (valid-op? (make :uncl "Hey"))
+
+  (valid-op? (make :seq-re :<r 'a))
+
+  (valid-op? (make :mem [[:a nil] ['b []]] 'a))
+
+  
+  
+  )
