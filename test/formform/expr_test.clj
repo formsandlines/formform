@@ -24,6 +24,17 @@
   (testing "Invalid arguments to known operators"
     (is (= true true))))
 
+(deftest valid-op?-test
+  (testing "Context of the test assertions"
+    (is (true? (valid-op? (make :fdna ['a 'b] 
+                                [:M :I :U :N  
+                                 :I :M :N :U  
+                                 :U :N :M :I  
+                                 :N :U :I :M]))))
+    (is (true? (valid-op? (make :uncl "Hey"))))
+    (is (true? (valid-op? (make :seq-re :<r 'a))))
+    (is (true? (valid-op? (make :mem [[:a nil] ['b []]] 'a))))))
+
 (deftest op-data-test
   (testing "Missing operator keyword"
     (is (thrown? java.lang.AssertionError
@@ -34,7 +45,7 @@
                           (op-data [:x 'a]))))
 
   (testing "Correctness of output"
-    (is (= '{:ctx [a b]}
+    (is (= '{:exprs [a b]}
            (op-data (make-op :- 'a 'b))))
     (is (= '{:label "hello"}
            (op-data (make-op :uncl "hello"))))
@@ -54,7 +65,7 @@
 
   (testing "Correctness of output"
     (is (= '[a b]
-           (op-get (make-op :- 'a 'b) :ctx)))
+           (op-get (make-op :- 'a 'b) :exprs)))
     (is (= "hello"
            (op-get (make-op :uncl "hello") :label)))
     (let [op (make-op :mem [['x :U]] 'x)]
@@ -74,6 +85,10 @@
 
 (deftest find-vars-test
   (testing "At root level"
+    (is (= '(a)
+           (find-vars 'a {})
+           (find-vars (make 'a) {})
+           (find-vars (make 'a 'a) {})))
     (is (= '(a b)
            (find-vars (make 'a 'b) {})))
     (is (= '("a")
@@ -84,6 +99,7 @@
 
   (testing "Empty"
     (is (= '()
+           (find-vars :U {})
            (find-vars (make) {})
            (find-vars (form) {'a :M})
            (find-vars (make '(() ()) '()) {}))))
@@ -109,11 +125,11 @@
     (is (= '("foo")
            (find-vars (make :uncl "foo") {})))
     (is (= '(a b c)
-           (find-vars (make :<r [:- 'a 'b] 'c) {}))))
+           (find-vars (seq-re :<r [:- 'a 'b] 'c) {}))))
 
   (testing "In nested special FORMs"
     (is (= '(a b c)
-           (find-vars (make :<r [:- 'a :M] [:- '(b) (make :<..r 'c)]) {})))
+           (find-vars (seq-re :<r [:- 'a :M] [:- '(b) (seq-re :<..r 'c)]) {})))
     (is (= '(a b c d)
            (find-vars (make :mem [['a (make :mem [['b :U]] 'c)]] 'd) {}))))
 
@@ -398,14 +414,9 @@
 
 
 (comment
+
   
-  (valid-op? (make :fdna ['a 'b] :MNUIMMMMUUUUIIII))
-
-  (valid-op? (make :uncl "Hey"))
-
-  (valid-op? (make :seq-re :<r 'a))
-
-  (valid-op? (make :mem [[:a nil] ['b []]] 'a))
+  
 
   
   
