@@ -210,124 +210,143 @@
 
 (deftest parse-test
   (testing "Correctness of single transformations"
-    (is (= (parse "") '[]))
+    (is (= (parse "") nil))
 
-    (is (= (parse "()") '[()]))
+    (is (= (parse "()") '()))
 
     (is (= (parse "{}")
-           (parse "{@}") '[[:<re []]]))
-    (is (= (parse "{..@}") '[[:<..re []]]))
-    (is (= (parse "{..@.}") '[[:<..re. []]]))
-    (is (= (parse "{@_}") '[[:<re_ []]]))
-    (is (= (parse "{..@_}") '[[:<..re_ []]]))
-    (is (= (parse "{..@._}") '[[:<..re._ []]]))
-    (is (= (parse "{@~}") '[[:<re' []]]))
-    (is (= (parse "{..@~}") '[[:<..re' []]]))
-    (is (= (parse "{..@~.}") '[[:<..re'. []]]))
-    (is (= (parse "{@~_}") '[[:<re'_ []]]))
-    (is (= (parse "{..@~_}") '[[:<..re'_ []]]))
-    (is (= (parse "{..@~._}") '[[:<..re'._ []]]))
-    (is (= (parse "{2r|}") '[[:<..re []]]))
-    (is (= (parse "{2r+1|}") '[[:<..re. []]]))
-    (is (= (parse "{alt|}") '[[:<re' []]]))
-    (is (= (parse "{open|}") '[[:<re_ []]]))
+           (parse "{@}") '[:seq-re :<r nil]))
+    (is (= (parse "{..@}") '[:seq-re :<..r nil]))
+    (is (= (parse "{..@.}") '[:seq-re :<..r. nil]))
+    (is (= (parse "{@_}") '[:seq-re :<r_ nil]))
+    (is (= (parse "{..@_}") '[:seq-re :<..r_ nil]))
+    (is (= (parse "{..@._}") '[:seq-re :<..r._ nil]))
+    (is (= (parse "{@~}") '[:seq-re :<r' nil]))
+    (is (= (parse "{..@~}") '[:seq-re :<..r' nil]))
+    (is (= (parse "{..@~.}") '[:seq-re :<..r'. nil]))
+    (is (= (parse "{@~_}") '[:seq-re :<r'_ nil]))
+    (is (= (parse "{..@~_}") '[:seq-re :<..r'_ nil]))
+    (is (= (parse "{..@~._}") '[:seq-re :<..r'._ nil]))
+    (is (= (parse "{2r|}") '[:seq-re :<..r nil]))
+    (is (= (parse "{2r+1|}") '[:seq-re :<..r. nil]))
+    (is (= (parse "{alt|}") '[:seq-re :<r' nil]))
+    (is (= (parse "{open|}") '[:seq-re :<r_ nil]))
 
     (is (= (parse "{,}")
-           (parse "{@ ,}") '[[:<re [] []]]))
+           (parse "{@ ,}") '[:seq-re :<r nil nil]))
     (is (= (parse "{,,}")
-           (parse "{@ ,,}") '[[:<re [] [] []]]))
-    (is (= (parse "{2r|,}") '[[:<..re [] []]]))
-    (is (= (parse "{2r|,,}") '[[:<..re [] [] []]]))
+           (parse "{@ ,,}") '[:seq-re :<r nil nil nil]))
+    (is (= (parse "{2r|,}") '[:seq-re :<..r nil nil]))
+    (is (= (parse "{2r|,,}") '[:seq-re :<..r nil nil nil]))
 
-    (is (= (parse "a") '["a"]))
-    (is (= (parse "apple") '["apple"]))
-    (is (= (parse "'apple juice'") '["apple juice"]))
+    (is (= (parse "a") "a"))
+    (is (= (parse "apple") "apple"))
+    (is (= (parse "'apple juice'") "apple juice"))
 
-    (is (= (parse "/some smell/") '[[:uncl "some smell"]]))
+    (is (= (parse "/some smell/") '[:uncl "some smell"]))
 
-    (is (= (parse ":M") (parse ->nmui ":M") '[:M]))
-    (is (= (parse ":1") (parse ->nmui ":2") '[:U]))
+    (is (= (parse ":M") (parse ->nmui ":M") :M))
+    (is (= (parse ":1") (parse ->nmui ":2") :U))
     (is (= (parse ":NUIM")
-           (parse ":0123") '[[:fdna ["v__0"] :NUIM]]))
+           (parse ":0123") '[:fdna ["v__0"] [:N :U :I :M]]))
     (is (= (parse ->nmui ":NUIM")
-           (parse ->nmui ":0231") '[[:fdna ["v__0"] :INUM]]))
+           (parse ->nmui ":0231") '[:fdna ["v__0"] [:I :N :U :M]]))
     (is (= (parse ->nmui ":2310302310012021221111113232332212132133023103213021320233011023")
-           '[[:fdna ["v__0" "v__1" "v__2"]
-              :INUMMMUIIUMIUNIMNMNMMUINUINIUUNMIIUUMUUMMMMMUIIUNIIMUINMNIUUUMNI]]))
+           '[:fdna ["v__0" "v__1" "v__2"]
+             [:I :N :U :M  :M :M :U :I  :I :U :M :I  :U :N :I :M
+              :N :M :N :M  :M :U :I :N  :U :I :N :I  :U :U :N :M
+              :I :I :U :U  :M :U :U :M  :M :M :M :M  :U :I :I :U
+              :N :I :I :M  :U :I :N :M  :N :I :U :U  :U :M :N :I]]))
 
     (is (= (parse "[[]:M]")
-           (parse "[[]:3]") '[:M]))
+           (parse "[[]:3]") :M))
     (is (= (parse ->nmui "[[]:I]")
-           (parse ->nmui "[[]:3]") '[:I]))
+           (parse ->nmui "[[]:3]") :I))
     (is (= (parse "[[a]:NUIM]")
-           (parse "[[a]:0123]") '[[:fdna ["a"] :NUIM]]))
+           (parse "[[a]:0123]") '[:fdna ["a"] [:N :U :I :M]]))
     (is (= (parse ->nmui "[[a]:NUIM]")
-           (parse ->nmui "[[a]:0231]") '[[:fdna ["a"] :INUM]]))
+           (parse ->nmui "[[a]:0231]") '[:fdna ["a"] [:I :N :U :M]]))
     (is (= (parse "[[a,'z_3']:NUIMMNIIIUNMMUNU]")
-           '[[:fdna ["a" "z_3"] :NUIMMNIIIUNMMUNU]]))
+           '[:fdna ["a" "z_3"] [:N :U :I :M
+                                :M :N :I :I
+                                :I :U :N :M
+                                :M :U :N :U]]))
     (is (= (parse ->nmui "[[a,b,c]:2310302310012021221111113232332212132133023103213021320233011023]")
-           '[[:fdna ["a" "b" "c"]
-              :INUMMMUIIUMIUNIMNMNMMUINUINIUUNMIIUUMUUMMMMMUIIUNIIMUINMNIUUUMNI]]))
+           '[:fdna ["a" "b" "c"]
+             [:I :N :U :M  :M :M :U :I  :I :U :M :I  :U :N :I :M
+              :N :M :N :M  :M :U :I :N  :U :I :N :I  :U :U :N :M
+              :I :I :U :U  :M :U :U :M  :M :M :M :M  :U :I :I :U
+              :N :I :I :M  :U :I :N :M  :N :I :U :U  :U :M :N :I]]))
 
     )
 
   (testing "Correctness of related transformations"
     (testing "of the same type"
-      (is (= (parse "()()") '[() ()]))
-      (is (= (parse "()()()()") '[() () () ()]))
-      (is (= (parse "{}{}") '[[:<re []] [:<re []]]))
-      (is (= (parse "a a") '["a" "a"]))
-      (is (= (parse "'a ball''a ball'") '["a ball" "a ball"]))
-      (is (= (parse "/b 4//b 4/") '[[:uncl "b 4"] [:uncl "b 4"]]))
-      (is (= (parse ":M :M") '[:M :M]))
-      (is (= (parse ":3 :3") '[:M :M]))
-      (is (= (parse "[[]:M] [[]:M]") '[:M :M]))
-      (is (= (parse "[[a]:NUIM] [[a]:NUIM]") '[[:fdna ["a"] :NUIM] [:fdna ["a"] :NUIM]]))
+      (is (= (parse "()()") '[:- () ()]))
+      (is (= (parse "()()()()") '[:- () () () ()]))
+      (is (= (parse "{}{}") '[:- [:seq-re :<r nil] [:seq-re :<r nil]]))
+      (is (= (parse "a a") '[:- "a" "a"]))
+      (is (= (parse "'a ball''a ball'") '[:- "a ball" "a ball"]))
+      (is (= (parse "/b 4//b 4/") '[:- [:uncl "b 4"] [:uncl "b 4"]]))
+      (is (= (parse ":M :M") '[:- :M :M]))
+      (is (= (parse ":3 :3") '[:- :M :M]))
+      ;; ? parse as fdna instead
+      (is (= (parse "[[]:M] [[]:M]") '[:- :M :M]))
+      (is (= (parse "[[a]:NUIM] [[a]:NUIM]") '[:-
+                                               [:fdna ["a"] [:N :U :I :M]]
+                                               [:fdna ["a"] [:N :U :I :M]]]))
       )
     )
 
   (testing "Correctness of nested transformations"
     (testing "of the same type"
-      (is (= (parse "(())") '[(())]))
-      (is (= (parse "(((()))(()())())") '[(((())) (() ()) ())]))
-      (is (= (parse "{{}}") '[[:<re [[:<re []]]]]))
+      (is (= (parse "(())") '(())))
+      (is (= (parse "(((()))(()())())") '(((())) (() ()) ())))
+      (is (= (parse "{{}}") '[:seq-re :<r [:seq-re :<r nil]]))
       (is (= (parse "{{{{}}}{{}{}}{}}")
-             '[[:<re [[:<re [[:<re [[:<re []]]]]]
-                      [:<re [[:<re []] [:<re []]]] [:<re []]]]]))
+             '[:seq-re :<r
+               [:-
+                [:seq-re :<r [:seq-re :<r [:seq-re :<r nil]]]
+                [:seq-re :<r [:- [:seq-re :<r nil] [:seq-re :<r nil]]]
+                [:seq-re :<r nil]]]))
       (is (= (parse "{{,{},{,}},{{}},{{},,},,,}")
-             '[[:<re [[:<re [] [[:<re []]] [[:<re [] []]]]]
-                [[:<re [[:<re []]]]] [[:<re [[:<re []]] [] []]] [] [] []]]))
+             '[:seq-re :<r
+               [:seq-re :<r nil [:seq-re :<r nil] [:seq-re :<r nil nil]]
+               [:seq-re :<r [:seq-re :<r nil]]
+               [:seq-re :<r [:seq-re :<r nil] nil nil] nil nil nil]))
       )
 
     (testing "of different types"
       (is (= (parse "(:U 'x_1' [['x_1']:NMUI] /はあ/ {alt|2r|} :2)")
-             '[(:U "x_1" [:fdna ["x_1"] :NMUI] [:uncl "はあ"]
-                   [:<..re' []] :I)]))
+             '(:U "x_1" [:fdna ["x_1"] [:N :M :U :I]] [:uncl "はあ"]
+                  [:seq-re :<..r' nil] :I)))
       (is (= (parse "{:U 'x_1', [['x_1']:NMUI], /はあ/ {alt|2r|}, :2}")
-             '[[:<re [:U "x_1"] [[:fdna ["x_1"] :NMUI]]
-                [[:uncl "はあ"] [:<..re' []]] [:I]]]))
-      (is (= (parse "(a(b(c)))") '[("a" ("b" ("c")))]))
-      (is (= (parse "(((a)b)c)") '[((("a") "b") "c")]))
+             '[:seq-re :<r [:- :U "x_1"] [:fdna ["x_1"] [:N :M :U :I]]
+               [:- [:uncl "はあ"] [:seq-re :<..r' nil]] :I]))
+      (is (= (parse "(a(b(c)))") '("a" ("b" ("c")))))
+      (is (= (parse "(((a)b)c)") '((("a") "b") "c")))
       (is (= (parse "((a (b :U))c d(e):2 f)g")
-             '[(("a" ("b" :U)) "c" "d" ("e") :I "f") "g"]))
-      (is (= (parse "{a,b,c}") '[[:<re ["a"] ["b"] ["c"]]]))
+             '[:- (("a" ("b" :U)) "c" "d" ("e") :I "f") "g"]))
+      (is (= (parse "{a,b,c}") '[:seq-re :<r "a" "b" "c"]))
       (is (= (parse "{(a {b,(c),:U d}),{e,f :2}}g")
-             '[[:<re [("a" [:<re ["b"] [("c")] [:U "d"]])]
-                [[:<re ["e"] ["f" :I]]]] "g"]))
+             '[:- [:seq-re :<r ["a" [:seq-re :<r "b" ["c"] [:- :U "d"]]]
+                   [:seq-re :<r "e" [:- "f" :I]]] "g"]))
 
       (is (= (parse "{L,R} {2r+1|L,E,R}")
-             '[[:<re ["L"] ["R"]] [:<..re. ["L"] ["E"] ["R"]]]))
+             '[:- [:seq-re :<r "L" "R"] [:seq-re :<..r. "L" "E" "R"]]))
       (is (= (parse "{alt|L,R}{alt|R,L}")
-             '[[:<re' ["L"] ["R"]] [:<re' ["R"] ["L"]]]))
+             '[:- [:seq-re :<r' "L" "R"] [:seq-re :<r' "R" "L"]]))
       (is (= (parse "(({L,E,R}{E,R,L}{L,R,E})(L E R))")
-             '[(([:<re ["L"] ["E"] ["R"]]
-                 [:<re ["E"] ["R"] ["L"]]
-                 [:<re ["L"] ["R"] ["E"]]) ("L" "E" "R"))]))
+             '(([:seq-re :<r "L" "E" "R"]
+                [:seq-re :<r "E" "R" "L"]
+                [:seq-re :<r "L" "R" "E"]) ("L" "E" "R"))))
       (is (= (parse "((/green apple/)/red apple/)")
-             '[(([:uncl "green apple"]) [:uncl "red apple"])]))
+             '(([:uncl "green apple"]) [:uncl "red apple"])))
       (is (= (parse "{2r+1|/deeming/,/telling/,/understanding/}")
-             '[[:<..re. [[:uncl "deeming"]] [[:uncl "telling"]]
-                [[:uncl "understanding"]]]]))
+             '[:seq-re :<..r.
+               [:uncl "deeming"]
+               [:uncl "telling"]
+               [:uncl "understanding"]]))
 
       )
     )

@@ -25,52 +25,55 @@
         (keyword s))
       (let [dna (if digits?
                   (calc/digits->dna s sort-code)
-                  (if (= sort-code calc/nuim-code)
-                    (keyword s)
-                    (calc/consts->dna s sort-code)))]
+                  (let [dna (apply calc/make-dna s)]
+                    (if (= sort-code calc/nuim-code)
+                      dna
+                      (calc/reorder-dna-seq dna sort-code calc/nuim-code))))]
         (if (nil? varlist)
-          (expr/FDNA dna)
-          (expr/FDNA varlist dna))))))
+          (expr/make :fdna dna)
+          (expr/make :fdna varlist dna))))))
 
 (defn parse-re-sign
   [s]
-  (keyword
-   (apply str "<" (map #(case % \@ "re" \~ "'" (str %)) s))))
+  {:re-specs (keyword (apply str "<" (map #(case %
+                                             \@ "r"
+                                             \~ "'"
+                                             (str %)) s)))})
 
 (defn parse-re-opts
   [& opts]
-  (into expr/seq-reentry-defaults
-        (map #(case %
-                "2r"   [:parity :even]
-                "2r+1" [:parity :odd]
-                "alt"  [:interpr :rec-ident]
-                "open" [:open? true]
-                (throw (ex-info "Invalid re-entry option."
-                                {:opt %})))
-             opts)))
+  {:re-specs (into expr/seq-reentry-defaults
+                   (map #(case %
+                           "2r"   [:parity :even]
+                           "2r+1" [:parity :odd]
+                           "alt"  [:interpr :rec-ident]
+                           "open" [:open? true]
+                           (throw (ex-info "Invalid re-entry option."
+                                           {:opt %})))
+                        opts))})
 
 (defn parse-seqre
-  [& nodes]
-  (let [[specs terms] (cond
-                        (empty? nodes)          [{} '()]
-                        (vector? (first nodes)) [{} nodes]
-                        :else [(first nodes) (rest nodes)])]
-    (apply expr/SEQ-REENTRY specs terms)))
+  [x & nodes]
+  (let [[specs terms] (let [specs (:re-specs x)]
+                        (if (nil? specs)
+                          [{} (cons x nodes)]
+                          [specs nodes]))]
+    (apply expr/seq-re specs terms)))
 
 (defn parse
   ([s] (parse {} s))
   ([{:keys [sort-code] :or {sort-code calc/nuim-code}} s]
    (insta/transform
-    {:EXPR      expr/make-expr
-     :FORM      expr/FORM
-     :UNCLEAR   expr/UNCLEAR
-     :TERM      vector
+    {:EXPR      expr/make ; apply?
+     :FORM      expr/form ; apply?
+     :UNCLEAR   (partial expr/make :uncl)
+     :TERM      expr/make ; apply?
      :RE_SIGN   parse-re-sign
      :RE_OPTS   parse-re-opts
      :SEQRE     parse-seqre
      :VARLIST   vector
-     :VAR       expr/VAR
-     :VAR_QUOT  expr/VAR
+     :VAR       expr/make ; apply?
+     :VAR_QUOT  expr/make ; apply?
      :FDNA      (partial parse-dna-spec sort-code nil)
      :FDNA_SPEC (partial parse-dna-spec sort-code)}
     (formula->parsetree s))))
@@ -79,85 +82,88 @@
 ;;-------------------------------------------------------------------------
 ;; uniform expressions
 
-(declare ctx->uniform)
-(declare cnt->uniform)
+#_(comment
 
-(defn- FORM->uniform
-  [form]
-  {:type :form
-   :ctx  (ctx->uniform form)})
+      (declare ctx->uniform)
+      (declare cnt->uniform)
 
-(def UFORM-uniform {:type :uform})
-(def IFORM-uniform {:type :iform})
+      (defn- FORM->uniform
+        [form]
+        {:type :form
+         :ctx  (ctx->uniform form)})
 
-(defn- VAR->uniform
-  [variable]
-  {:type :var
-   :label variable})
+      (def UFORM-uniform {:type :uform})
+      (def IFORM-uniform {:type :iform})
 
-(defn- UNCLEAR->uniform
-  [uncl]
-  {:type  :uncl
-   :label (expr/UNCLEAR->label uncl)})
+      (defn- VAR->uniform
+        [variable]
+        {:type :var
+         :label variable})
 
-(defn- SEQ-REENTRY->uniform
-  [seq-re]
-  {:type :seq-reentry
-   :sign (expr/SEQ-REENTRY->sign seq-re)
-   :ctx  (mapv (fn [nested-ctx]
-                 {:type :nested-ctx
-                  :ctx (ctx->uniform nested-ctx)})
-               (expr/SEQ-REENTRY->ctxs seq-re))})
+      (defn- UNCLEAR->uniform
+        [uncl]
+        {:type  :uncl
+         :label (expr/UNCLEAR->label uncl)})
 
-(defn- FDNA->uniform
-  [fdna]
-  {:type :fdna
-   :dna (expr/FDNA->dna fdna)
-   :varlist (expr/FDNA->varlist fdna)})
+      (defn- SEQ-REENTRY->uniform
+        [seq-re]
+        {:type :seq-reentry
+         :sign (expr/SEQ-REENTRY->sign seq-re)
+         :ctx  (mapv (fn [nested-ctx]
+                       {:type :nested-ctx
+                        :ctx (ctx->uniform nested-ctx)})
+                     (expr/SEQ-REENTRY->ctxs seq-re))})
 
-(defn- MEMORY->uniform
-  [mem]
-  {:type :mem
-   :rems (mapv (fn [[k v]] {:type :rem
-                            :ctx (vector (cnt->uniform k)
-                                         (ctx->uniform v))})
-               (expr/MEMORY->rems mem))
-   :ctx  (ctx->uniform (expr/MEMORY->ctx mem))})
+      (defn- FDNA->uniform
+        [fdna]
+        {:type :fdna
+         :dna (expr/FDNA->dna fdna)
+         :varlist (expr/FDNA->varlist fdna)})
 
-(defn- const->uniform
-  [c]
-  {:type  :const
-   :value c})
+      (defn- MEMORY->uniform
+        [mem]
+        {:type :mem
+         :rems (mapv (fn [[k v]] {:type :rem
+                                  :ctx (vector (cnt->uniform k)
+                                               (ctx->uniform v))})
+                     (expr/MEMORY->rems mem))
+         :ctx  (ctx->uniform (expr/MEMORY->ctx mem))})
 
-(defn- cnt->uniform
-  [x]
-  (cond
-    (calc/const? x)       (const->uniform x)
-    (expr/fdna? x)        (FDNA->uniform x)
-    (expr/memory? x)      (MEMORY->uniform x)
-    (expr/unclear? x)     (UNCLEAR->uniform x)
-    (expr/seq-reentry? x) (SEQ-REENTRY->uniform x)
-    (expr/pure-form? x)   (FORM->uniform x)
-    (expr/uform? x)       UFORM-uniform
-    (expr/iform? x)       IFORM-uniform
-    (expr/variable? x)    (VAR->uniform x)
-    :else x))
+      (defn- const->uniform
+        [c]
+        {:type  :const
+         :value c})
 
-(defn- ctx->uniform
-  [ctx]
-  (mapv cnt->uniform ctx))
+      (defn- cnt->uniform
+        [x]
+        (cond
+          (calc/const? x)       (const->uniform x)
+          (expr/fdna? x)        (FDNA->uniform x)
+          (expr/memory? x)      (MEMORY->uniform x)
+          (expr/unclear? x)     (UNCLEAR->uniform x)
+          (expr/seq-reentry? x) (SEQ-REENTRY->uniform x)
+          (expr/pure-form? x)   (FORM->uniform x)
+          (expr/uform? x)       UFORM-uniform
+          (expr/iform? x)       IFORM-uniform
+          (expr/variable? x)    (VAR->uniform x)
+          :else x))
 
-(defn uniform-expr [expr]
-  {:type :expr
-   :ctx  (ctx->uniform expr)})
+      (defn- ctx->uniform
+        [ctx]
+        (mapv cnt->uniform ctx))
+
+      (defn uniform-expr [expr]
+        {:type :expr
+         :ctx  (ctx->uniform expr)})
+
+      )
 
 
+#_(comment
 
-(comment
-  
-  (uniform-expr (expr/<-> (expr/<> 'a :U (expr/<fdna> ["x"] :NUIM)) 'b))
+      (uniform-expr (expr/<-> (expr/<> 'a :U (expr/<fdna> ["x"] :NUIM)) 'b))
 
-  )
+      )
 
 (comment
 

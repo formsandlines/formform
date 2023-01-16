@@ -54,6 +54,17 @@
        :_ ;; “hole” or variable value
        (sort-code n)))))
 
+(defn char->const
+  ([c] (char->const c nuim-code))
+  ([c sort-code]
+   (case c
+     (\n \N) :N
+     (\u \U) :U
+     (\i \I) :I
+     (\m \M) :M
+     (digit->const c sort-code))))
+
+
 (defn const->digit
   ([c] (const->digit c nuim-code))
   ([c sort-code]
@@ -207,6 +218,12 @@
   Note that `nuim-code` is the default ordering. If a different `sort-code` is specified, `digits` will be reordered to match the code."
   (prod=dna-seq->dna (fn [sort-code x] (digit->const x sort-code))))
 
+(def chars->dna
+  "Converts a `seqable?` of chars to formDNA.
+  
+  Note that `nuim-code` is the default ordering. If a different `sort-code` is specified, `digits` will be reordered to match the code."
+  (prod=dna-seq->dna (fn [sort-code x] (char->const x sort-code))))
+
 (def dna->digits
   "Converts formDNA to a sequence of digits corresponding to a `sort-code`.
   
@@ -242,15 +259,18 @@
 
 ;; ? what about mixed dna-seqs?
 (defn make-dna
-  [& cs]
-  {:pre [(dna-dimension cs)]}
-  (condp #(%1 %2) (first cs)
-    keyword?    (if (dna? cs)
-                  cs
-                  (throw (ex-info "invalid arguments" {:args cs})))
-    integer?    (digits->dna cs)
-    sequential? (apply make-dna (flatten-dna-seq cs))
-    (throw (ex-info "unsupported type" {:args cs}))))
+  "Creates a formDNA from arguments, which may be either constants or numbers.
+  - string or char constants will be converted to keywords"
+  [& xs]
+  {:pre [(dna-dimension xs)]}
+  (condp #(%1 %2) (first xs)
+    keyword?    (if (dna? xs)
+                  (vec xs)
+                  (throw (ex-info "invalid arguments" {:args xs})))
+    char?       (chars->dna xs)
+    integer?    (digits->dna xs)
+    sequential? (apply make-dna (flatten-dna-seq xs))
+    (throw (ex-info "unsupported type" {:args xs}))))
 
 
 (defn filter-dna-seq

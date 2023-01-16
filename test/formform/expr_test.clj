@@ -301,7 +301,7 @@
   ([x] (f x {}))
   ([x env] (simplify-seq-reentry x env)))
 
-(deftest reduce-seq-reentry-test
+(deftest simplify-seq-reentry-test
   (testing "Reduction of primitive seq-re types"
     (are [x1 x2 y] (= y (f x1) (f x2))
       (seq-re :<r nil)     (seq-re :<r' nil)     [:U]
@@ -411,6 +411,829 @@
     (is (= '[:seq-re :<r b [:U] a] (f (seq-re :<r 'b [:- :I 'a] 'a)))) )
 
   )
+
+
+(deftest cnt>-test
+  (testing "Simple content"
+    (testing "FORM"
+      (testing "equal"
+        (are [x y] (= x y)
+          (cnt> nil) nil
+          (cnt> '()) '()))
+      (testing "marked"
+        (are [x y] (= x y)
+          (cnt> '(nil))  '()
+          (cnt> '(()))   nil
+          (cnt> '(([]))) [])))
+
+    (testing "Constant"
+      (testing "equal"
+        (are [x y] (= x y)
+          (cnt> :N) nil
+          (cnt> :M) '()
+          (cnt> :U) :U
+          (cnt> :I) '(:U)))
+      (testing "marked"
+        (are [x y] (= x y)
+          (cnt> '(:N)) '()
+          (cnt> '(:M)) nil
+          (cnt> '(:U)) '(:U)
+          (cnt> '(:I)) :U)))
+
+    (testing "variable"
+      (testing "without env"
+        (is (= (cnt> 'a) 'a))
+        (is (= (cnt> "a") "a")))
+
+      (testing "with env"
+        (is (= (cnt> 'a {'a :M})
+               (cnt> '(a) {'a :N})
+               (cnt> '((a (b))) {'a :I 'b :I})
+               '()))
+        (is (= (cnt> "a" {"a" :U}) :U)))))
+
+  (testing "Nested content"
+    (testing "reduced by calling"
+      (is (= (cnt> '(nil () nil () nil))
+             (cnt> '(() :M (:N)))
+             nil))
+      (is (= (cnt> '(:U nil :U :U))
+             '(:U)))
+      (is (= (cnt> '(:I nil :I (:U)))
+             :U))
+      (is (= (cnt> '("foo" "foo" "bar" "foo"))
+             '("foo" "bar")))
+      (is (= (cnt> '(a b b a b a))
+             '(a b)))
+      (is (= (cnt> '((a) (a) (a))) ;; !!
+             'a))
+      (is (= (cnt> '((a (b)) (a (b))))
+             '((a (b))))))
+
+    (testing "reduced by crossing"
+      (is (= (cnt> '(()))
+             (cnt> '((nil)))
+             (cnt> '(((:M))))
+             (cnt> '((((nil) nil) nil) nil))
+             nil))
+      (is (= (cnt> '((())))
+             (cnt> '(((nil))))
+             (cnt> '(((((:N))))))
+             (cnt> '(((((nil) nil) nil) nil) nil))
+             '()))
+      (is (= (cnt> '(((()) (()))))
+             (cnt> '((((nil)) (:M))))
+             (cnt> '(((:U)) ((:I))))
+             nil))
+      (is (= (cnt> '(((a))))
+             '(a)))
+      (is (= (cnt> '((a))) ;; !!
+             'a))
+      (is (= (cnt> '(((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((x))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) {'x :U})
+             '(:U))))
+
+    (testing "irreducable"
+      (is (= (cnt> '(a b))
+             '(a b)))
+      ;; should these be reducable? pattern-matching?
+      ;; -> might get too complex for eval
+      (is (= (cnt> '((a (b)) ((b) a)))
+             '((a (b)) ((b) a)))))))
+
+
+(deftest ctx>-test
+  (testing "Relations of simple expressions"
+    (testing "FORMs"
+      (is (= (ctx> [ nil nil ]) [ ]))
+      (is (= (ctx> [ '() '() ]) [ '() ])))
+
+    (testing "Constants"
+      (is (= (ctx> [ :N :N ]) [ ]))
+      (is (= (ctx> [ :M :M ]) [ '() ]))
+      (is (= (ctx> [ :U :U ]) [ :U ]))
+      (is (= (ctx> [ [:U] [:U] ]) [ '(:U) ]))
+      (is (= (ctx> [ :I :I ]) [ '(:U) ]))
+      (is (= (ctx> [ [:I] [:I] ]) [ :U ]))
+      (is (= (ctx> [ :M :N ]) [ '() ]))
+      (is (= (ctx> [ :U :N ]) [ :U ]))
+      (is (= (ctx> [ :I :N ]) [ '(:U) ]))
+      (is (= (ctx> [ :U :I ]) [ '() ]))
+      (is (= (ctx> [ [:U] :I ]) [ '(:U) ]))
+      (is (= (ctx> [ [:I] :U ]) [ :U ]))
+      (is (= (ctx> [ [:U] [:I] ]) [ '() ]))
+      (is (= (ctx> [ :U :M ]) [ '() ]))
+      (is (= (ctx> [ :I :M ]) [ '() ])))
+
+    (testing "Variables"
+      (testing "without env"
+        (is (= (ctx> [ 'a 'b ])
+               [ 'a 'b ]))
+        (is (= (ctx> [ 'a 'a ])
+               [ 'a ]))
+        (is (= (ctx> [ 'a "a" ]) ;; should be equal?
+               [ 'a "a" ])))
+
+      (testing "with env"
+        (is (= (ctx> [ 'a 'a ] {'a :U})
+               [ :U ]))
+        (is (= (ctx> [ 'a 'b ] {'a :U 'b :I})
+               [ '() ]))
+        (is (= (ctx> [ 'a "a" ] {'a :U "a" :I}) ;; should be equal?
+               [ '() ]))
+        (is (= (ctx> [ 'a 'b ] {'a :U})
+               [ :U 'b ]))
+        (is (= (ctx> [ 'x ] {'x 'y})
+               [ 'y ])))
+
+      (testing "with recursive env"
+        ;; ? infinite recursion or dissoc from env on first interpretation
+        (is (= (ctx> [ 'x ] {'x 'x})
+               (ctx> [ 'x 'x ] {'x 'x})
+               '[x])
+            ;; !! too deeply nested -> why?
+            (= (ctx> [ 'x ] {'x [:- 'x]})
+               '[x]))))
+
+    (testing "mixed"
+      (is (= (ctx> [ '(()) nil :N '(((()))) '(() () ()) ])
+             [ ]))
+      (is (= (ctx> [ '((() ())) :M '() ])
+             [ '() ]))
+      (is (= (ctx> [ :U '((:U)) :U '((:U) (:U)) ])
+             [ :U ]))
+      (is (= (ctx> [ '(:U) '(((:U))) :I '((:I) (:I)) ])
+             [ '(:U) ]))
+      (is (= (ctx> [ :U '(:I) ])
+             [ :U ]))
+      (is (= (ctx> [ '(:I) '(:U) ])
+             [ '() ]))
+      (is (= (ctx> [ '((:U)) '(:U) ])
+             [ '() ]))
+      (is (= (ctx> [ :U '(:I) ])
+             [ :U ]))
+      (is (= (ctx> [ '(:U) '((:U)) ])
+             [ '() ]))
+      (is (= (ctx> [ '((:I)) :U ])
+             [ '() ]))))
+
+  (testing "Relations of complex expressions"
+    (testing "pure FORMs"
+      (is (= (ctx> [ '(()) ])
+             [ ]))
+      (is (= (ctx> [ '(() ()) ])
+             [ ]))
+      (is (= (ctx> [ '() '(() ()) ])
+             [ '() ]))
+      (is (= (ctx> [ '(((() (() ()))) ((() (())) (() ()) (()))) ])
+             [ ])))
+
+    (testing "nested variables (reflexion rule)"
+      (is (= (ctx> '[ ((a)) ])
+             [ 'a ]))
+      (is (= (ctx> '[ ((a b c)) ])
+             [ 'a 'b 'c ]))
+      (is (= (ctx> '[ ((a ((b c)) d)) ((e ((f)))) ])
+             [ 'a 'b 'c 'd 'e 'f ]))
+      (is (= (ctx> '[ (a ((b c)) d) ((e (f))) ])
+             [ '(a b c d) 'e '(f) ])))
+
+    (testing "nested U/I relations (generation rule)"
+      (is (= (ctx> '[ :U (:I) ])
+             [ :U ]))
+      (is (= (ctx> '[ :U (:N (:I)) ])
+             [ '() ]))
+      (is (= (ctx> '[ :U (:N (:N (:I))) ])
+             [ :U ]))
+      (is (= (ctx> '[ :U (:N (:U (:N (:I)))) ])
+             [ '() ]))
+      (is (= (ctx> '[ :N (:U (:N (:N (:I)))) ])
+             [ '(:U) ]))
+      (is (= (ctx> '[ :I (:U) ])
+             [ '(:U) ]))
+      (is (= (ctx> '[ :I (:N (:U)) ])
+             [ '() ]))
+      (is (= (ctx> '[ :I (:N (:N (:U))) ])
+             [ '(:U) ]))
+      (is (= (ctx> '[ :I (:N (:I (:N (:U)))) ])
+             [ '() ]))
+      (is (= (ctx> '[ :N (:I (:N (:N (:U)))) ])
+             [ :U ]))
+      (is (= (ctx> '[ :U (:I a) ])
+             [ :U ]))
+      (is (= (ctx> '[ :U ((a :U) :I) ])
+             [ :U ]))
+      (is (= (ctx> '[ :U ((a :I) :U) ])
+             [ '() ]))
+      (is (= (ctx> '[ :I ((a (b :U (c))) c) ])
+             [ '(:U) '((a) c) ]))))
+
+  (testing "Degeneration in nested expressions"
+    (is (= (ctx> '[ a b (a c (c a d)) ] {})
+           '[ a b (c (d)) ]))
+    (is (= (ctx> '[ (a (b a c) (a c (b c d a))) ] {})
+           '[ (a (b c) (c (b d))) ]))
+    (is (= (ctx> '[ x (a (b x)) (y (a x (b x))) ])
+           '[ x (a (b)) (y) ])))
+
+  (testing "Long relations" ;; ? remove due to triviality
+    (is (= (ctx> (repeat 100 nil)) [ ]))
+    (is (= (ctx> (repeat 100 '())) [ '() ]))
+    (is (= (ctx> (repeat 100 :U)) [ :U ]))
+    (is (= (ctx> (repeat 100 '(:U))) [ '(:U) ]))
+    (is (= (ctx> (repeat 100 :N)) [ ]))
+    (is (= (ctx> (repeat 100 :M)) [ '() ]))
+    (is (= (ctx> (repeat 100 :U)) [ :U ]))
+    (is (= (ctx> (repeat 100 :I)) [ '(:U) ]))))
+
+
+(deftest =>-test
+  (testing "Reducable expressions"
+    (testing "FORMs"
+      (are [x y] (= x y)
+        (=> (make nil))   [ :N ]
+        (=> (make '()))   [ :M ]
+        (=> (make :U))    [ :U ]
+        (=> (make '(:U))) [ :I ]))
+
+    (testing "Constants"
+      (are [x y] (= x y)
+        (=> (make :N)) [ :N ]
+        (=> (make :M)) [ :M ]
+        (=> (make :U)) [ :U ]
+        (=> (make :I)) [ :I ])))
+
+  (testing "irreducable expressions"
+    (is (= (=> (make 'a))
+           [ :_ ]))
+    (is (= (=> (make '("x" ("y"))))
+           [ :_ ])))
+
+  (testing "metadata"
+    (is (expression? (=> (make 'a))))
+    (is (= (meta (=> (make 'a)))
+           {:expr 'a, :env {}}))
+    (is (= (meta (=> (make 'a) {'a :M}))
+           {:expr [], :env {'a :M}}))))
+
+
+(defn ->nmui [fdna-expr]
+  (let [{:keys [vars dna]} (op-data fdna-expr)]
+    (apply str vars "::" (calc/dna->digits dna calc/nmui-code))))
+
+(deftest =>*-test
+  (testing "Correctness of returned combinatorial space"
+    (is (= (=>* (make nil))
+           [:fdna '() [:N] ]))
+
+    (is (= (=>* (make nil) {:to-fdna? false})
+           [[:N]]))
+
+    (is (= (=>* (make 'a))
+           [:fdna '(a) [:M :I :U :N] ]))
+
+    (is (= (=>* (make 'a) {:to-fdna? false})
+           [[:N] [:U] [:I] [:M]]))
+
+    (is (= (=>* (make 'a 'b))
+           [:fdna '(a b) [:M :M :M :M
+                          :M :I :M :I
+                          :M :M :U :U
+                          :M :I :U :N] ]))
+
+    (is (= (=>* (make 'a 'b) {:to-fdna? false})
+           [[:N] [:U] [:I] [:M]
+            [:U] [:U] [:M] [:M]
+            [:I] [:M] [:I] [:M]
+            [:M] [:M] [:M] [:M]]))
+
+    (is (= (=>* (make 'a 'b 'c))
+           [:fdna '(a b c)
+            [:M :M :M :M  :M :M :M :M  :M :M :M :M  :M :M :M :M
+             :M :M :M :M  :M :I :M :I  :M :M :M :M  :M :I :M :I
+             :M :M :M :M  :M :M :M :M  :M :M :U :U  :M :M :U :U
+             :M :M :M :M  :M :I :M :I  :M :M :U :U  :M :I :U :N] ]))
+
+    (is (= (=>* (make 'a 'b 'c) {:to-fdna? false})
+           [[:N] [:U] [:I] [:M]
+            [:U] [:U] [:M] [:M]
+            [:I] [:M] [:I] [:M]
+            [:M] [:M] [:M] [:M]
+
+            [:U] [:U] [:M] [:M]
+            [:U] [:U] [:M] [:M]
+            [:M] [:M] [:M] [:M]
+            [:M] [:M] [:M] [:M]
+
+            [:I] [:M] [:I] [:M]
+            [:M] [:M] [:M] [:M]
+            [:I] [:M] [:I] [:M]
+            [:M] [:M] [:M] [:M]
+
+            [:M] [:M] [:M] [:M]
+            [:M] [:M] [:M] [:M]
+            [:M] [:M] [:M] [:M]
+            [:M] [:M] [:M] [:M]])))
+
+  (testing "Correctness of evaluation for simple seq-re FORMs"
+    (is (= (=>* (seq-re :<r 'a)) (=>* (seq-re :<..r. 'a))
+           '[:fdna [a] [:N :I :I :I]]))
+    (is (= (=>* (seq-re :<..r 'a))
+           '[:fdna [a] [:N :U :U :U]]))
+
+    (is (= (=>* (seq-re :<r_ 'a)) (=>* (seq-re :<..r._ 'a))
+           '[:fdna [a] [:M :U :U :I]]))
+    (is (= (=>* (seq-re :<..r_ 'a))
+           '[:fdna [a] [:M :I :I :U]]))
+
+    (is (= (=>* (seq-re :<r' 'a)) (=>* (seq-re :<..r'. 'a))
+           '[:fdna [a] [:N :I :I :I]]))
+    (is (= (=>* (seq-re :<..r' 'a))
+           '[:fdna [a] [:N :U :U :U]]))
+
+    (is (= (=>* (seq-re :<r'_ 'a)) (=>* (seq-re :<..r'._ 'a))
+           '[:fdna [a] [:M :I :M :I]]))
+    (is (= (=>* (seq-re :<..r'_ 'a))
+           '[:fdna [a] [:M :M :U :U]])))
+
+  (testing "Correctness of evaluation in complex seq-re FORMs"
+    (is (= (=>* (seq-re :<r 'b [:- :I 'a] 'a))
+           '[:fdna [a b] [:N :N :N :N
+                          :N :I :N :I
+                          :I :I :I :I
+                          :I :U :I :U]])))
+
+  (testing "Congruence of evaluated formDNA with formform 1 results"
+    ;; SelFi Collection (see https://observablehq.com/@formsandlines/1d-ca-for-4-valued-form-logic-selfis)
+
+    ;; Mark1
+    (is (= (->nmui (=>* (make (seq-re :<r 'l 'e 'r)
+                              (seq-re :<r 'l 'r 'e)) {:vars ['l 'e 'r]}))
+           "[l e r]::3121103223011213012313312301311301231032230132103121133123011113"))
+
+    ;; StripesD100000
+    (is (= (->nmui (=>* (make (seq-re :<r 'l 'e 'r)) {:vars ['l 'e 'r]}))
+           "[l e r]::3302200223013003030323022301030303032002230100003302230223013303"))
+
+    ;; StripesL000100
+    (is (= (->nmui (=>* (make (seq-re :<r 'l 'r 'e)) {:vars ['l 'e 'r]}))
+           "[l e r]::3223303000002213022033330000321302203030000032103223333300002213"))
+
+    ;; Mono000101
+    (is (= (->nmui (=>* (make (seq-re :<r 'l 'r 'e)
+                              (seq-re :<r 'e 'l 'r)) {:vars ['l 'e 'r]}))
+           "[l e r]::3121333303031111222213312002111121211331230111113223333300001113"))
+
+    ;; Rhythm101101
+    (is (= (->nmui (=>* (make (seq-re :<r 'l 'e 'r)
+                              (seq-re :<r 'e 'r 'l)
+                              (seq-re :<r 'l 'r 'e)
+                              (seq-re :<r 'e 'l 'r)) {:vars ['l 'e 'r]}))
+           "[l e r]::3121111121211111111113311331111121211331230111111111111111111113"))
+
+    ;; NewSense
+    (is (= (->nmui (=>* (make (seq-re :<r 'l 'e 'r)
+                              (seq-re :<r 'r 'e 'l)
+                              (seq-re :<r 'l 'r 'e)) {:vars ['l 'e 'r]}))
+           "[l e r]::3121121221211213311313311331311301231032230132101111111111111113"))
+
+    ;; Slit / xor4vRnd
+    (is (= (->nmui (=>* (make '((l) r) '((r) l))))
+           "[l r]::0123103223013210"))
+
+    ;; or4v
+    (is (= (->nmui (=>* (make 'l 'r)))
+           "[l r]::3113121211113210"))
+
+    ;; xorReId / xorReIdRnd
+    (is (= (->nmui (=>* (make (seq-re :<r' 'l 'r) (seq-re :<r' 'r 'l))))
+           "[l r]::2121123223011212"))
+
+    ;; Rule4v30
+    (is (= (->nmui (=>* (make '((l) e r)
+                              '((e) l) '((r) l)) {:vars ['l 'e 'r]}))
+           "[l e r]::0220212122220123133130303333103220020303000023013113121211113210"))
+
+    ;; Rule4v111
+    (is (= (->nmui (=>* (make '(((l) e) r)
+                              '(((l) r) e)
+                              '(((e) r) l)) {:vars ['l 'e 'r]}))
+           "[l e r]::2121121221211212311313311331311301231032230132101111111111111111"))
+
+    ;; Structure111Re / Co(mprehend)OneAnother (identical to “NewSense”)
+    (is (= (->nmui (=>* (make (seq-re :<r 'l 'e 'r)
+                              (seq-re :<r 'e 'r 'l)
+                              (seq-re :<r 'l 'r 'e)) {:vars ['l 'e 'r]}))
+           "[l e r]::3121121221211213311313311331311301231032230132101111111111111113"))
+
+    ;; Rule4v110
+    (is (= (->nmui (=>* (make '((e) r)
+                              '((r) e)
+                              '((r) l)) {:vars ['l 'e 'r]}))
+           "[l e r]::0123121221213210311310321331321001231032230132103113121211113210"))
+
+    ;; uniTuringReRnd
+    (is (= (->nmui (=>* (form (form (seq-re :<r 'l 'e 'r)
+                                    (seq-re :<r 'e 'r 'l)
+                                    (seq-re :<r 'l 'r 'e))
+                              (form 'l 'e 'r)) {:vars ['l 'e 'r]}))
+           "[l e r]::3123121221213213311310321331321001231032230132103113121211113210"))
+
+    ))
+
+
+(deftest interpret-test
+  (testing "Correctness of transformation"
+    (is (= (interpret [:- 'x 'y])
+           '((x y))))
+    (is (= (interpret [:mem [['a :M] ['b :U]] [:- 'x 'y]])
+           '[[[a :M] [[a] [:M]]] [[b :U] [[b] [:U]]] [x y]]))))
+
+
+(deftest simplify-op-test
+  (testing "formDNA"
+    (testing "Basic functionality"
+      (is (= (simplify-op (make :fdna ['a] [:N :U :I :M]) {'a :U}) :I))
+      (is (= (simplify-op (make :fdna ['a 'b] [:N :U :I :M
+                                               :U :I :M :I
+                                               :I :M :I :U
+                                               :M :I :U :N]) {'a :M})
+             '[:fdna [b] [:N :U :I :M]])))
+
+    (testing "Partial matches in dictionary"
+      (is (= (simplify-op (make :fdna ['a] [:N :U :I :M]) {'x :M})
+             '[:fdna [a] [:N :U :I :M]]))
+      (is (= (simplify-op (make :fdna ['a] [:N :U :I :M]) {'x :M 'a :U})
+             :I)))
+
+    (testing "Correctness of transformations"
+      (are [x y] (= (simplify-op (make :fdna ['a] [:N :U :I :M]) {'a x}) y)
+        :N :M
+        :U :I
+        :I :U
+        :M :N)
+
+      (is (= (simplify-op
+              (make :fdna ['a 'b] [:N :U :I :M
+                                   :U :I :M :I
+                                   :I :M :I :U
+                                   :M :I :U :N]) {'a :U})
+             '[:fdna [b] [:I :M :I :U]]))))
+
+  (testing "unclear FORMs"
+    (testing "Basic functionality"
+      (is (= (simplify-op (make :uncl "hey") {})
+             '[:fdna ["hey"] [:N :U :U :U]]))
+
+      (are [x y] (= (simplify-op (make :uncl "unkFo") {"unkFo" x}) y)
+        :N :U
+        :U :U
+        :I :U
+        :M :N)
+
+      ;; !! this is correct, but what happened exactly?
+      (is (= (simplify (make :uncl "hey") {"hey" :M})
+             nil))))
+
+  (testing "memory FORMs"
+    (testing "Correctness of reduction"
+      (is (= (simplify-op (make :mem [['a :M]] 'a) {})
+             (simplify-op (make :mem [['a []]] 'a) {})
+             (simplify-op (make :mem [['a (form)]] 'a) {})
+             (simplify-op (make :mem [['a (make :- [])]] 'a) {})
+             '()))
+      (is (= (simplify-op (make :mem [['a :U]] ['b] 'a) {})
+             '[:- (b) :U]))
+      (is (= (simplify-op (make :mem [['x :N]] 'y) {})
+             'y)))
+
+    ;; ? move to ctx>-test
+    (testing "In expression context"
+      (is (= (ctx> [(make :mem [['a :U]] ['a] 'b)])
+             (ctx> [(make :mem [['a :U]] ['a]) 'b])
+             '[(:U) b]))
+      (is (= (ctx> [(make :mem [['a :U]] 'a) 'b])
+             '[:U b]))
+      ;; env substitution has priority over degeneration from observed values
+      (is (= (ctx> ['y (make :mem [['y 'z]] 'y)])
+             '[y z]))
+      ;; rems can shadow previous rems or given reduction env
+      (is (= (ctx> ['x (make :mem [['y 'z]] 'x)] {'x 'y})
+             (ctx> ['x (make :mem [['x 'z]] 'x)] {'x 'y})
+             '[y z]))
+      (is (= (ctx> [(make :mem [['y 'x]] 'x)] {'x 'y})
+             ;; !! too deeply nested
+             (ctx> [(make :mem [['y [:- 'x]]] 'x)] {'x 'y})
+             '[y]))
+      (is (= (ctx> [(make :mem [['x 'y] ['y 'z]] 'w)] {'w 'x})
+             (ctx> [(make :mem [['y 'z] ['x 'y]] 'w)] {'w 'x})
+             '[z]))
+      (is (= (ctx> [(make :mem [['x [:- 'x 'z]]] 'x)] {'x 'y})
+             '[y z]))
+      (is (= (ctx> ['x (make :mem [['y 'x]] 'x)] {'x 'y})
+             '[y])))
+
+    (testing "Substitution of values from recursive rems"
+      ;; (= ctx' ctx) because reduce-by-calling:
+      ;; !! too deeply nested
+      (is (= (simplify-op (make :mem [[:x [:- :x]]] :x) {})
+             :x))
+      ;; ? merge context during repeated substitution or only once afterwards?
+      ;; !! too deeply nested
+      (is (= (simplify-op (make :mem [[:x (make 'a [:- :x])]] :x) {})
+             '[:mem [[:x [a :x]]] a :x])))
+
+    (testing "Exception in infinite reduction (stack overflow)"
+      ;; infinite recursion because outer expr env nullifies previous dissoc:
+      (is (thrown-with-msg? Exception #"Context too deeply nested"
+                            (simplify-op (make :mem [[:x [:x]]] :x) {})))
+      (is (thrown-with-msg? Exception #"Context too deeply nested"
+                            (simplify-op (make :mem [[:x [:- [:x]]]] :x) {})))
+      (is (thrown-with-msg? Exception #"Context too deeply nested"
+                            (simplify-op (make :mem [[:x [[:- :x]]]] :x) {}))))
+
+    (testing "Combined with outer env"
+      (= (simplify-op (make :mem [['a :N]] 'a 'b) {'b :U})
+         :U))
+
+    (testing "Reduction of shadowed rems"
+      (is (= (simplify-op (make :mem [['a '(x)] ['b [:- 'a :U]]] [:- 'b]) {})
+             '[:- (x) :U])))))
+
+
+(def seqre-opts
+  (vec (for [interpr [:rec-instr :rec-ident]
+             open?   [false true]
+             parity  [:any :even :odd]]
+         {:parity parity, :open? open?, :interpr interpr})))
+
+(deftest interpret-op-test
+  (testing "formDNA"
+    (testing "Correctness of transformation"
+      (is (= (interpret-op (make :fdna)) :N))
+      (is (= (interpret-op (make :fdna [:U])) :U))
+      (is (= (interpret-op (make :fdna [] [:M])) :M))
+      (is (= (interpret-op (make :fdna ['a] [:N :U :I :M]))
+             '[:-
+               [[:M] [[:N->M a]]]
+               [[:I] [[:U->M a]]]
+               [[:U] [[:I->M a]]]
+               [[:N] [[:M->M a]]]]))
+      (is (= (interpret-op (make :fdna ['a 'b] [:M :I :N :I
+                                                :U :M :I :N
+                                                :U :M :N :I
+                                                :M :M :I :M]))
+             '[:-
+               [[:I] [[:M->M a]] [[:N->M b]]]
+               [[:I] [[:M->M a]] [[:I->M b]]]
+               [[:U] [[:U->M a]] [[:M->M b]]]
+               [[:M] [[:M->M a]] [[:M->M b]]]
+               [[:M] [[:N->M a]] [[:M->M b]]]
+               [[:M] [[:N->M a]] [[:N->M b]]]
+               [[:M] [[:U->M a]] [[:I->M b]]]
+               [[:U] [[:I->M a]] [[:M->M b]]]
+               [[:N] [[:U->M a]] [[:U->M b]]]
+               [[:M] [[:N->M a]] [[:I->M b]]]
+               [[:M] [[:I->M a]] [[:I->M b]]]
+               [[:N] [[:I->M a]] [[:N->M b]]]
+               [[:N] [[:M->M a]] [[:U->M b]]]
+               [[:I] [[:U->M a]] [[:N->M b]]]
+               [[:I] [[:I->M a]] [[:U->M b]]]
+               [[:I] [[:N->M a]] [[:U->M b]]]]))))
+
+  (testing "unclear FORMs"
+    (testing "Correctness of transformation"
+      (is (= (interpret-op (make :uncl "foo"))
+             [:seq-re :<r "foo" "foo"]))
+      (is (= (interpret-op (make :uncl (str #{:X :Y} #".+")))
+             [:seq-re :<r "#{:Y :X}.+" "#{:Y :X}.+"]))))
+
+  (testing "memory FORMs"
+    (testing "Correctness of transformation"
+      (is (= (interpret-op (make :mem [['a :M] ['b :U]] 'x 'y))
+             '(((a :M) ((a) (:M))) ((b :U) ((b) (:U))) (x y))))))
+
+  (let [f (fn f [opts & nested-exprs]
+            (interpret-op (apply seq-re opts nested-exprs)))]
+    (testing "self-equivalent re-entry FORMs"
+      (testing "Shape of empty expression"
+        (are [x y] (= x y)
+         ;; ? should nil be removed or valuable to retain context?
+          (f (seqre-opts 0))  '[:mem [[:f* ((:f*))] [:f1 (:f*)]] :f1]
+          (f (seqre-opts 1))  '[:mem [[:f* ((:f*))]] :f*]
+          (f (seqre-opts 2))  '[:mem [[:f* ((:f*))] [:f1 (:f*)]] :f1]
+          (f (seqre-opts 3))  '[:mem [[:f* ((:f*))] [:f2 (:f*)] [:f1 :f2]] :f1]
+          (f (seqre-opts 4))  '[:mem [[:f* ((:f*))] [:f1 :f*]] :f1]
+          (f (seqre-opts 5))  '[:mem [[:f* ((:f*))] [:f2 (:f*)] [:f1 :f2]] :f1]
+
+          (f (seqre-opts 6))  '[:mem [[:f* ((:f*))] [:f1 (:f*)]] :f1]
+          (f (seqre-opts 7))  '[:mem [[:f* ((:f*))]] :f*]
+          (f (seqre-opts 8))  '[:mem [[:f* ((:f*))] [:f1 (:f*)]] :f1]
+          (f (seqre-opts 9))  '[:mem [[:f* ((:f*))] [:f2 (:f*)] [:f1 :f2]] :f1]
+          (f (seqre-opts 10)) '[:mem [[:f* ((:f*))] [:f1 :f*]] :f1]
+          (f (seqre-opts 11)) '[:mem [[:f* ((:f*))] [:f2 (:f*)] [:f1 :f2]] :f1]))
+
+      (testing "Shape of expressions with resolution 1"
+        (are [x y] (= x y)
+         ;; ? should redundant content (inner 'a) be reduced?
+          (f (seqre-opts 0) 'a)  '[:mem [[:f* ((:f* a) a)] [:f1 (:f* a)]] :f1]
+          (f (seqre-opts 1) 'a)  '[:mem [[:f* ((:f* a) a)]] :f*]
+          (f (seqre-opts 2) 'a)  '[:mem [[:f* ((:f* a) a)] [:f1 (:f* a)]] :f1]
+          (f (seqre-opts 3) 'a)  '[:mem [[:f* ((:f* a) a)] [:f2 (:f* a)] [:f1 [:- :f2 a]]] :f1]
+          (f (seqre-opts 4) 'a)  '[:mem [[:f* ((:f* a) a)] [:f1 [:- :f* a]]] :f1]
+          (f (seqre-opts 5) 'a)  '[:mem [[:f* ((:f* a) a)] [:f2 (:f* a)] [:f1 [:- :f2 a]]] :f1]
+
+          (f (seqre-opts 6) 'a)  '[:mem [[:f* ((:f* a) a)] [:f1 (:f* a)]] :f1]
+          (f (seqre-opts 7) 'a)  '[:mem [[:f* ((:f* a) a)]] :f*]
+          (f (seqre-opts 8) 'a)  '[:mem [[:f* ((:f* a) a)] [:f1 (:f* a)]] :f1]
+          (f (seqre-opts 9) 'a)  '[:mem [[:f* ((:f* a) a)] [:f2 (:f* a)] [:f1 [:- :f2 a]]] :f1]
+          (f (seqre-opts 10) 'a) '[:mem [[:f* ((:f* a) a)] [:f1 [:- :f* a]]] :f1]
+          (f (seqre-opts 11) 'a) '[:mem [[:f* ((:f* a) a)] [:f2 (:f* a)] [:f1 [:- :f2 a]]] :f1]))
+
+      (testing "Shape of expressions with even resolution"
+        (are [x y] (= x y)
+         ;; ? should even/odd construct redundant re-entries?
+          (f (seqre-opts 0) 'a 'b)  '[:mem [[:f* ((:f* a) b)]] :f*]
+          (f (seqre-opts 1) 'a 'b)  '[:mem [[:f* ((:f* a) b)]] :f*]
+          (f (seqre-opts 2) 'a 'b)  '[:mem [[:f* ((:f* a) b)]] :f*]
+          (f (seqre-opts 3) 'a 'b)  '[:mem [[:f* ((:f* a) b)] [:f1 [:- (:f* a) b]]] :f1]
+          (f (seqre-opts 4) 'a 'b)  '[:mem [[:f* ((:f* a) b)] [:f1 [:- (:f* a) b]]] :f1]
+          (f (seqre-opts 5) 'a 'b)  '[:mem [[:f* ((:f* a) b)] [:f1 [:- (:f* a) b]]] :f1]
+
+          (f (seqre-opts 6) 'a 'b)  '[:mem [[:f* ((:f* a) b)]] :f*]
+          (f (seqre-opts 7) 'a 'b)  '[:mem [[:f* ((:f* a) b)]] :f*]
+          (f (seqre-opts 8) 'a 'b)  '[:mem [[:f* ((:f* a) b)]] :f*]
+          (f (seqre-opts 9) 'a 'b)  '[:mem [[:f* ((:f* a) b)] [:f1 [:- (:f* a) b]]] :f1]
+          (f (seqre-opts 10) 'a 'b) '[:mem [[:f* ((:f* a) b)] [:f1 [:- (:f* a) b]]] :f1]
+          (f (seqre-opts 11) 'a 'b) '[:mem [[:f* ((:f* a) b)] [:f1 [:- (:f* a) b]]] :f1]))
+
+      (testing "Shape of expressions with odd resolution"
+        (are [x y] (= x y)
+          (f (seqre-opts 0) 'a 'b 'c)  '[:mem [[:f* ((((((:f* a) b) c) a) b) c)] [:f1 (((:f* a) b) c)]] :f1]
+          (f (seqre-opts 1) 'a 'b 'c)  '[:mem [[:f* ((((((:f* a) b) c) a) b) c)]] :f*]
+          (f (seqre-opts 2) 'a 'b 'c)  '[:mem [[:f* ((((((:f* a) b) c) a) b) c)] [:f1 (((:f* a) b) c)]] :f1]
+          (f (seqre-opts 3) 'a 'b 'c)  '[:mem [[:f* ((((((:f* a) b) c) a) b) c)] [:f2 (((:f* a) b) c)] [:f1 [:- ((:f2 a) b) c]]] :f1]
+          (f (seqre-opts 4) 'a 'b 'c)  '[:mem [[:f* ((((((:f* a) b) c) a) b) c)] [:f1 [:- ((:f* a) b) c]]] :f1]
+          (f (seqre-opts 5) 'a 'b 'c)  '[:mem [[:f* ((((((:f* a) b) c) a) b) c)] [:f2 (((:f* a) b) c)] [:f1 [:- ((:f2 a) b) c]]] :f1]
+
+          (f (seqre-opts 6) 'a 'b 'c)  '[:mem [[:f* ((((((:f* a) b) c) a) b) c)] [:f1 (((:f* a) b) c)]] :f1]
+          (f (seqre-opts 7) 'a 'b 'c)  '[:mem [[:f* ((((((:f* a) b) c) a) b) c)]] :f*]
+          (f (seqre-opts 8) 'a 'b 'c)  '[:mem [[:f* ((((((:f* a) b) c) a) b) c)] [:f1 (((:f* a) b) c)]] :f1]
+          (f (seqre-opts 9) 'a 'b 'c)  '[:mem [[:f* ((((((:f* a) b) c) a) b) c)] [:f2 (((:f* a) b) c)] [:f1 [:- ((:f2 a) b) c]]] :f1]
+          (f (seqre-opts 10) 'a 'b 'c) '[:mem [[:f* ((((((:f* a) b) c) a) b) c)] [:f1 [:- ((:f* a) b) c]]] :f1]
+          (f (seqre-opts 11) 'a 'b 'c) '[:mem [[:f* ((((((:f* a) b) c) a) b) c)] [:f2 (((:f* a) b) c)] [:f1 [:- ((:f2 a) b) c]]] :f1]))
+
+      (testing "Arbitrary expressions"
+        (is (= (interpret-op (seq-re :<..r_ nil 'x nil))
+               '[:mem [[:f* ((((((:f*) x))) x))] [:f1 ((:f*) x)]] :f1])))
+      )))
+
+
+(deftest filter-rems-test
+  (testing "Removal of unreferenced shadowed rems"
+    (is (= (#'expr/filter-rems '[[a (x)] [x a] [x :M]] 'x)
+           '[[x :M]]))
+    (is (= (#'expr/filter-rems '[[a :N] [x :M] [a (x)]] 'a)
+           '[[a (x)] [x :M]]))))
+
+
+(deftest seq-reentry-opts->sign-test
+  (testing "All possible inputs"
+    (are [x y] (= x y)
+      (seq-reentry-opts->sign (seqre-opts 0))  :<r
+      (seq-reentry-opts->sign (seqre-opts 1))  :<..r
+      (seq-reentry-opts->sign (seqre-opts 2))  :<..r.
+      (seq-reentry-opts->sign (seqre-opts 3))  :<r_
+      (seq-reentry-opts->sign (seqre-opts 4))  :<..r_
+      (seq-reentry-opts->sign (seqre-opts 5))  :<..r._
+
+      (seq-reentry-opts->sign (seqre-opts 6))  :<r'
+      (seq-reentry-opts->sign (seqre-opts 7))  :<..r'
+      (seq-reentry-opts->sign (seqre-opts 8))  :<..r'.
+      (seq-reentry-opts->sign (seqre-opts 9))  :<r'_
+      (seq-reentry-opts->sign (seqre-opts 10)) :<..r'_
+      (seq-reentry-opts->sign (seqre-opts 11)) :<..r'._)))
+
+(deftest seq-reentry-sign->opts-test
+  (testing "Basic functionality"
+    (is (= (seq-reentry-sign->opts :<r) (seqre-opts 0)))
+    (is (= (seq-reentry-sign->opts :<..r'._) (seqre-opts 11)))))
+
+(deftest seq-reentry-expr-test
+  (testing "Empty expressions"
+    (are [x y] (= x y)
+      (seq-re (seqre-opts 0))  [:seq-re :<r nil]
+      (seq-re (seqre-opts 1))  [:seq-re :<..r nil]
+      (seq-re (seqre-opts 2))  [:seq-re :<..r. nil]
+      (seq-re (seqre-opts 3))  [:seq-re :<r_ nil]
+      (seq-re (seqre-opts 4))  [:seq-re :<..r_ nil]
+      (seq-re (seqre-opts 5))  [:seq-re :<..r._ nil]
+    
+      (seq-re (seqre-opts 6))  [:seq-re :<r' nil]
+      (seq-re (seqre-opts 7))  [:seq-re :<..r' nil]
+      (seq-re (seqre-opts 8))  [:seq-re :<..r'. nil]
+      (seq-re (seqre-opts 9))  [:seq-re :<r'_ nil]
+      (seq-re (seqre-opts 10)) [:seq-re :<..r'_ nil]
+      (seq-re (seqre-opts 11)) [:seq-re :<..r'._ nil]))
+
+  (testing "Default type"
+    (is (= (seq-re {}) '[:seq-re :<r nil])))
+
+  (testing "Content number and type"
+    (is (= (seq-re {} 'x) '[:seq-re :<r x]))
+    (is (= (seq-re {} 'x 'y) '[:seq-re :<r x y]))
+    (is (expression? (seq-re {})))
+    (is (arrangement? (->> (seq-re {} (make 'x 'y) 'z)
+                           op-data
+                           :nested-exprs
+                           first)))))
+
+
+(deftest nested-expr-test
+  (testing "Shape of simple cases"
+    (is (= (nested-expr {} nil)
+           '()))
+    (is (= (nested-expr {} nil nil)
+           '(())))
+    (is (= (nested-expr {} 'a)
+           '(a)))
+    (is (= (nested-expr {} 'a 'b)
+           '((a) b)))
+    (is (= (nested-expr {} 'a 'b 'c)
+           '(((a) b) c)))
+    (is (= (nested-expr {:unmarked? true} nil)
+           nil))
+    (is (= (nested-expr {:unmarked? true} nil nil)
+           '()))
+    (is (= (nested-expr {:unmarked? true} 'a)
+           'a))
+    (is (= (nested-expr {:unmarked? true} 'a 'b)
+           '[:- (a) b]))
+    (is (= (nested-expr {:unmarked? true} 'a 'b 'c)
+           '[:- ((a) b) c]))
+
+    (is (= (nested-expr {:rightwards? true} nil)
+           '()))
+    (is (= (nested-expr {:rightwards? true} nil nil)
+           '(())))
+    (is (= (nested-expr {:rightwards? true} 'a)
+           '(a)))
+    (is (= (nested-expr {:rightwards? true} 'a 'b)
+           '(a (b))))
+    (is (= (nested-expr {:rightwards? true} 'a 'b 'c)
+           '(a (b (c)))))
+    (is (= (nested-expr {:rightwards? true :unmarked? true} nil)
+           nil))
+    (is (= (nested-expr {:rightwards? true :unmarked? true} nil nil)
+           '()))
+    (is (= (nested-expr {:rightwards? true :unmarked? true} 'a)
+           'a))
+    (is (= (nested-expr {:rightwards? true :unmarked? true} 'a 'b)
+           '[:- a (b)]))
+    (is (= (nested-expr {:rightwards? true :unmarked? true} 'a 'b 'c)
+           '[:- a (b (c))])))
+
+  (testing "Shape of output expression"
+    (is (= (nested-expr {} [:- :f 'a] nil 'b nil)
+           '((((:f a)) b))))))
+
+
+;; ? collect in make tests
+(deftest N->M-test
+  (is (= (interpret-op (make :N->M 'a))
+         '[[:seq-re :<r (a)] [:seq-re :<..r (a)]]))) 
+
+(deftest M->M-test
+  (is (= (interpret-op (make :M->M 'a))
+         '[[:seq-re :<r a] [:seq-re :<..r a]])))
+
+(deftest U->M-test
+  (is (= (interpret-op (make :U->M 'a))
+         '[([:seq-re :<r (a)] a) ([:seq-re :<..r a] (a))])))
+
+(deftest I->M-test
+  (is (= (interpret-op (make :I->M 'a))
+         '[([:seq-re :<r a] (a)) ([:seq-re :<..r (a)] a)])))
+
+(deftest sel-test
+  ;; !! unverified
+  (testing "Correct expression"
+    (is (= (sel {})
+           '()))
+    (is (= (sel {'a :M})
+           '((a))))
+    (is (= (sel {'a :I})
+           '[:- ((a) ([:seq-re :<..r nil])) (a ([:seq-re :<r nil]))]))
+    (is (= (sel {'a :M 'b :N 'c :M})
+           '((a) b (c))))
+    (is (= (sel {'a :M, 'b :N, 'c :U})
+           '[:- (a (b) c ([:seq-re :<..r nil])) (a (b) (c) ([:seq-re :<r nil]))])))
+
+  (testing "Without simplification"
+    (is (= (sel {} false)
+           '[:- (([:seq-re :<..r nil])) (([:seq-re :<r nil]))]))
+    (is (= (interpret-op (sel {'a :M} false))
+           '[[(a ([:seq-re :<..r nil])) (a ([:seq-re :<r nil]))]])))) 
+
 
 
 (comment

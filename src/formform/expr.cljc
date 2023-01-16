@@ -1027,8 +1027,8 @@
                                    :U [v (form v)]
                                    :I [(form v) v]))
            all-selections (map select-UI vars->consts)]
-       (make (form (apply make (map first all-selections)) (form :<2r))
-             (form (apply make (map second all-selections)) (form :<r)))))))
+       (make (form (apply make (map first all-selections)) (form :seq-re :<..r))
+             (form (apply make (map second all-selections)) (form :seq-re :<r)))))))
 
 ;;-------------------------------------------------------------------------
 ;; formDNA
@@ -1361,6 +1361,10 @@
   ; (calc/shrink-dna-seq '[:fdna [a b] :NNNNNNNNNNNNNNNN] {})
 
   (simplify-memory (make :mem [['a :N] ['b :U]] (form 'a 'b)) {})
+
+
+  (let [k :MINIUMINUMNIMMIM]
+    (mapv (comp keyword str) (name k)))
 
 
   )
