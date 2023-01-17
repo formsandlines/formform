@@ -15,23 +15,40 @@
 (insta/defparser formula->parsetree
   "src/formform/formula.ebnf" :auto-whitespace :standard)
 
-(defn parse-dna-spec
-  [sort-code varlist prefixed-s]
-  (let [s       (subs prefixed-s 1)
+(defn parse-operator
+  []
+  nil)
+
+(defn parse-symbol
+  [sort-code s]
+  (let [s (subs s 1)
+        s (if (and (not= sort-code calc/nuim-code)
+                   (some? (#{"0" "1" "2" "3"} s)))
+            (-> s
+                (calc/digit->const sort-code)
+                (calc/const->digit)
+                str)
+            s)]
+    (keyword s)))
+
+(defn parse-fdna
+  [sort-code prefixed-s]
+  (let [s       (subs prefixed-s 2)
         digits? (case (first s) (\N \U \I \M) false true)]
-    (if (== 1 (count s))
-      (if digits?
-        (calc/digit->const s sort-code)
-        (keyword s))
-      (let [dna (if digits?
-                  (calc/digits->dna s sort-code)
-                  (let [dna (apply calc/make-dna s)]
-                    (if (= sort-code calc/nuim-code)
-                      dna
-                      (calc/reorder-dna-seq dna sort-code calc/nuim-code))))]
-        (if (nil? varlist)
-          (expr/make :fdna dna)
-          (expr/make :fdna varlist dna))))))
+    (if digits?
+      ;; ? allow numeric formDNA
+      (calc/digits->dna s sort-code)
+      (let [dna (apply calc/make-dna s)]
+        (if (= sort-code calc/nuim-code)
+          dna
+          (calc/reorder-dna-seq dna sort-code calc/nuim-code))))))
+
+(defn parse-fdna-spec
+  [sort-code varlist prefixed-s]
+  (let [dna (parse-fdna sort-code prefixed-s)]
+    (if (nil? varlist)
+      (expr/make :fdna dna)
+      (expr/make :fdna varlist dna))))
 
 (defn parse-re-sign
   [s]
@@ -74,8 +91,9 @@
      :VARLIST   vector
      :VAR       expr/make ; apply?
      :VAR_QUOT  expr/make ; apply?
-     :FDNA      (partial parse-dna-spec sort-code nil)
-     :FDNA_SPEC (partial parse-dna-spec sort-code)}
+     :SYMBOL    (partial parse-symbol sort-code)
+     :FDNA      (partial parse-fdna-spec sort-code nil)
+     :FDNA_SPEC (partial parse-fdna-spec sort-code)}
     (formula->parsetree s))))
 
 
@@ -166,6 +184,12 @@
       )
 
 (comment
+
+  (parse {:sort-code calc/nmui-code} ":1 ()")
+
+  (parse "::N")
+  (parse "::0123")
+  (parse "[[a]::0123]")
 
   (parse "((a (x)) b)")
   (parse "/unkfo/")

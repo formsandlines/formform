@@ -6,46 +6,88 @@
 
 ; # formform
 
+;; ## Creating expressions
+
+;; ### The `make` constructor
+
 ;; `make` constructs an expression of any given type
 
-(make)
+(clerk/row
+  (make) (make []) (make :U) (make 'x) (make "hello world"))
 
-;; Keywords represent “symbolic expressions”, which are expressions that have a special, predefined *interpretation* that is part of the global environment of *formform*:
+;; with more than one argument, `make` constructs an arrangement, which is a symbolic expression of `((…))`, designated with the operator `:-` 
 
-;; with more than one expression, `make` constructs an arrangement, designated with the operator `:-` as a symbolic expression of `((…))`
+(clerk/row
+  (make 'a 'b) 
+  (make '[a] '[b [c]]) 
+  (make [(make "x" "y")] [(make :M)]))
 
-(make 'a 'b)
-(make '(a) '(b (c)))
+;; an arrangement can also be constructed directly as data – any sequential will do:
 
-;; optionally, it can be constructed as data – any sequential will do:
-(= (make '(:-))
-   (make [:-])
-   (make (make)))
+(= '[:- a b]
+   (make '(:- a b))
+   (make [:- 'a 'b])
+   (make (make 'a) 'b))
 
-;; by default, it will splice nested arrangements (root level) together and remove empty space, for ease of composition:
-(= (make)
+;; by default, `make` will splice nested arrangements (at root level) together and remove empty space, for ease of composition:
+
+(= nil
+   (make '(:-))
+   (make [:- nil])
+   (make (make nil nil) nil)
+   (make)
    (make nil)
    (make (make) (make (make))))
 
 (make 'a (make 'b 'c) 'd)
 
 ;; setting the option `:splice` to false, prevents this behaviour:
-(make {:splice? false} 'a (make 'b 'c) 'd)
+(make {:splice? false} 'a (make 'b 'c) nil nil 'd)
 
-;; the splicing behaviour is the same with all predefined expression constructors
 
-;; ---
+;; ### The `form` constructor
 
-;; `form` constructs a marked arrangement, which is the primitive expression of `()`
+;; `form` constructs a FORM – a marked arrangement, which is the primitive expression of `()`
+
 (form)
 
+;; use `form` for any *marked* expression and `make` for any *unmarked* expression
+
+(form (form 'a) 'b)
+
+;; as with all structural expressions, FORMs can be constructed directly with any Clojure sequential:
+
+(= (form) [] '() (list) (range 0))
+
 (= ['a 'b]
+   (form 'a 'b)
    (make ['a 'b])
    (make {:mark? true} 'a 'b))
 
-(form (form) (form (form)))
+;; the splicing behaviour for nested expressions is the same as with `make`, although, of course, nested FORMs will not be spliced:
 
-;; ---
+(= '[[] [[]]]
+   (form [] [[]])
+   (form (form) (form (form)))
+   (form [:- (form) (form nil (make (form)))]))
+
+
+;; ## Symbolic expressions
+
+;; A symbolic expression is an expression that is identified by a *symbol* (represented as a keyword in Clojure) which has a predefined interpretation.
+
+;; There are two kinds of symbolic expressions:
+;; - *expression symbols*, which are just symbols interpreted as expressions
+;; - *operators*, which are special FORMs that start with a symbol and are interpreted based on the shape and position of their other contents
+
+;; ### Constructing symbols
+
+;; Predefined expression symbols in *formform* are:
+
+(clerk/row
+ (make :N) (make :U) (make :I) (make :M))
+
+;; ### Constructing operators
 
 ;; Other predefined expressions can be constructed by specifying their operator as a first argument
 
@@ -125,5 +167,8 @@
 (= (simplify (make 'a 'b) {'a :N, 'b :U})
    (simplify [[nil [:seq-re :<r nil nil]]])) ;=> :U
 
+
+
+;; Keywords represent “symbolic expressions”, which are expressions that have a special, predefined *interpretation* that is part of the global environment of *formform*:
 
 

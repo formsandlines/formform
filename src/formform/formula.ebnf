@@ -6,19 +6,21 @@ EXPR      = [LITERAL] CTX;
           | <#'\s+'> LITERAL CTX
           | Epsilon;
 <NODE>    = FORM | SEQRE | UNCLEAR | FDNA_SPEC | VAR_QUOT;
-<LITERAL> = VAR | FDNA;
+<LITERAL> = FDNA | VAR | SYMBOL;
 FORM      = <'('> [LITERAL] CTX <')'>;
-TERM      = [LITERAL] CTX;
+TERM      = [LITERAL] CTX; (* ? same as EXPR *)
 SEQRE     = <'{'> [RE_SIGN | RE_OPTS <'|'>] TERM {<','> TERM} <'}'>;
 RE_SIGN   = #'@~?_?' | #'\.\.@~?\.?_?';
 RE_OPTS   = RE_OPT {<'|'> RE_OPT};
-FDNA_SPEC = <'['> VARLIST (CONSTS | DIGITS) <']'>;
-FDNA      = CONSTS | DIGITS;
-<CONSTS>  = #':[NUIM]+';
-<DIGITS>  = #':[0123]+';
+(* OPERATOR  = <'['> SYMBOL [EXPR] <']'>; *)
+FDNA_SPEC = <'['> VARLIST CONSTS <']'>;
+FDNA      = CONSTS;
+<CONSTS>  = #'::[NUIM]+' | #'::[0123]+';
+(* SYMBOL    = #':[a-zA-Z0-9.*/+!-_?$%&=<>]+'; *)
+SYMBOL    = #':[^ \(\)\[\]\{\}\,\.;:⁘\`\'\"@~]+';
 UNCLEAR   = <'/'> TEXT <'/'>;
 VARLIST   = <'['> [(VAR_QUOT | VAR) {<','> (VAR_QUOT | VAR)}] <']'>;
 VAR_QUOT  = <'"'> TEXT <'"'> | <"'"> TEXT <"'">;
 VAR       = #'[a-zA-Z]\w*';
 <RE_OPT>  = #'2r(\+1)?' | 'alt' | 'open';
-<TEXT>    = #'[^\(\)\[\]\{\}\,\.\/⁘;\`\"\']+';
+<TEXT>    = #'[^\(\)\[\]\{\}\/\`\'\"]+';

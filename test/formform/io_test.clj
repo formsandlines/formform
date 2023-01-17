@@ -141,33 +141,44 @@
   (testing "Allowed spacing"
     (testing "between literals"
       (is (= (trees ":1") (trees " :1") (trees ":1 ")
-             (trees " :1 ") '([:EXPR [:FDNA ":1"]])))
+             (trees " :1 ") '([:EXPR [:SYMBOL ":1"]])))
       (is (= (trees ":M") (trees " :M") (trees ":M ")
-             (trees " :M ") '([:EXPR [:FDNA ":M"]])))
+             (trees " :M ") '([:EXPR [:SYMBOL ":M"]])))
       (is (= (trees "a") (trees " a") (trees "a ")
              (trees " a ") '([:EXPR [:VAR "a"]])))
 
-      (is (fail? (tree ":1a"))) (is (fail? (tree "a:1")))
-      (is (fail? (tree ":Na"))) (is (fail? (tree "a:N")))
-      (is (fail? (tree ":1:N"))) (is (fail? (tree ":N:1")))
-      (is (= (trees ":1 a") '([:EXPR [:FDNA ":1"] [:VAR "a"]])))
-      (is (= (trees "a :1") '([:EXPR [:VAR "a"] [:FDNA ":1"]])))
+      (is (= (trees ":1a") '([:EXPR [:SYMBOL ":1a"]])))
+      (is (= (trees ":Na") '([:EXPR [:SYMBOL ":Na"]])))
+      (is (fail? (tree "a:1")))
+      (is (fail? (tree "a:N")))
+      ;; ? allow this
+      (is (fail? (tree ":1:N")))
+      (is (fail? (tree ":N:1")))
+      (is (= (trees ":1 a") '([:EXPR [:SYMBOL ":1"] [:VAR "a"]])))
+      (is (= (trees "a :1") '([:EXPR [:VAR "a"] [:SYMBOL ":1"]])))
 
-      (is (fail? (tree "a :1b"))) (is (fail? (tree "a:1 b")))
-      (is (fail? (tree "a :Nb"))) (is (fail? (tree "a:N b")))
-      (is (fail? (tree ":1 b:1"))) (is (fail? (tree ":1b :1")))
-      (is (fail? (tree ":N b:N"))) (is (fail? (tree ":Nb :N")))
-      (is (fail? (tree ":1 :N:M"))) (is (fail? (tree ":1:N :M")))
-      (is (= (trees "a :1 b") '([:EXPR [:VAR "a"] [:FDNA ":1"] [:VAR "b"]])))
-      (is (= (trees "a b :1") '([:EXPR [:VAR "a"] [:VAR "b"] [:FDNA ":1"]])))
-      (is (= (trees ":1 a b") '([:EXPR [:FDNA ":1"] [:VAR "a"] [:VAR "b"]])))
+      (is (= (trees "a :1b") '([:EXPR [:VAR "a"] [:SYMBOL ":1b"]])))
+      (is (= (trees "a :Nb") '([:EXPR [:VAR "a"] [:SYMBOL ":Nb"]])))
+      (is (fail? (tree "a:1 b")))
+      (is (fail? (tree "a:N b")))
+
+      (is (= (trees ":1b :1") '([:EXPR [:SYMBOL ":1b"] [:SYMBOL ":1"]])))
+      (is (fail? (tree ":1 b:1")))
+      (is (= (trees ":Nb :N") '([:EXPR [:SYMBOL ":Nb"] [:SYMBOL ":N"]])))
+      (is (fail? (tree ":N b:N")))
+      (is (fail? (tree ":1 :N:M")))
+      (is (fail? (tree ":1:N :M")))
+      (is (= (trees "a :1 b") '([:EXPR [:VAR "a"] [:SYMBOL ":1"] [:VAR "b"]])))
+      (is (= (trees "a b :1") '([:EXPR [:VAR "a"] [:VAR "b"] [:SYMBOL ":1"]])))
+      (is (= (trees ":1 a b") '([:EXPR [:SYMBOL ":1"] [:VAR "a"] [:VAR "b"]])))
 
       (is (fail? (trees "[]:N")))
       (is (fail? (trees "[]:MM")))
       (is (fail? (trees "[]:NUIM")))
-      (is (= (trees ":11") '([:EXPR [:FDNA ":11"]])))
-      (is (= (trees ":MM") '([:EXPR [:FDNA ":MM"]])))
-      (is (= (trees ":NUIM") '([:EXPR [:FDNA ":NUIM"]])))
+      ;; symbol =/= formDNA
+      (is (= (trees ":11") '([:EXPR [:SYMBOL ":11"]])))
+      (is (= (trees ":MM") '([:EXPR [:SYMBOL ":MM"]])))
+      (is (= (trees ":NUIM") '([:EXPR [:SYMBOL ":NUIM"]])))
       )
 
     (testing "between literals and forms"
@@ -175,31 +186,33 @@
              '([:EXPR [:FORM [:VAR "a"]]])))
       (is (= (trees "() a") (trees "()a") '([:EXPR [:FORM] [:VAR "a"]])))
       (is (= (trees "a ()") (trees "a()") '([:EXPR [:VAR "a"] [:FORM]])))
-      (is (= (trees "() :1") (trees "():1") '([:EXPR [:FORM] [:FDNA ":1"]])))
-      (is (= (trees ":1 ()") (trees ":1()") '([:EXPR [:FDNA ":1"] [:FORM]])))
-      (is (= (trees "() :M") (trees "():M") '([:EXPR [:FORM] [:FDNA ":M"]])))
-      (is (= (trees ":M ()") (trees ":M()") '([:EXPR [:FDNA ":M"] [:FORM]])))
+      (is (= (trees "() :1") (trees "():1") '([:EXPR [:FORM] [:SYMBOL ":1"]])))
+      (is (= (trees ":1 ()") (trees ":1()") '([:EXPR [:SYMBOL ":1"] [:FORM]])))
+      (is (= (trees "() :M") (trees "():M") '([:EXPR [:FORM] [:SYMBOL ":M"]])))
+      (is (= (trees ":M ()") (trees ":M()") '([:EXPR [:SYMBOL ":M"] [:FORM]])))
 
       (is (= (trees "a () b") (trees "a() b") (trees "a ()b")
              (trees "a()b") '([:EXPR [:VAR "a"] [:FORM] [:VAR "b"]])))
       (is (= (trees ":1 () :M") (trees ":1() :M") (trees ":1 ():M")
-             (trees ":1():M") '([:EXPR [:FDNA ":1"] [:FORM] [:FDNA ":M"]])))
+             (trees ":1():M") '([:EXPR [:SYMBOL ":1"] [:FORM] [:SYMBOL ":M"]])))
 
       (is (= (trees "() a b")
              (trees "()a b") '([:EXPR [:FORM] [:VAR "a"] [:VAR "b"]])))
       (is (= (trees "() :1 :M")
-             (trees "():1 :M") '([:EXPR [:FORM] [:FDNA ":1"] [:FDNA ":M"]])))
+             (trees "():1 :M") '([:EXPR 
+                                  [:FORM] [:SYMBOL ":1"] [:SYMBOL ":M"]])))
       (is (= (trees "a b ()")
              (trees "a b()") '([:EXPR [:VAR "a"] [:VAR "b"] [:FORM]])))
       (is (= (trees ":1 :M ()")
-             (trees ":1 :M()") '([:EXPR [:FDNA ":1"] [:FDNA ":M"] [:FORM]])))
+             (trees ":1 :M()") '([:EXPR 
+                                  [:SYMBOL ":1"] [:SYMBOL ":M"] [:FORM]])))
 
       (is (= (trees "( a ( b ) c )") (trees "(a(b)c)")
              '([:EXPR [:FORM [:VAR "a"] [:FORM [:VAR "b"]] [:VAR "c"]]])))
 
       (is (= (trees ":U'U' :I u():U b")
-             '([:EXPR [:FDNA ":U"] [:VAR_QUOT "U"] [:FDNA ":I"] 
-                [:VAR "u"] [:FORM] [:FDNA ":U"] [:VAR "b"]])))
+             '([:EXPR [:SYMBOL ":U"] [:VAR_QUOT "U"] [:SYMBOL ":I"] 
+                [:VAR "u"] [:FORM] [:SYMBOL ":U"] [:VAR "b"]])))
 
       )
     )
@@ -246,32 +259,34 @@
     (is (= (parse "/some smell/") '[:uncl "some smell"]))
 
     (is (= (parse ":M") (parse ->nmui ":M") :M))
-    (is (= (parse ":1") (parse ->nmui ":2") :U))
-    (is (= (parse ":NUIM")
-           (parse ":0123") '[:fdna ["v__0"] [:N :U :I :M]]))
-    (is (= (parse ->nmui ":NUIM")
-           (parse ->nmui ":0231") '[:fdna ["v__0"] [:I :N :U :M]]))
-    (is (= (parse ->nmui ":2310302310012021221111113232332212132133023103213021320233011023")
+    (is (= (parse ":1") (parse ->nmui ":2") :1))
+    (is (= (parse "::M") (parse ->nmui "::M") [:fdna [] [:M]]))
+    (is (= (parse "::1") (parse ->nmui "::2") [:fdna [] [:U]]))
+    (is (= (parse "::NUIM")
+           (parse "::0123") '[:fdna ["v__0"] [:N :U :I :M]]))
+    (is (= (parse ->nmui "::NUIM")
+           (parse ->nmui "::0231") '[:fdna ["v__0"] [:I :N :U :M]]))
+    (is (= (parse ->nmui "::2310302310012021221111113232332212132133023103213021320233011023")
            '[:fdna ["v__0" "v__1" "v__2"]
              [:I :N :U :M  :M :M :U :I  :I :U :M :I  :U :N :I :M
               :N :M :N :M  :M :U :I :N  :U :I :N :I  :U :U :N :M
               :I :I :U :U  :M :U :U :M  :M :M :M :M  :U :I :I :U
               :N :I :I :M  :U :I :N :M  :N :I :U :U  :U :M :N :I]]))
 
-    (is (= (parse "[[]:M]")
-           (parse "[[]:3]") :M))
-    (is (= (parse ->nmui "[[]:I]")
-           (parse ->nmui "[[]:3]") :I))
-    (is (= (parse "[[a]:NUIM]")
-           (parse "[[a]:0123]") '[:fdna ["a"] [:N :U :I :M]]))
-    (is (= (parse ->nmui "[[a]:NUIM]")
-           (parse ->nmui "[[a]:0231]") '[:fdna ["a"] [:I :N :U :M]]))
-    (is (= (parse "[[a,'z_3']:NUIMMNIIIUNMMUNU]")
+    (is (= (parse "[[]::M]")
+           (parse "[[]::3]") [:fdna [] [:M]]))
+    (is (= (parse ->nmui "[[]::I]")
+           (parse ->nmui "[[]::3]") [:fdna [] [:I]]))
+    (is (= (parse "[[a]::NUIM]")
+           (parse "[[a]::0123]") '[:fdna ["a"] [:N :U :I :M]]))
+    (is (= (parse ->nmui "[[a]::NUIM]")
+           (parse ->nmui "[[a]::0231]") '[:fdna ["a"] [:I :N :U :M]]))
+    (is (= (parse "[[a,'z_3']::NUIMMNIIIUNMMUNU]")
            '[:fdna ["a" "z_3"] [:N :U :I :M
                                 :M :N :I :I
                                 :I :U :N :M
                                 :M :U :N :U]]))
-    (is (= (parse ->nmui "[[a,b,c]:2310302310012021221111113232332212132133023103213021320233011023]")
+    (is (= (parse ->nmui "[[a,b,c]::2310302310012021221111113232332212132133023103213021320233011023]")
            '[:fdna ["a" "b" "c"]
              [:I :N :U :M  :M :M :U :I  :I :U :M :I  :U :N :I :M
               :N :M :N :M  :M :U :I :N  :U :I :N :I  :U :U :N :M
@@ -289,12 +304,12 @@
       (is (= (parse "'a ball''a ball'") '[:- "a ball" "a ball"]))
       (is (= (parse "/b 4//b 4/") '[:- [:uncl "b 4"] [:uncl "b 4"]]))
       (is (= (parse ":M :M") '[:- :M :M]))
-      (is (= (parse ":3 :3") '[:- :M :M]))
+      (is (= (parse ":3 :3") '[:- :3 :3]))
       ;; ? parse as fdna instead
-      (is (= (parse "[[]:M] [[]:M]") '[:- :M :M]))
-      (is (= (parse "[[a]:NUIM] [[a]:NUIM]") '[:-
-                                               [:fdna ["a"] [:N :U :I :M]]
-                                               [:fdna ["a"] [:N :U :I :M]]]))
+      (is (= (parse "[[]::M] [[]::M]") '[:- [:fdna [] [:M]] [:fdna [] [:M]]]))
+      (is (= (parse "[[a]::NUIM] [[a]::NUIM]") '[:-
+                                                 [:fdna ["a"] [:N :U :I :M]]
+                                                 [:fdna ["a"] [:N :U :I :M]]]))
       )
     )
 
@@ -317,20 +332,20 @@
       )
 
     (testing "of different types"
-      (is (= (parse "(:U 'x_1' [['x_1']:NMUI] /はあ/ {alt|2r|} :2)")
+      (is (= (parse "(:U 'x_1' [['x_1']::NMUI] /はあ/ {alt|2r|} :2)")
              '(:U "x_1" [:fdna ["x_1"] [:N :M :U :I]] [:uncl "はあ"]
-                  [:seq-re :<..r' nil] :I)))
-      (is (= (parse "{:U 'x_1', [['x_1']:NMUI], /はあ/ {alt|2r|}, :2}")
+                  [:seq-re :<..r' nil] :2)))
+      (is (= (parse "{:U 'x_1', [['x_1']::NMUI], /はあ/ {alt|2r|}, :2}")
              '[:seq-re :<r [:- :U "x_1"] [:fdna ["x_1"] [:N :M :U :I]]
-               [:- [:uncl "はあ"] [:seq-re :<..r' nil]] :I]))
+               [:- [:uncl "はあ"] [:seq-re :<..r' nil]] :2]))
       (is (= (parse "(a(b(c)))") '("a" ("b" ("c")))))
       (is (= (parse "(((a)b)c)") '((("a") "b") "c")))
       (is (= (parse "((a (b :U))c d(e):2 f)g")
-             '[:- (("a" ("b" :U)) "c" "d" ("e") :I "f") "g"]))
+             '[:- (("a" ("b" :U)) "c" "d" ("e") :2 "f") "g"]))
       (is (= (parse "{a,b,c}") '[:seq-re :<r "a" "b" "c"]))
       (is (= (parse "{(a {b,(c),:U d}),{e,f :2}}g")
              '[:- [:seq-re :<r ["a" [:seq-re :<r "b" ["c"] [:- :U "d"]]]
-                   [:seq-re :<r "e" [:- "f" :I]]] "g"]))
+                   [:seq-re :<r "e" [:- "f" :2]]] "g"]))
 
       (is (= (parse "{L,R} {2r+1|L,E,R}")
              '[:- [:seq-re :<r "L" "R"] [:seq-re :<..r. "L" "E" "R"]]))

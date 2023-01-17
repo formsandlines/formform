@@ -1100,6 +1100,11 @@
 (defsymbol :U (seq-re :<r nil nil) :reducer (fn [u _] u))
 (defsymbol :I (form :U))
 
+(defsymbol :0 :N)
+(defsymbol :1 :U)
+(defsymbol :2 :I)
+(defsymbol :3 :M)
+
 (defsymbol :mn :U)
 
 
@@ -1363,8 +1368,9 @@
   (simplify-memory (make :mem [['a :N] ['b :U]] (form 'a 'b)) {})
 
 
-  (let [k :MINIUMINUMNIMMIM]
+  (let [k :NMUI]
     (mapv (comp keyword str) (name k)))
+
 
 
   )
