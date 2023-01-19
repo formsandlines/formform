@@ -43,58 +43,68 @@
           dna
           (calc/reorder-dna-seq dna sort-code calc/nuim-code))))))
 
-(defn parse-fdna-spec
-  [sort-code varlist prefixed-s]
-  (let [dna (parse-fdna sort-code prefixed-s)]
-    (if (nil? varlist)
-      (expr/make :fdna dna)
-      (expr/make :fdna varlist dna))))
-
 (defn parse-re-sign
   [s]
-  {:re-specs (keyword (apply str "<" (map #(case %
-                                             \@ "r"
-                                             \~ "'"
-                                             (str %)) s)))})
+  (keyword (apply str "<" (map #(case %
+                                  \@ "r"
+                                  \~ "'"
+                                  (str %)) s))))
 
 (defn parse-re-opts
   [& opts]
-  {:re-specs (into expr/seq-reentry-defaults
-                   (map #(case %
-                           "2r"   [:parity :even]
-                           "2r+1" [:parity :odd]
-                           "alt"  [:interpr :rec-ident]
-                           "open" [:open? true]
-                           (throw (ex-info "Invalid re-entry option."
-                                           {:opt %})))
-                        opts))})
+  (into expr/seq-reentry-defaults
+        (map #(case %
+                "2r"   [:parity :even]
+                "2r+1" [:parity :odd]
+                "alt"  [:interpr :rec-ident]
+                "open" [:open? true]
+                (throw (ex-info "Invalid re-entry option."
+                                {:opt %})))
+             opts)))
 
 (defn parse-seqre
   [x & nodes]
-  (let [[specs terms] (let [specs (:re-specs x)]
-                        (if (nil? specs)
-                          [{} (cons x nodes)]
-                          [specs nodes]))]
+  (let [[specs terms] (if (or (expr/seq-reentry-signature? x)
+                              (expr/seq-reentry-opts? x))
+                        [x nodes]
+                        [{} (cons x nodes)])]
     (apply expr/seq-re specs terms)))
+
+(defn parse-tree
+  ([tree] (parse-tree {} tree))
+  ([{:keys [sort-code] :or {sort-code calc/nuim-code}} tree]
+   (insta/transform
+    {:EXPR      expr/make
+     :FORM      expr/form
+
+     :VAR       expr/make
+     :VAR_QUOT  expr/make
+
+     :SYMBOL    (partial parse-symbol sort-code)
+     :OPERATOR  expr/make-op
+     ; :UNPARSED  identity ;; EDN?
+
+     :UNCLEAR   (partial expr/make :uncl)
+
+     :SEQRE     parse-seqre
+     :SEQRE_SYM (partial parse-symbol sort-code)
+     :RE_SIGN   parse-re-sign
+     :RE_OPTS   parse-re-opts
+
+     :FDNA_LIT  (partial expr/make :fdna)
+     :FDNA      (partial parse-fdna sort-code)
+     :FDNA_SYM  (partial parse-symbol sort-code)
+     :VARLIST   vector
+     
+     :MEMORY_SYM (partial parse-symbol sort-code)
+     :REMLIST   vector
+     :REM       vector}
+    tree)))
 
 (defn parse
   ([s] (parse {} s))
-  ([{:keys [sort-code] :or {sort-code calc/nuim-code}} s]
-   (insta/transform
-    {:EXPR      expr/make ; apply?
-     :FORM      expr/form ; apply?
-     :UNCLEAR   (partial expr/make :uncl)
-     :TERM      expr/make ; apply?
-     :RE_SIGN   parse-re-sign
-     :RE_OPTS   parse-re-opts
-     :SEQRE     parse-seqre
-     :VARLIST   vector
-     :VAR       expr/make ; apply?
-     :VAR_QUOT  expr/make ; apply?
-     :SYMBOL    (partial parse-symbol sort-code)
-     :FDNA      (partial parse-fdna-spec sort-code nil)
-     :FDNA_SPEC (partial parse-fdna-spec sort-code)}
-    (formula->parsetree s))))
+  ([opts s]
+   (parse-tree opts (formula->parsetree s))))
 
 
 ;;-------------------------------------------------------------------------
@@ -189,20 +199,35 @@
 
   (parse "::N")
   (parse "::0123")
-  (parse "[[a]::0123]")
+  (parse "(a [:fdna [a, b]::0123012301230123] b)")
+  (parse "[:x ((a) (b))]")
+  (parse "[:seq-re ..@ a, b]")
+  (parse-tree [:RE_SIGN "..@"])
+  (parse ":seq-re")
+  (parse "{a, b}")
+  (parse "[:uncl hey]")
+  ; (parse "[:mem [[a (x)] ['be os' /to/]] (a (b))]")
+  (parse "[:mem a = (x), 'be os' = /to/ | (a (b))]")
+  (parse "[:mem a = (x) | (a (b))]")
+  (parse "[:mem | (a (b))]")
+
+  (parse "a = (x), b = y | (a (b))")
+
+  (keyword "dna")
+
+  (parse "[:uncl []]")
+  (parse "[:uncl \"foo bar\"]")
+  
+  (parse  "[:fdna [a]::0123]")
+
+  (parse-tree [:VARLIST [:VAR "a"]])
+  (parse-tree [:FDNA "::0123"])
+  (parse-tree [:FDNA_SPEC [:VARLIST [:VAR "a"]] "::0123"])
+  (parse-tree [:SYMBOL ":fdna"])
 
   (parse "((a (x)) b)")
   (parse "/unkfo/")
   (parse ":NUIM")
-  (expr/·mem [["a" :M] ["b" :N]] "a")
-  (expr/·r ["a"] ["b"])
-
-  '[(("a" ("x")) "b")]
-  '[[:uncl "unkfo"]]
-  '[[:fdna ["v__0"] :NUIM]]
-  '[[:mem (["a" [:M]] ["b" [:N]]) "a"]]
-  '[[:<re ["a"] ["b"]]]
-
 
   (expr/=>* (parse "(((a b c) (x y)) (a c y)) ((b) (x) a c y)"))
 

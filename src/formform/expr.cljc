@@ -742,13 +742,19 @@
 
 (def unclear? (partial s/valid? :formform.specs.expr/unclear))
 
+(defn construct-unclear [op-k & args]
+  [op-k (->> args
+             (remove nil?)
+             (interpose " ")
+             (apply str))])
+
 (defoperator :uncl [label] [:seq-re :<r label label]
+  :constructor construct-unclear
   :predicate unclear?
   :reducer
   (fn [[_ label] env]
     (let [fdna [:fdna [label] [:N :U :U :U]]]
       (simplify-op fdna env))))
-
 
 ;;-------------------------------------------------------------------------
 ;; memory FORMs
@@ -1029,6 +1035,28 @@
            all-selections (map select-UI vars->consts)]
        (make (form (apply make (map first all-selections)) (form :seq-re :<..r))
              (form (apply make (map second all-selections)) (form :seq-re :<r)))))))
+
+
+;; Logical spaces
+
+(defoperator :<n> [& exprs]
+  (let [n-exprs (apply form exprs)]
+    (make (form n-exprs :U) (form n-exprs :I))))
+
+(defoperator :<m> [& exprs]
+  (let [m-exprs (apply make (map form exprs))]
+    (make (form m-exprs :U) (form m-exprs :I))))
+
+(defoperator :<u> [& exprs]
+  (let [n-exprs (apply form exprs)
+        m-exprs (apply make (map form exprs))]
+    (make (form n-exprs :U) (form m-exprs :I))))
+
+(defoperator :<i> [& exprs]
+  (let [n-exprs (apply form exprs)
+        m-exprs (apply make (map form exprs))]
+    (make (form m-exprs :U) (form n-exprs :I))))
+
 
 ;;-------------------------------------------------------------------------
 ;; formDNA
@@ -1372,6 +1400,12 @@
     (mapv (comp keyword str) (name k)))
 
 
+  (interpret (make :<u> 'a 'b 'c))
+  (simplify (make :<m>))
+
+  (take 4 (iterate interpret (make :<i> (make :<u> 'a 'b) 'c)))
+
+  (make :uncl (make) "hey" ['a] "you")
 
   )
 

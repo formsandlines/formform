@@ -112,9 +112,9 @@
 
     (testing "valid empty pairs"
       (is (= (trees "()") [[:EXPR [:FORM]]]))
-      (is (= (trees "{}") [[:EXPR [:SEQRE [:TERM]]]]))
+      (is (= (trees "{}") [[:EXPR [:SEQRE [:EXPR]]]]))
 
-      (is (= (trees "(){}") [[:EXPR [:FORM] [:SEQRE [:TERM]]]]))
+      (is (= (trees "(){}") [[:EXPR [:FORM] [:SEQRE [:EXPR]]]]))
       )
 
     (testing "valid nested pairs"
@@ -122,18 +122,18 @@
       (is (= (trees "(((()))()(()))()(()())")
              [[:EXPR [:FORM [:FORM [:FORM [:FORM]]] [:FORM] [:FORM [:FORM]]]
                [:FORM] [:FORM [:FORM] [:FORM]]]]))
-      (is (= (trees "{{}}") [[:EXPR [:SEQRE [:TERM [:SEQRE [:TERM]]]]]]))
+      (is (= (trees "{{}}") [[:EXPR [:SEQRE [:EXPR [:SEQRE [:EXPR]]]]]]))
       (is (= (trees "{{{{}}}{}{{}}}{}{{}{}}")
-             [[:EXPR [:SEQRE [:TERM [:SEQRE [:TERM [:SEQRE [:TERM [:SEQRE [:TERM]]]]]]
-                              [:SEQRE [:TERM]] [:SEQRE [:TERM [:SEQRE [:TERM]]]]]]
-               [:SEQRE [:TERM]] [:SEQRE [:TERM [:SEQRE [:TERM]] [:SEQRE [:TERM]]]]]]))
+             [[:EXPR [:SEQRE [:EXPR [:SEQRE [:EXPR [:SEQRE [:EXPR [:SEQRE [:EXPR]]]]]]
+                              [:SEQRE [:EXPR]] [:SEQRE [:EXPR [:SEQRE [:EXPR]]]]]]
+               [:SEQRE [:EXPR]] [:SEQRE [:EXPR [:SEQRE [:EXPR]] [:SEQRE [:EXPR]]]]]]))
 
-      (is (= (trees "({})") [[:EXPR [:FORM [:SEQRE [:TERM]]]]]))
-      (is (= (trees "{()}") [[:EXPR [:SEQRE [:TERM [:FORM]]]]]))
+      (is (= (trees "({})") [[:EXPR [:FORM [:SEQRE [:EXPR]]]]]))
+      (is (= (trees "{()}") [[:EXPR [:SEQRE [:EXPR [:FORM]]]]]))
       (is (= (trees "({({})}(){()})(){(){}}")
-             [[:EXPR [:FORM [:SEQRE [:TERM [:FORM [:SEQRE [:TERM]]]]] [:FORM]
-                      [:SEQRE [:TERM [:FORM]]]]
-               [:FORM] [:SEQRE [:TERM [:FORM] [:SEQRE [:TERM]]]]]]))
+             [[:EXPR [:FORM [:SEQRE [:EXPR [:FORM [:SEQRE [:EXPR]]]]] [:FORM]
+                      [:SEQRE [:EXPR [:FORM]]]]
+               [:FORM] [:SEQRE [:EXPR [:FORM] [:SEQRE [:EXPR]]]]]]))
       )
 
     )
@@ -217,6 +217,9 @@
       )
     )
 
+  ; (testing "Symbols"
+  ;        )
+
   )
 
 (def ->nmui {:sort-code calc/nmui-code})
@@ -273,20 +276,20 @@
               :I :I :U :U  :M :U :U :M  :M :M :M :M  :U :I :I :U
               :N :I :I :M  :U :I :N :M  :N :I :U :U  :U :M :N :I]]))
 
-    (is (= (parse "[[]::M]")
-           (parse "[[]::3]") [:fdna [] [:M]]))
-    (is (= (parse ->nmui "[[]::I]")
-           (parse ->nmui "[[]::3]") [:fdna [] [:I]]))
-    (is (= (parse "[[a]::NUIM]")
-           (parse "[[a]::0123]") '[:fdna ["a"] [:N :U :I :M]]))
-    (is (= (parse ->nmui "[[a]::NUIM]")
-           (parse ->nmui "[[a]::0231]") '[:fdna ["a"] [:I :N :U :M]]))
-    (is (= (parse "[[a,'z_3']::NUIMMNIIIUNMMUNU]")
+    (is (= (parse "[:fdna []::M]")
+           (parse "[:fdna []::3]") [:fdna [] [:M]]))
+    (is (= (parse ->nmui "[:fdna []::I]")
+           (parse ->nmui "[:fdna []::3]") [:fdna [] [:I]]))
+    (is (= (parse "[:fdna [a]::NUIM]")
+           (parse "[:fdna [a]::0123]") '[:fdna ["a"] [:N :U :I :M]]))
+    (is (= (parse ->nmui "[:fdna [a]::NUIM]")
+           (parse ->nmui "[:fdna [a]::0231]") '[:fdna ["a"] [:I :N :U :M]]))
+    (is (= (parse "[:fdna [a,'z_3']::NUIMMNIIIUNMMUNU]")
            '[:fdna ["a" "z_3"] [:N :U :I :M
                                 :M :N :I :I
                                 :I :U :N :M
                                 :M :U :N :U]]))
-    (is (= (parse ->nmui "[[a,b,c]::2310302310012021221111113232332212132133023103213021320233011023]")
+    (is (= (parse ->nmui "[:fdna [a,b,c]::2310302310012021221111113232332212132133023103213021320233011023]")
            '[:fdna ["a" "b" "c"]
              [:I :N :U :M  :M :M :U :I  :I :U :M :I  :U :N :I :M
               :N :M :N :M  :M :U :I :N  :U :I :N :I  :U :U :N :M
@@ -306,10 +309,12 @@
       (is (= (parse ":M :M") '[:- :M :M]))
       (is (= (parse ":3 :3") '[:- :3 :3]))
       ;; ? parse as fdna instead
-      (is (= (parse "[[]::M] [[]::M]") '[:- [:fdna [] [:M]] [:fdna [] [:M]]]))
-      (is (= (parse "[[a]::NUIM] [[a]::NUIM]") '[:-
-                                                 [:fdna ["a"] [:N :U :I :M]]
-                                                 [:fdna ["a"] [:N :U :I :M]]]))
+      (is (= (parse "[:fdna []::M] [:fdna []::M]")
+             '[:- [:fdna [] [:M]] [:fdna [] [:M]]]))
+      (is (= (parse "[:fdna [a]::NUIM] [:fdna [a]::NUIM]")
+             '[:-
+               [:fdna ["a"] [:N :U :I :M]]
+               [:fdna ["a"] [:N :U :I :M]]]))
       )
     )
 
@@ -332,10 +337,10 @@
       )
 
     (testing "of different types"
-      (is (= (parse "(:U 'x_1' [['x_1']::NMUI] /はあ/ {alt|2r|} :2)")
+      (is (= (parse "(:U 'x_1' [:fdna ['x_1']::NMUI] /はあ/ {alt|2r|} :2)")
              '(:U "x_1" [:fdna ["x_1"] [:N :M :U :I]] [:uncl "はあ"]
                   [:seq-re :<..r' nil] :2)))
-      (is (= (parse "{:U 'x_1', [['x_1']::NMUI], /はあ/ {alt|2r|}, :2}")
+      (is (= (parse "{:U 'x_1', [:fdna ['x_1']::NMUI], /はあ/ {alt|2r|}, :2}")
              '[:seq-re :<r [:- :U "x_1"] [:fdna ["x_1"] [:N :M :U :I]]
                [:- [:uncl "はあ"] [:seq-re :<..r' nil]] :2]))
       (is (= (parse "(a(b(c)))") '("a" ("b" ("c")))))
@@ -365,5 +370,38 @@
 
       )
     )
+
+  (testing "Operator parsing"
+    (testing "predefined operators"
+      (is (fail? (parse "[:uncl []()]"))) ;; ? should this work
+      (is (= (parse "[:uncl foo bar]") '[:uncl "foo bar"]))
+
+      (is (fail? (parse "[:fdna [] [:M]]"))) ;; ? should this work
+      (is (= (parse "[:fdna [] ::M]") '[:fdna [] [:M]]))
+      (is (= (parse "[:fdna [a] ::MNUI]") '[:fdna ["a"] [:M :N :U :I]]))
+      (is (fail?
+            (parse "[:fdna [a b] ::MNUIMMNIIUMNNINI]"))) ;; ? should this work
+      (is (= (parse "[:fdna [a, b] ::MNUIMMNIIUMNNINI]")
+             '[:fdna ["a" "b"] [:M :N :U :I 
+                                :M :M :N :I 
+                                :I :U :M :N 
+                                :N :I :N :I]]))
+
+      (is (= (parse "[:seq-re @]") '[:seq-re :<r nil]))
+      (is (= (parse "[:seq-re @ ,]") '[:seq-re :<r nil nil]))
+      (is (= (parse "[:seq-re ..@~._ a,b c,:U]")
+             '[:seq-re :<..r'._ "a" [:- "b" "c"] :U]))
+
+      (is (fail? (parse "[:mem ((a :M)) a]")))
+      (is (fail? (parse "[:mem ]")))
+      (is (= (parse "[:mem | ]") '[:mem [] nil]))
+      (is (= (parse "[:mem a = (x) | (a (b))]")
+             '[:mem [["a" ["x"]]] ["a" ["b"]]]))
+      (is (= (parse "[:mem a = ((a) (b)), ((a) (b)) = :U | a]")
+             '[:mem [["a" [["a"] ["b"]]] [[["a"] ["b"]] :U]] "a"]))
+
+      (is (thrown? clojure.lang.ExceptionInfo (parse "[:foo x y]")))
+
+      ))
 
   ) 
