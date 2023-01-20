@@ -78,7 +78,7 @@
     (testing "valid characters"
       (is (= (trees "'6×2=24÷2'") '([:EXPR [:VAR_QUOT "6×2=24÷2"]])))
       (is (= (trees "\"x_1\" \"…\" \"x_2|v|+1\"")
-             '([:EXPR [:VAR_QUOT "x_1"] [:VAR_QUOT "…"] 
+             '([:EXPR [:VAR_QUOT "x_1"] [:VAR_QUOT "…"]
                 [:VAR_QUOT "x_2|v|+1"]])))
       )
 
@@ -199,27 +199,27 @@
       (is (= (trees "() a b")
              (trees "()a b") '([:EXPR [:FORM] [:VAR "a"] [:VAR "b"]])))
       (is (= (trees "() :1 :M")
-             (trees "():1 :M") '([:EXPR 
+             (trees "():1 :M") '([:EXPR
                                   [:FORM] [:SYMBOL ":1"] [:SYMBOL ":M"]])))
       (is (= (trees "a b ()")
              (trees "a b()") '([:EXPR [:VAR "a"] [:VAR "b"] [:FORM]])))
       (is (= (trees ":1 :M ()")
-             (trees ":1 :M()") '([:EXPR 
+             (trees ":1 :M()") '([:EXPR
                                   [:SYMBOL ":1"] [:SYMBOL ":M"] [:FORM]])))
 
       (is (= (trees "( a ( b ) c )") (trees "(a(b)c)")
              '([:EXPR [:FORM [:VAR "a"] [:FORM [:VAR "b"]] [:VAR "c"]]])))
 
       (is (= (trees ":U'U' :I u():U b")
-             '([:EXPR [:SYMBOL ":U"] [:VAR_QUOT "U"] [:SYMBOL ":I"] 
+             '([:EXPR [:SYMBOL ":U"] [:VAR_QUOT "U"] [:SYMBOL ":I"]
                 [:VAR "u"] [:FORM] [:SYMBOL ":U"] [:VAR "b"]])))
 
       )
     )
 
-  ; (testing "Symbols"
-  ;        )
-
+  (testing "Symbols"
+    (is (= (trees ":x") '([:EXPR [:SYMBOL ":x"]])))
+    (is (= (trees "[:x]") '([:EXPR [:OPERATOR [:SYMBOL ":x"]]]))))
   )
 
 (def ->nmui {:sort-code calc/nmui-code})
@@ -400,8 +400,66 @@
       (is (= (parse "[:mem a = ((a) (b)), ((a) (b)) = :U | a]")
              '[:mem [["a" [["a"] ["b"]]] [[["a"] ["b"]] :U]] "a"]))
 
-      (is (thrown? clojure.lang.ExceptionInfo (parse "[:foo x y]")))
-
+      ;; Expression symbols and Operators need not be known
+      (is (= (parse ":foo") :foo))
+      (is (= (parse "[:foo x y]") '[:foo "x" "y"]))
+      (is (= (parse "[:x a () [:y]]") '[:x "a" [] [:y]]))
       ))
-
   ) 
+
+(deftest formula-test
+  (testing "Correct formula output"
+    (testing "simple expressions"
+      (is (= (formula []) "()"))
+      (is (= (formula 'foo) "foo"))
+      (is (= (formula "foo bar") "'foo bar'"))
+      (is (= (formula :I) ":I"))
+      (is (= (formula :3) ":3"))
+      (is (= (formula [:-]) ""))
+      (is (= (formula [:- 'a :I nil []]) "a :I ()"))
+      (is (= (formula [:seq-re :<..r'._ nil]) "{..@~._ }"))
+      (is (= (formula [:fdna [] [:U]]) "[:fdna [] ::U]")) ;; syntax shortcut?
+      (is (= (formula [:uncl "!"]) "[:uncl !]"))
+      (is (= (formula [:uncl "hello world"]) "[:uncl hello world]"))
+      (is (= (formula [:mem [] nil]) "[:mem  | ]"))
+      (is (= (formula [:mem [['x :M] ["why you?" :U]] ['x "why"]])
+             "[:mem x = :M, 'why you?' = :U | (x why)]")))
+
+    (testing "compound expressions"
+      (is (= (formula [nil [[] nil [[] [[nil]]]]])
+             "((() (() (()))))"))
+      (is (= (formula [:- nil [:- [:- nil []] [:-] nil] nil])
+             "()"))
+      (is (= (formula [:seq-re :<r [:- 'a ['b]] [nil] nil [:- nil 'c]])
+             "{@ a (b), (), , c}"))
+      (is (= (formula [:fdna ['a "my var"]
+                       [:M :I :U :N  :I :M :N :U  :U :N :M :I  :N :U :I :M]])
+             "[:fdna [a, 'my var'] ::MIUNIMNUUNMINUIM]"))
+      (is (= (formula [:mem [[['x ['y]] [:- nil [] [['x]]]]] [:- ['x ['y]]]])
+             "[:mem (x (y)) = () ((x)) | (x (y))]"))
+      (is (= (formula [ nil [[:seq-re :<..r' 'a [:seq-re :<r_ nil] 'b]]
+                       [:seq-re :<..r. [:fdna [] [:U]]] ])
+             "(({..@~ a, {@_ }, b}) {..@. [:fdna [] ::U]})"))
+      (is (= (formula [:- [[:mem [] [:mem [["foo" "bar"] ["bar" :M]] nil]]
+                           [:mem [[[:seq-re :<r nil] nil]] [:uncl "hey x"]]]])
+             "([:mem  | [:mem foo = bar, bar = :M | ]] [:mem {@ } =  | [:uncl hey x]])"))
+      )
+
+    (testing "input validation"
+      ;; Expression symbols and Operators need not be known
+      (is (= (formula :foo) ":foo"))
+      (is (= (formula [:foo]) "(:foo)"))
+      (is (= (formula [:- [:- :foo]]) ":foo"))
+      ;; Known operators need to be validated
+      (is (thrown? clojure.lang.ExceptionInfo
+                   (formula [:uncl ""])))
+      (is (thrown? clojure.lang.ExceptionInfo
+                   (formula [:mem [[]] nil])))))
+
+  (testing "Equal data when parsing formula output"
+    (is (let [expr [:seq-re :<..r'._ nil]]
+          (= (parse (formula expr)) expr)))
+    (is (let [fml "[:mem a = ((a) (b)), ((a) (b)) = :U | a]"]
+          (= (formula (parse fml)) fml))))) 
+
+

@@ -181,6 +181,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Expression types
 
+;; ? is this general notion confusing
 (s/def :formform.specs.expr/form sequential?)
 
 (s/def :formform.specs.expr/expr-symbol
@@ -238,26 +239,26 @@
     - `splice?` (default: true) dissolves all top-level arrangements"
   [& args]
   (let [[{:keys [mark? splice?] :or {mark? false splice? true}}
-         [x & ctx]] (if (map? (first args))
-                      [(first args) (rest args)]
-                      [{} args])]
+         [x & r]] (if (map? (first args))
+                    [(first args) (rest args)]
+                    [{} args])]
     (if (operator? [x])
-      (let [op (apply make-op x ctx)]
+      (let [op (apply make-op x r)]
         (if mark? [op] op))
-      (let [ctx (if splice?
-                  (splice-ctx (cons x ctx))
-                  (cons x ctx))]
+      (let [exprs (if splice?
+                    (splice-ctx (cons x r))
+                    (cons x r))]
         (if mark?
-          (if (every? expression? ctx)
-            (vec ctx)
-            (throw (ex-info "Contains invalid expressions." {:exprs ctx})))
-          (condp = (count ctx)
+          (if (every? expression? exprs)
+            (vec exprs)
+            (throw (ex-info "Contains invalid expressions." {:exprs exprs})))
+          (condp = (count exprs)
             0 nil
-            1 (let [expr (first ctx)]
+            1 (let [expr (first exprs)]
                 (if (expression? expr)
                   expr
                   (throw (ex-info "Invalid expression." {:expr expr}))))
-            (apply vector :- ctx)))))))
+            (apply vector :- exprs)))))))
 
 (defn form
   "Constructor for FORM expressions. Calls `make` on arguments."
@@ -738,15 +739,20 @@
 
 (s/def :formform.specs.expr/unclear
   (s/cat :tag   (partial = :uncl)
-         :label string?))
+         :label #(and (string? %) ((complement empty?) %))))
 
 (def unclear? (partial s/valid? :formform.specs.expr/unclear))
 
 (defn construct-unclear [op-k & args]
-  [op-k (->> args
-             (remove nil?)
-             (interpose " ")
-             (apply str))])
+  (let [label (->> args
+                   (remove nil?)
+                   (interpose " ")
+                   (apply str))
+        op    [op-k label]]
+    (if (valid-op? op)
+      op
+      (throw (ex-info "Invalid label for unclear FORM."
+                      {:label label})))))
 
 (defoperator :uncl [label] [:seq-re :<r label label]
   :constructor construct-unclear
@@ -771,9 +777,7 @@
          :rems :formform.specs.expr/rem-pairs
          :ctx  (s/* #(s/valid? :formform.specs.expr/expression %))))
 
-;; ? use spec instead
-(defn rem-pairs? [xs]
-  (and (seqable? xs) (every? seqable? xs)))
+(def rem-pairs? (partial s/valid? :formform.specs.expr/rem-pairs))
 
 (def memory? (partial s/valid? :formform.specs.expr/memory))
 
@@ -1406,6 +1410,7 @@
   (take 4 (iterate interpret (make :<i> (make :<u> 'a 'b) 'c)))
 
   (make :uncl (make) "hey" ['a] "you")
+
 
   )
 

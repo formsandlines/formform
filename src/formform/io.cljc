@@ -1,6 +1,7 @@
 (ns formform.io
   (:require [formform.calc :as calc]
             [formform.expr :as expr]
+            [clojure.string :as str]
             [instaparse.core :as insta]))
 
 ;; ========================================================================
@@ -9,15 +10,10 @@
 ;; ========================================================================
 
 ;;-------------------------------------------------------------------------
-;; formula notation
-
+;; read formula notation
 
 (insta/defparser formula->parsetree
   "src/formform/formula.ebnf" :auto-whitespace :standard)
-
-(defn parse-operator
-  []
-  nil)
 
 (defn parse-symbol
   [sort-code s]
@@ -30,6 +26,12 @@
                 str)
             s)]
     (keyword s)))
+
+(defn parse-operator
+  [op-k & args]
+  (if (expr/operator? [op-k])
+    (apply expr/make-op op-k args)
+    (apply vector op-k args)))
 
 (defn parse-fdna
   [sort-code prefixed-s]
@@ -81,7 +83,7 @@
      :VAR_QUOT  expr/make
 
      :SYMBOL    (partial parse-symbol sort-code)
-     :OPERATOR  expr/make-op
+     :OPERATOR  parse-operator
      ; :UNPARSED  identity ;; EDN?
 
      :UNCLEAR   (partial expr/make :uncl)
@@ -106,6 +108,89 @@
   ([opts s]
    (parse-tree opts (formula->parsetree s))))
 
+;;-------------------------------------------------------------------------
+;; print formula notation
+
+(declare formula)
+
+(def whitespace? #(or (nil? %) (= "" %)))
+
+(defn ctx->formula
+  [ctx]
+  (str/join " " (remove whitespace? (map formula ctx))))
+
+(defn ctx-seq->formula
+  [ctx-seq]
+  (str/join ", " (map formula ctx-seq)))
+
+(defn form->formula
+  [form]
+  (let [form (apply expr/form form)]
+    (str "(" (ctx->formula form) ")")))
+
+
+(defn variable->formula
+  [v]
+  (if (string? v)
+    (let [parts (str/split v #" ")]
+      (if (> (count parts) 1)
+        (str "'" v "'")
+        v))
+    (str v)))
+
+
+(defn arrangement->formula
+  [[_ & exprs]]
+  (ctx->formula exprs))
+
+(defn seq-reentry-sign->formula
+  [sign]
+  (-> (name sign)
+      (subs 1)
+      (str/replace #"r" "@")
+      (str/replace #"'" "~")))
+
+(defn seq-reentry->formula
+  [[_ sign & nested-exprs]]
+  (str "{" (seq-reentry-sign->formula sign) " "
+       (ctx-seq->formula nested-exprs) "}"))
+
+(defn formDNA->formula
+  [[op-k vars dna]]
+  (str "[" op-k " [" (str/join ", " (map variable->formula vars)) "] "
+      (str "::" (str/join "" (map name dna))) "]"))
+
+(defn memory->formula
+  [[op-k rems expr]]
+  (let [rems (str/join ", " (map (fn [[x y]]
+                                   (str (formula x) " = " (formula y)))
+                                 rems))]
+    (str "[" op-k " " rems " | " (formula expr) "]")))
+
+(defn unclear->formula
+  [[op-k & label]]
+  (str "[" op-k " " (str/join "" label) "]"))
+
+(defn operator->formula
+  [[op-k & _ :as op]]
+  (let [op (apply expr/make op)]
+    ((case op-k
+       :-      arrangement->formula
+       :seq-re seq-reentry->formula
+       :fdna   formDNA->formula
+       :mem    memory->formula
+       :uncl   unclear->formula
+       str) op)))
+
+(defn formula
+  [expr]
+  (condp #(%1 %2) expr
+    nil?           ""
+    expr/variable? (variable->formula expr)
+    keyword?       (str expr)
+    expr/operator? (operator->formula expr)
+    expr/form?     (form->formula expr)
+    (throw (ex-info "Unknown expression type." {}))))
 
 ;;-------------------------------------------------------------------------
 ;; uniform expressions
@@ -230,6 +315,14 @@
   (parse ":NUIM")
 
   (expr/=>* (parse "(((a b c) (x y)) (a c y)) ((b) (x) a c y)"))
+
+  (formula [:fdna ['a] [:N :U :I :M]])
+  (formula [:mem [['x :M] ['y :U]] ['x ['y]]])
+
+  (condp #(%1 %2) "hi"
+    expr/form? :form
+    string? :t
+    :f)
 
   ; #_:clj-kondo/ignore
   ; {:type :form
