@@ -465,7 +465,7 @@
              '("foo" "bar")))
       (is (= (cnt> '(a b b a b a))
              '(a b)))
-      (is (= (cnt> '((a) (a) (a))) ;; !!
+      (is (= (cnt> '((a) (a) (a)))
              'a))
       (is (= (cnt> '((a (b)) (a (b))))
              '((a (b))))))
@@ -487,8 +487,10 @@
              nil))
       (is (= (cnt> '(((a))))
              '(a)))
-      (is (= (cnt> '((a))) ;; !!
+      (is (= (cnt> '((a)))
              'a))
+      (is (= (cnt> '((x)) {'x :U})
+             :U))
       (is (= (cnt> '(((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((x))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) {'x :U})
              '(:U))))
 
@@ -550,7 +552,6 @@
         (is (= (ctx> [ 'x ] {'x 'x})
                (ctx> [ 'x 'x ] {'x 'x})
                '[x])
-            ;; !! too deeply nested -> why?
             (= (ctx> [ 'x ] {'x [:- 'x]})
                '[x]))))
 
@@ -595,7 +596,11 @@
       (is (= (ctx> '[ ((a ((b c)) d)) ((e ((f)))) ])
              [ 'a 'b 'c 'd 'e 'f ]))
       (is (= (ctx> '[ (a ((b c)) d) ((e (f))) ])
-             [ '(a b c d) 'e '(f) ])))
+             [ '(a b c d) 'e '(f) ]))
+      (is (= (ctx> [ '([:- a]) '[:- a] ])
+             [ '() ]))
+      (is (= (ctx> [ '([:- a]) '[:- b] ])
+             [ '(a) 'b ])))
 
     (testing "nested U/I relations (generation rule)"
       (is (= (ctx> '[ :U (:I) ])
@@ -921,7 +926,6 @@
              (ctx> ['x (make :mem [['x 'z]] 'x)] {'x 'y})
              '[y z]))
       (is (= (ctx> [(make :mem [['y 'x]] 'x)] {'x 'y})
-             ;; !! too deeply nested
              (ctx> [(make :mem [['y [:- 'x]]] 'x)] {'x 'y})
              '[y]))
       (is (= (ctx> [(make :mem [['x 'y] ['y 'z]] 'w)] {'w 'x})
@@ -934,7 +938,6 @@
 
     (testing "Substitution of values from recursive rems"
       ;; (= ctx' ctx) because reduce-by-calling:
-      ;; !! too deeply nested
       (is (= (simplify-op (make :mem [[:x [:- :x]]] :x) {})
              :x))
       ;; ? merge context during repeated substitution or only once afterwards?

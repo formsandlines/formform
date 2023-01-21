@@ -194,6 +194,10 @@
   (s/and sequential?
          #(s/valid? :formform.specs.expr/op-symbol (op-symbol %))))
 
+(s/def :formform.specs.expr/pure-form
+  (s/and (partial s/valid? :formform.specs.expr/form)
+         (complement (partial s/valid? :formform.specs.expr/operator))))
+
 (s/def :formform.specs.expr/variable (s/or :str string? :sym symbol?))
 
 (s/def :formform.specs.expr/expression
@@ -208,6 +212,7 @@
 (def expr-symbol? (partial s/valid? :formform.specs.expr/expr-symbol))
 (def op-symbol? (partial s/valid? :formform.specs.expr/op-symbol))
 (def operator? (partial s/valid? :formform.specs.expr/operator))
+(def pure-form? (partial s/valid? :formform.specs.expr/pure-form))
 (def variable? (partial s/valid? :formform.specs.expr/variable))
 (def expression? (partial s/valid? :formform.specs.expr/expression))
 
@@ -387,10 +392,17 @@
 ;; ? metadata consistent after simplify-matching-content
 (defn simplify-form
   [form env]
-  (let [ctx  (simplify-context form env)
-        expr (simplify-matching-content ctx)]
+  (let [form (simplify-context form env)
+        expr (simplify-matching-content
+              (if (and (== 1 (count form))
+                       (pure-form? (first form)) )
+                (case (count (first form))
+                  0 nil           ;; (()) = nil
+                  1 (ffirst form) ;; ((x)) = x
+                  form)
+                form))]
     (if (struct-expr? expr)
-      (vary-meta expr #(merge % (meta ctx)))
+      (vary-meta expr #(merge % (meta form)))
       expr)))
 
 (defn simplify-content
@@ -443,13 +455,12 @@
              env-next]))))))
 
 (defn- simplify-by-crossing
-  "Tries to reduce some `((x))` to `x` for each FORM in given context."
+  "Tries to reduce some `((x …))` to `x …` for each FORM in given context."
   [ctx]
   (let [f (fn [ctx x]
-            (if (form? x)
-              ;; ? test for [:- …]
+            (if (pure-form? x)
               (let [[x' & r] x]
-                (if (and (form? x') (empty? r))
+                (if (and (pure-form? x') (empty? r))
                   (into [] (concat ctx x'))
                   (conj ctx x)))
               (conj ctx x)))]
