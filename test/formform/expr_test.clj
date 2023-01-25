@@ -648,7 +648,62 @@
     (is (= (ctx> (repeat 100 :N)) [ ]))
     (is (= (ctx> (repeat 100 :M)) [ '() ]))
     (is (= (ctx> (repeat 100 :U)) [ :U ]))
-    (is (= (ctx> (repeat 100 :I)) [ '(:U) ]))))
+    (is (= (ctx> (repeat 100 :I)) [ '(:U) ])))
+
+  (testing "Operators in context"
+    (is (= '[[:seq-re :<r a b]]
+           (ctx> [[:- [:seq-re :<r 'a 'b]]])))
+    ;; law of crossing cannot be applied to (known) operators
+    (is (= '[(a b c)]
+           (ctx> [ [[:- 'a 'b 'c]] ])))
+    (is (= '[:? y] ;; operator unknown
+           (ctx> [ [[:? 'y]] ])))
+    (is (= '[([:fdna ["foo"] (:N :U :U :U)])]
+           (ctx> [ [[:uncl "foo"]] ])))
+    (is (= '[([:seq-re :<..r a b])]
+           (ctx> [ [[:seq-re :<..r 'a 'b]] ])))
+    (is (= '[(z)]
+           (ctx> [ [[:mem [['x 'y]] 'z]] ])))
+    ;; law of calling can be applied to (all?) operators
+    ;; (although there are practical limitations in simplification algo)
+    (is (= '[a b c]
+           (ctx> [[:- 'a 'b 'c] [:- 'a 'b 'c]])))
+    (is (= '[z]
+           (ctx> [[:mem [['x 'y]] 'z] [:mem [['x 'y]] 'z]])
+           (ctx> [[:mem [['x 'y] ['y 'z]] 'x] [:mem [['x 'y] ['y 'z]] 'x]])))
+    (is (= '[:U]
+           (ctx> [[:mem [['x :U]] 'x] [:mem [['x :U]] 'x]])))
+    (is (= '[[:fdna ["foo"] (:N :U :U :U)]]
+           (ctx> [[:uncl "foo"] [:uncl "foo"] [:uncl "foo"]])
+           (ctx> [[:fdna ["foo"] [:N :U :U :U]]
+                  [:fdna ["foo"] [:N :U :U :U]]])))
+    (is (= '[[:seq-re :<..r a b]]
+           (ctx> [[:seq-re :<..r 'a 'b] [:seq-re :<..r 'a 'b]])))
+    ;; cannot cross re-entry boundary in (de)generation!
+    (is (= '[[:seq-re :<r nil a] a]
+           (ctx> [[:seq-re :<r 'a 'a] 'a])
+           (ctx> [[:- [:seq-re :<r 'a 'a] 'a]])))
+    (is (= '[[:seq-re :<r [:U] a] :U]
+           (ctx> [[:seq-re :<r :I 'a] :U])
+           (ctx> [[:seq-re :<r [:- :I] 'a] :U])))
+    (is (= '[[:seq-re :<r a :U] [:U]]
+           (ctx> [[:seq-re :<r 'a :U] :I])
+           (ctx> [[:seq-re :<r 'a [:- :U]] :I])))
+    ;; dominance of mark still holds
+    (is (= '[[]]
+           (ctx> [[:seq-re :<r 'a 'b] []])
+           (ctx> [[] [:seq-re :<r 'a 'b]])
+           (ctx> [[] [[[:seq-re :<r 'a 'b]]]])
+           (ctx> [:U [:seq-re :<r 'a 'b] :I])))
+    (is (= '[[]]
+           (ctx> [[:seq-re :<r nil nil] :I])
+           (ctx> [[:seq-re :<r nil] :U])
+           (ctx> [[:seq-re :<r nil nil] [:seq-re :<r nil]])))
+    (is (= '[[]]
+           (ctx> [[:- [:seq-re :<r 'a 'b] []]])
+           (ctx> [[:fdna [] [:M]] [:seq-re :<r 'a 'b]])
+           (ctx> [[:fdna ["foo"] [:N :U :U :U]] [:fdna [] [:M]] ]))))
+  )
 
 
 (deftest =>-test
@@ -1020,7 +1075,6 @@
     (testing "self-equivalent re-entry FORMs"
       (testing "Shape of empty expression"
         (are [x y] (= x y)
-         ;; ? should nil be removed or valuable to retain context?
           (f (seqre-opts 0))  '[:mem [[:f* ((:f*))] [:f1 (:f*)]] :f1]
           (f (seqre-opts 1))  '[:mem [[:f* ((:f*))]] :f*]
           (f (seqre-opts 2))  '[:mem [[:f* ((:f*))] [:f1 (:f*)]] :f1]
@@ -1037,7 +1091,6 @@
 
       (testing "Shape of expressions with resolution 1"
         (are [x y] (= x y)
-         ;; ? should redundant content (inner 'a) be reduced?
           (f (seqre-opts 0) 'a)  '[:mem [[:f* ((:f* a) a)] [:f1 (:f* a)]] :f1]
           (f (seqre-opts 1) 'a)  '[:mem [[:f* ((:f* a) a)]] :f*]
           (f (seqre-opts 2) 'a)  '[:mem [[:f* ((:f* a) a)] [:f1 (:f* a)]] :f1]
@@ -1089,7 +1142,6 @@
         (is (= (interpret-op (seq-re :<..r_ nil 'x nil))
                '[:mem [[:f* ((((((:f*) x))) x))] [:f1 ((:f*) x)]] :f1])))
       )))
-
 
 (deftest filter-rems-test
   (testing "Removal of unreferenced shadowed rems"

@@ -1,6 +1,5 @@
 (ns user
-  (:require [flow-storm.api :as fs-api]
-            [nextjournal.clerk :as clerk]))
+  (:require [nextjournal.clerk :as clerk]))
 
 
 (comment
@@ -11,9 +10,4 @@
   ; (clerk/show! "notebooks/formform/index.clj")
 
   ;; or let Clerk watch the given `:paths` for changes
-  (clerk/serve! {:watch-paths ["notebooks"]})
-
-  (fs-api/local-connect)
-
-
-  )
+  (clerk/serve! {:watch-paths ["notebooks"]}))

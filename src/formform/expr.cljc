@@ -136,7 +136,7 @@
                                     all-params))]
            (defmethod op-get [~k param#] ~(methodname "op-get")
              [~op-sym ~'_] (if (== i# ~(count params))
-                             (subvec ~op-sym (inc i#))
+                             (into [] (subvec ~op-sym (inc i#)))
                              (~op-sym (inc i#))))))))
 
 
@@ -292,7 +292,6 @@
        (expr-symbol? expr) (interpret-sym expr)
        :else expr))))
 
-;; ! prevent infinite loop
 (defn interpret*
   "Recursively calls `interpret` on given expression and its subexpressions down to the deepest nesting, until there is nothing left to interpret."
   ([expr] (interpret* expr {}))
@@ -306,7 +305,6 @@
                                         {:type :infinite-substitution}))
          :else (recur expr' (inc i)))))))
 
-;; ! does not find nested re-entry FORMs
 (defn find-vars
   "Finds all variables in an expresson or returns the expression itself if it is a variable.
   
@@ -587,6 +585,23 @@
            (into (if sorted? (sorted-map-by calc/compare-dna) (hash-map))))
       {:vars vars})))
 
+(defn equal
+  "Equality check for expressions. Two expressions are considered equal, if their formDNAs are equal. Compares formDNAs from evaluation results of each expression by calling `calc/equal-dna`.
+  - ordering of variable names in formDNA matters, see `find-vars`
+  - stricter than `equiv`, which compares by `calc/equiv-dna`"
+  [& exprs]
+  (let [data     (map (comp op-data =>*) exprs)
+        dnas     (map :dna data)
+        varlists (map :vars data)]
+    (and (apply = varlists)
+         (apply calc/equal-dna dnas))))
+
+(defn equiv
+  "Equivalence check for expressions. Two expressions are considered equivalent, if their formDNAs are equivalent. Compares formDNAs from evaluation results of each expression by calling `calc/equiv-dna`.
+  - ordering of variable names in formDNA is irrelevant
+  - looser than `equal`, which compares by `calc/equal-dna`"
+  [& exprs]
+  (apply calc/equiv-dna (map (comp #(op-get % :dna) =>*) exprs)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -596,8 +611,8 @@
 
 ;; ? choose different term than “chain”
 (defn chained-expr
-  "Chains contexts like `((a)(b)…)` or `(a)(b)…` if {:unmarked? true}`
-  - a context must be either a vector `[x y …]` or an expression `(<-> x y …)`"
+  "Chains expressions like `((a)(b)…)` or `(a)(b)…` if {:unmarked? true}`
+  - group expressions with arrangements: `[:- x y …]`"
   [{:keys [unmarked?] :or {unmarked? false}} & exprs]
   (let [f-chained (chain exprs)]
     (if unmarked?
@@ -738,7 +753,7 @@
   (apply nested-expr {:unmarked? true :rightwards? true} exprs))
 
 ;; Chained expressions
-;; ! redundant because of :* and :|
+;; ? redundant because of :* and :|
 (defoperator :<-> [& exprs]
   (apply chained-expr {:unmarked? false} exprs))
 (defoperator :<> [& exprs]
@@ -852,6 +867,11 @@
   :predicate memory?
   :reducer simplify-memory)
 
+(defn memory
+  "Constructs a memory FORM."
+  [rems & exprs]
+  (make-op :mem rems exprs))
+
 ;;-------------------------------------------------------------------------
 ;; self-equivalent re-entry FORMs
 
@@ -907,7 +927,7 @@
         sign  (op-get seq-re :sign)
         exprs (op-get seq-re :nested-exprs)
         {:keys [parity open? interpr] :as specs} (seq-reentry-sign->opts sign)
-        ;; ! check if mn from environment can be equivalent to mn in exprs
+        ;; ! check if :U from environment can be equivalent to :U in exprs
         [re-entry? exprs]
         (let [re-expr     (if (arrangement? (first exprs))
                             (arr-prepend sign (first exprs))
@@ -990,6 +1010,7 @@
       (throw (ex-info (str "Invalid operator arguments" op-k)
                       {:op op-k :args (cons specs nested-exprs)})))))
 
+;; ? should even/odd construct redundant re-entries in interpretation?
 (defoperator :seq-re [sign & nested-exprs]
   (let [[x & ys :as exprs] nested-exprs
         {:keys [parity open?]} (seq-reentry-sign->opts sign)
@@ -1012,8 +1033,12 @@
   :predicate seq-reentry?
   :reducer simplify-seq-reentry)
 
-(def seq-re (partial construct-seq-reentry :seq-re))
-
+(defn seq-re
+  "Constructs a self-equivalent re-entry FORM given the arguments:
+  - `specs`: either a `seq-reentry-signature` or an options map
+  - `nested-exprs`: zero or more expressions intended as a nested sequence"
+  [specs & nested-exprs]
+  (apply construct-seq-reentry :seq-re specs nested-exprs))
 
 ;;-------------------------------------------------------------------------
 ;; Compound expressions
@@ -1153,267 +1178,32 @@
 
 (comment
 
-  (make 'a (make 'b) 'c)
-  (form 'a (form 'b) (make 'c (form 'd)))
-
-  (interpret-op (make :* 'a 'b 'c))
-  (interpret-op (make :| 'a 'b 'c))
-
-  (form :| 'a 'b 'c)
-  (form :* 'a 'b 'c)
-
-  (simplify-expr-chain ['a [:- []] 'x] {})
-  (simplify-expr-chain ['a [[]] 'x] {})
-
-  (simplify-form (interpret-op [:- []]) {})
-  (simplify-content [:- []] {})
-  (simplify-content [[:- 'a 'b]] {})
-  (simplify-op [:- []] {})
-  (operator? [:o])
-  (when ((op-symbol (make [])) (methods simplify-op))
-    true)
-
-  ;; ! fix that
-  (= (simplify-expr-chain {:rtl? true} [[:- []] 'a 'x] {})
-     '[a x])
-  (nested-expr {} [:- []] 'a 'x)
-
-  (= (simplify-expr-chain [[:- []] 'a 'x] {})
-     '[[]])
-  (nested-expr {:rightwards? true} [:- []] 'a 'x)
-
-
-  (make :fdna ['a 'b] [:N :U :I :M
-                       :U :I :M :N
-                       :N :N :U :N
-                       :M :U :N :U])
-
-  (op-data [:seq-re :<r 'a 'b])
-
-  (make :fdna)
-  (make :fdna [:U :I])
-
-
-  (defoperator :and [a b] [[a] [b]])
-  (interpret (make :and 'x 'y))
-
-  (interpret [:- 'a 'b [:- 'x]])
-
-
-  (defoperator :foo [oh my] [[oh] [my]]
-    :constructor
-    (fn [_ & args]
-      (condp = (count args)
-        1 [:foo (first args)]
-        3 (let [[oh my god] args]
-            [:foo oh (str my god)]))))
-
-  (make-op :- 'a 'b)
-  (op-data (make-op :foo 'a 'b 'c))
-  (op-data (make-op :foo 'a))
-
-  (op-data (make :foo 'a "hallo " "welt"))
-
-  (make-op :? 'a 'b)
-  (interpret-op [:? 'a 'b])
-  (make-op :uncl 'a 'b)
-
-  (defmulti some-disp (fn [args] (first args)))
-  (defmethod some-disp :wah
-    [[_ & args]]
-    (condp = (count args)
-      1 (let [[a] args] (str "single " a))
-      2 (let [[a b] args] (keyword (str a b)))))
-
-  (some-disp [:wah 12 42])
-  (some-disp [:wah 12])
-
-
-  (defmulti mydisp (fn [expr] (:op expr)))
-  (defmethod mydisp nil [[& xs]] (apply vector xs))
-  (defmethod mydisp :- [{:keys [ctx]}] (apply vector :- ctx))
-  (defmethod mydisp :uncl [{:keys [label]}] [:<r label label])
-
-  (mydisp [12 53])
-  (mydisp {:op :- :ctx ['a 'b 'c]})
-  (mydisp {:op :uncl :label "cool"})
-
-  (defmulti mydisp2 (fn
-                      ([] nil)
-                      ([k & _] k)))
-  (defmethod mydisp2 nil [] "whatever")
-  (defmethod mydisp2 :- [{:keys [ctx]}] (apply vector :- ctx))
-  (defmethod mydisp2 :uncl [{:keys [label]}] [:<r label label])
-
-  (mydisp2)
-
-  ; (defmulti)
-  ; (s/multi-spec)
-  ; (make-hierarchy)
-  ; (derive)
-  ; (prefers)
-  ; (prefer-method)
-
-
-  (simplify-seq-reentry (make :seq-re :<r 'a 'b) {})
-
-  (simplify-seq-reentry (make :seq-re :<r nil) {})
-  (simplify-seq-reentry (make :seq-re :<..r nil) {})
-  (simplify-seq-reentry (make :seq-re :<..r. nil) {})
-
-  (op-data (make :seq-re :<r 'a 'b 'c))
-
-  (seq-reentry-sign->opts :<r')
-
-  (arr-prepend :x [:- 'a 'b])
-
-
-  (defmethod interpret-op :decide [[_ x y]] [[x] y])
-
-  (interpret-op [:decide 'a 'b])
-
-  (defmethod interpret-op :mark-n [[_ n x]] (repeat n [x]))
-
-  (interpret-op [:mark-n 6 ['a 'b]])
-
-  (defmethod interpret-op :sel3-inv [[_ [x [y] z]]] [[x] y [z]])
-
-  (interpret-op [:sel3-inv ["all" ["the"] "world"]])
-
-
-  (defoperator :foo [a b] [[a] [b]])
-  (make-op :foo [] [])
-  (valid-op? [:foo 'x 'y])
-
-  (defoperator :bar [a & bs] (cons a bs))
-  (valid-op? [:bar 'x 'y])
-  (simplify-op [:bar 'x 'y 'z] {})
-
-  (make-op :uncl "hey")
-  (valid-op? [:uncl "hey"])
-
-  (make-op :seq-re :<r 'a)
-
-  (form {} 'a)
-
-  (interpret-sym :U)
-
-  `[x# ~(when true `x#)]
-
-  (let [sym (gensym "x")]
-    `[~sym ~(when true sym)])
-
-
-  (make-op :seq-re :<r 'a 'b)
-  (seq-re :<r 'a 'b)
-  (make-op :uncl "hey")
-
-
-  (make-op :fdna [:M])
-
-
-  (simplify-expr-chain {:rtl? true} [:f* :U :U] {})
-
-  (simplify-seq-reentry (seq-re :<r' nil) {})
-
-
-  (interpret* (form 'a (make :* 'x 'y)))
-
-  (interpret-op [:* 'a 'b])
-
-  (interpret-op [:- [['x]] nil])
-  (simplify-form (simplify-op [:- [['x]] nil] {}) {})
-
-
-  (interpret-op (make :* [:- 'a 'b] 'c))
-
-  (simplify-op (make :seq-re :<r [:- 'a 'b] [:- 'c 'd] 'e) {})
-
-
-  (simplify (make :I) {})
-
-  (interpret (interpret (seq-re :<r 'a)))
-  ; '[:mem [[:f* [[:f* a] a]] 
-  ;         [:f1 [:f* a]]] :f1]
-
-  ; '[[[:f* [[:f* a] a]] 
-  ;    [[:f*] [[[:f* a] a]]]] 
-  ;   [[:f1 [:f* a]] 
-  ;    [[:f1] [[:f* a]]]] 
-  ;   [:f1]]
-
-  (interpret* (make 'a 'b) {'a :N, 'b :U})
-
-  (simplify (make 'a 'b) {'a :N, 'b :M})
-
-  (apply nested-expr {:unmarked? false :rightwards? false}
-         (make :f* 'a) ['b 'c])
-
-;; [[[[:- :f* a]] b] c]
-
-
-  (nested-expr {} [:- :x 'b 'x] 'a 'c)
-
-  (splice-ctx [[:- :x 'b 'x]])
-  (splice-ctx [[:- 'b 'x]])
-
-  (arrangement? [:- :x 'b 'x])
-
-  (s/valid? :formform.specs.expr/expression :x)
-
-
-  (simplify-env {'x :U})
-
-  (simplify (make 'a 'b) {'a :N, 'b :U})
-  (simplify (make 'a) {'a :U})
-
-  (substitute-in-context {'a :U 'b :N} ['a 'b])
-  (simplify-context ['a 'b] {'a :U 'b :N})
-  (simplify-content [:- 'a 'b] {'a :U 'b :N})
-
-  (let [env {'a :U 'b :N}]
-    (interpret (interpret [:- 'a 'b] env) env))
-
-  (simplify [:- :U])
-  (simplify :U)
-
-  (interpret* [:- :U])
-
-  (simplify (make :seq-re :<r 'a 'b))
-
-  (simplify-expr-chain {:rtl? true} [[:- :<r 'a] 'b] {})
-
-  (interpret [:uncl "foobar"])
-
-  (simplify-content (interpret [:U->M 'a]) {})
-
-  (simplify '[[[:seq-re :<r [a]] a] [[:seq-re :<..r a] [a]]])
-
-  (simplify [(seq-re :<r (form 'a)) 'a])
-
-  ;; IS THIS WRONG?
-  (interpret (seq-re :<r (form 'a)))
-  '[:mem [[:f* [[:f* [a]] [a]]] [:f1 [:f* [a]]]] :f1]
-  '[  [:f* [a]]  ]
-
-  (simplify-expr-chain [:- :<r ['a]] {})
-
-  (=>* (make 'a) {:to-fdna? false})
-
-  (find-vars (make 'a) {:ordered? true})
-
   ;; ! this shouldnt work:
-  (simplify (make [:seq-re nil]))
+  (simplify-seq-reentry [:seq-re nil] {})
+
+  (op-get [:seq-re 'a] :sign)
+  (op-data [:seq-re 'a])
+
+  (type (into [] (subvec [1 2 3] 1)))
+
+  (type (:c (zipmap [:a :b :c] (conj (subvec [1 2 3] 1)
+                                     (subvec ['a 'b 'c] 1)))))
+
+  (type ((conj (subvec [1 2 3] 1)
+               (subvec ['a 'b 'c] 1)) 2))
 
   ;; ! evaluations should be contracted:
   ; (calc/shrink-dna-seq '[:fdna [a b] :NNNNNNNNNNNNNNNN] {})
 
   (simplify-memory (make :mem [['a :N] ['b :U]] (form 'a 'b)) {})
 
+  (make :mem [['a :N] ['b :U]] (form 'a 'b))
+  {:type :memory
+   :rems [['a :N] ['b :U]]
+   :body ['a 'b]}
 
-  (let [k :NMUI]
-    (mapv (comp keyword str) (name k)))
 
+  (interpret (make :mem [['a :N] ['b :U]] 'a 'b))
 
   (interpret (make :<u> 'a 'b 'c))
   (simplify (make :<m>))
@@ -1421,6 +1211,17 @@
   (take 4 (iterate interpret (make :<i> (make :<u> 'a 'b) 'c)))
 
   (make :uncl (make) "hey" ['a] "you")
+
+
+
+  (equiv [['a] 'b] ['b ['a]]) ;=> true
+  (equal [['a] 'b] ['b ['a]]) ;=> true
+
+  (equiv [['a] 'b] [['b] 'a]) ;=> true
+  (equal [['a] 'b] [['b] 'a]) ;=> false
+
+  (equiv [['a] 'a] [[] 'a])
+  (equiv [[[]] 'a] ['a nil] ['a] ['a 'a 'a])
 
 
   )

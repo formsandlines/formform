@@ -302,7 +302,7 @@
 
   (parse "[:uncl []]")
   (parse "[:uncl \"foo bar\"]")
-  
+
   (parse  "[:fdna [a]::0123]")
 
   (parse-tree [:VARLIST [:VAR "a"]])
@@ -318,6 +318,18 @@
 
   (formula [:fdna ['a] [:N :U :I :M]])
   (formula [:mem [['x :M] ['y :U]] ['x ['y]]])
+
+
+  (expr/equiv (parse "(({L,E,R}{E,R,L}{L,R,E})(L E R))")
+              (parse "(({E,L,R}{L,R,E}{E,R,L})(E L R))"))
+
+  (expr/equiv (parse "((a) b)")
+              (parse "((b) a)"))
+
+  (expr/equal (parse "(x (y))")
+              (parse "((b) a)"))
+
+
 
   (condp #(%1 %2) "hi"
     expr/form? :form

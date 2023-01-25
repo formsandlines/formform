@@ -2,9 +2,12 @@
   (:require [clojure.edn :as edn]
             [clojure.math :as math]
             [clojure.math.combinatorics :as combo]
+            [clojure.set :as set]
             [formform.utils :as utils]
             [clojure.spec.alpha :as s]
-            [clojure.spec.gen.alpha :as gen]))
+            [clojure.spec.gen.alpha :as gen]
+            [criterium.core :refer [quick-bench bench]]
+            [clojure.repl :as repl]))
 
 ;; ========================================================================
 ;;     formform calculation module
@@ -115,7 +118,7 @@
          gen-fn #(rand-nth (if (and (some? elems) (<= (count elems) 4))
                              elems
                              nuim-code))]
-     (repeatedly len gen-fn))))
+     (vec (repeatedly len gen-fn)))))
 
 (declare dna->digits)
 
@@ -163,24 +166,27 @@
   - `dna-seq` can have any type of elements (not only constants)
   - does NOT change the encoding of the elements, just their ordering"
   [dna-seq sort-code-from sort-code-to]
-  (let [sort-idxs (->> (range 3 -1 -1)
-                       (zipmap sort-code-from)
-                       (sort (make-compare-dna sort-code-to))
-                       reverse
-                       (map second))
-        aux (fn reorder [dna-subseq]
-              (let [len      (count dna-subseq)
-                    part-len (/ len 4)]
-                (if (< len 4)
-                  dna-subseq
-                  (apply concat
+  (if (= sort-code-from sort-code-to)
+    dna-seq
+    (let [sort-idxs (->> (range 3 -1 -1)
+                         (zipmap sort-code-from)
+                         (sort (make-compare-dna sort-code-to))
+                         reverse
+                         (map second))
+          ;; ! recursion can cause OutOfMemoryError with dim > 12
+          aux (fn reorder [dna-subseq]
+                (let [len      (count dna-subseq)
+                      part-len (/ len 4)]
+                  (if (< len 4)
+                    (vec dna-subseq)
+                    (->> sort-idxs
                          (map (fn [i]
                                 (let [index   (* i part-len)
                                       cs-part (take part-len
                                                     (drop index dna-subseq))]
-                                  (reorder cs-part)))
-                              sort-idxs)))))]
-    (aux dna-seq)))
+                                  (reorder cs-part))))
+                         (reduce into)))))]
+      (aux dna-seq))))
 
 
 ;; ? almost useless to abstract these functions for a single use case::
@@ -242,20 +248,15 @@
   ([dna-seq dim ext-dim]
    (reduce
     (fn [seq-expanded x]
-      (concat seq-expanded
-              (repeat (utils/pow-nat 4 (- ext-dim dim)) x)))
-    '()
+      (into seq-expanded
+            (repeat (utils/pow-nat 4 (- ext-dim dim)) x)))
+    []
     dna-seq)))
 
 ; (defn shrink-dna-seq
 ;   [dna-seq]
 ;   ...)
 
-
-;; ! unchecked
-(defn flatten-dna-seq
-  [dna-seq]
-  (flatten dna-seq))
 
 ;; ? what about mixed dna-seqs?
 (defn make-dna
@@ -269,7 +270,7 @@
                   (throw (ex-info "invalid arguments" {:args xs})))
     char?       (chars->dna xs)
     integer?    (digits->dna xs)
-    sequential? (apply make-dna (flatten-dna-seq xs))
+    sequential? (apply make-dna (flatten xs))
     (throw (ex-info "unsupported type" {:args xs}))))
 
 
@@ -286,9 +287,10 @@
             idxs (set (map #(apply + %)
                            (apply combo/cartesian-product depth-offsets)))
             n (dec (count dna-seq))]
-        (for [[c i] (map vector dna-seq (range))
-              :when (idxs (- n i))]
-          c))
+        (->> dna-seq
+             (mapv vector (range))
+             (filterv (fn [[i c]] (idxs (- n i))))
+             (mapv second)))
       (throw
        (ex-info "Size of selection vector must be equal to dna-seq dimension!"
                 {:expected dim :actual (count depth-selections)})))))
@@ -310,8 +312,8 @@
          dna-vec (vec dna-seq)]
      (cond
        (not= dim (count perm-order)) nil
-       (< dim 2)                     [perm-order dna-seq]
-       (= perm-order (range dim))    [perm-order dna-seq]
+       (< dim 2)                     [perm-order dna-vec]
+       (= perm-order (range dim))    [perm-order dna-vec]
        ;; fast-ish for up to 10 dimensions, have not tested beyond 12
        (and limit? (> dim 12))       (throw
                                       (ex-info "Aborted: operation too expensive for dimensions greater than 12. Set `:limit?` to false to proceed."
@@ -319,16 +321,17 @@
        :else
        (let [int->quat-str (fn [n] (utils/pad-left (utils/int->nbase n 4)
                                                    dim "0"))
+             dim-ns (range dim)
              perm-dna-seq
-             (map (fn [i]
-                    (let [qtn-key  (mapv (comp edn/read-string str)
-                                         (int->quat-str i))
-                          perm-key (apply str "4r"
-                                          (map #(qtn-key (perm-order %))
-                                               (range dim)))
-                          i-perm   (edn/read-string perm-key)]
-                      (dna-vec i-perm)))
-                  (range (count dna-seq)))]
+             (mapv (fn [i]
+                     (let [qtn-key  (mapv (comp edn/read-string str)
+                                          (int->quat-str i))
+                           perm-key (apply str "4r"
+                                           (map #(qtn-key (perm-order %))
+                                                dim-ns))
+                           i-perm   (edn/read-string perm-key)]
+                       (dna-vec i-perm)))
+                   (range (count dna-seq)))]
          [perm-order perm-dna-seq])))))
 
 (defn dna-seq-perspectives
@@ -355,6 +358,25 @@
    (into {}
          (map #(let [[order dna-psp] %] [order dna-psp])
               (dna-seq-perspectives dna opts)))))
+
+
+(def equal-dna
+  "Equality check for formDNA. Two formDNAs are considered equal, if they contain the same constants in the same order. Stricter than `equiv-dna`, where permutations are considered equal."
+  =)
+
+(defn equiv-dna
+  "Equivalence check for formDNA. Two formDNAs are considered equivalent, if they belong to the same equivalence-class of `dna-perspectives` (i.e. if they are permutations of each other)."
+  ([_] true)
+  ([a b] (let [->set  (comp set vals)
+               a-psps (->set (dna-perspectives a))
+               b-psps (->set (dna-perspectives b))]
+           (= a-psps b-psps)))
+  ([a b & more]
+   (if (equiv-dna a b)
+     (if (next more)
+       (recur b (first more) (next more))
+       (equiv-dna b (first more)))
+     false)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -506,6 +528,24 @@
 
 
 (comment
+  (set! *print-length* 50)
+
+  (defn k->dna [k] (chars->dna (name k)))
+
+  (equiv-dna [:N :M :U :I :U :N :I :U :I :M :N :M :M :M :I :N]
+             [:N :U :I :M :M :N :M :M :U :I :N :I :I :U :M :N])
+
+  (dna-perspectives [:N :U :I :M :M :N :M :M :U :I :N :I :I :U :M :N])
+  {[0 1] [:N :U :I :M :M :N :M :M :U :I :N :I :I :U :M :N],
+   [1 0] [:N :M :U :I :U :N :I :U :I :M :N :M :M :M :I :N]}
+
+  (dna-perspectives [:N :M :U :I :U :N :I :U :I :M :N :M :M :M :I :N])
+  {[0 1] [:N :M :U :I :U :N :I :U :I :M :N :M :M :M :I :N],
+   [1 0] [:N :U :I :M :M :N :M :M :U :I :N :I :I :U :M :N]}
+
+
+  (def x (dna-perspectives (rand-dna 6)))
+  (equiv-dna (rand-dna 5) (rand-dna 5))
 
   )
 

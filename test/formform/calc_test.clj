@@ -2,6 +2,9 @@
   (:require [clojure.test :as t :refer [deftest is are testing]]
             [formform.calc :as calc :refer :all]))
 
+
+;; ! should test dna functions with lists too
+
 (deftest dna-dimension-test
   (testing "Dimension for sequences of 4^n elements"
     (is (== (dna-dimension [0]) 0))
@@ -54,10 +57,10 @@
     (is (= (dna->digits [:N :U :I :M]) '(0 1 2 3)))
     (is (= (dna->digits [:N :U :I :M] nmui-code) '(2 3 0 1)))
     (is (= (dna->digits
-            [:M :M :M :M  :I :I :I :I  :U :U :U :U  :N :N :N :N
-             :I :M :I :M  :M :M :M :M  :N :U :N :U  :U :U :U :U
-             :U :U :M :M  :N :N :I :I  :M :M :M :M  :I :I :I :I
-             :N :U :I :M  :U :U :M :M  :I :M :I :M  :M :M :M :M]
+            '(:M :M :M :M  :I :I :I :I  :U :U :U :U  :N :N :N :N
+                 :I :M :I :M  :M :M :M :M  :N :U :N :U  :U :U :U :U
+                 :U :U :M :M  :N :N :I :I  :M :M :M :M  :I :I :I :I
+                 :N :U :I :M  :U :U :M :M  :I :M :I :M  :M :M :M :M)
             nmui-code)
            [1 1 1 1  2 0 0 2  1 3 3 1  2 2 2 2
             0 3 0 3  1 1 1 1  2 1 2 1  3 3 3 3
@@ -69,7 +72,7 @@
   (testing "Correctness of conversion"
     (is (= (digits->dna [0 1 2 3]) [:N :U :I :M]))
     (is (= (digits->dna [1 2 0 3] nmui-code) [:N :M :U :I]))
-    (is (= (digits->dna [1 0 3 2  0 1 2 3  3 2 1 0  2 3 0 1] nmui-code)
+    (is (= (digits->dna '(1 0 3 2  0 1 2 3  3 2 1 0  2 3 0 1) nmui-code)
            [:M :I :U :N  :I :M :N :U  :U :N :M :I  :N :U :I :M]))
     (is (= (digits->dna [2 3 0 1  2 0 0 2  2 3 0 1  2 0 0 2
                          0 3 0 3  2 3 0 1  2 3 0 1  0 3 0 3
@@ -88,7 +91,7 @@
             nuim-code nmui-code)
            [:I :I :I :I :U :U :U :U :M :M :M :M :N :N :N :N]))
     (is (= (reorder-dna-seq
-            [:I :I :I :I :U :U :U :U :M :M :M :M :N :N :N :N]
+            '(:I :I :I :I :U :U :U :U :M :M :M :M :N :N :N :N)
             nmui-code nuim-code)
            [:M :M :M :M :I :I :I :I :U :U :U :U :N :N :N :N]))))
 
@@ -109,6 +112,10 @@
                             :U :I :M :I
                             :I :M :I :U
                             :M :I :U :N] 3)
+           (expand-dna-seq (list :N :U :I :M
+                                 :U :I :M :I
+                                 :I :M :I :U
+                                 :M :I :U :N) 3)
            [:N :N :N :N :U :U :U :U :I :I :I :I :M :M :M :M
             :U :U :U :U :I :I :I :I :M :M :M :M :I :I :I :I
             :I :I :I :I :M :M :M :M :I :I :I :I :U :U :U :U
