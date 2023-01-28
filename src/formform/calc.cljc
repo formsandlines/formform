@@ -593,138 +593,22 @@
   (equiv-dna (rand-dna 5) (rand-dna 5))
 
 
-
-  (= (reduce-dna-seq [:U])
-     (reduce-dna-seq [:U :U :U :U])
-     (reduce-dna-seq [:U :U :U :U
-                      :U :U :U :U
-                      :U :U :U :U
-                      :U :U :U :U])
-     (reduce-dna-seq
-      [:U :U :U :U  :U :U :U :U  :U :U :U :U  :U :U :U :U
-       :U :U :U :U  :U :U :U :U  :U :U :U :U  :U :U :U :U
-       :U :U :U :U  :U :U :U :U  :U :U :U :U  :U :U :U :U
-       :U :U :U :U  :U :U :U :U  :U :U :U :U  :U :U :U :U])
-     [[] [:U]])
-
-  (= (reduce-dna-seq [:N :U :I :M])
-     (reduce-dna-seq [:N :U :I :M])
-     [[0] [:N :U :I :M]])
-
-  (= (reduce-dna-seq [1] [:U :I :N :M])
-     (reduce-dna-seq [:U :I :N :M
-                      :U :I :N :M
-                      :U :I :N :M
-                      :U :I :N :M])
-     (reduce-dna-seq [1 0] [:U :U :U :U
-                            :I :I :I :I
-                            :N :N :N :N
-                            :M :M :M :M])
-     [[1] [:U :I :N :M]])
-
-  (= (reduce-dna-seq [:U :I :N :M])
-     (reduce-dna-seq [:U :U :U :U
-                      :I :I :I :I
-                      :N :N :N :N
-                      :M :M :M :M])
-     (reduce-dna-seq [1 0] [:U :I :N :M
-                            :U :I :N :M
-                            :U :I :N :M
-                            :U :I :N :M])
-     [[0] [:U :I :N :M]])
-
-
   (require '[criterium.core :as crt])
 
 
-  (def dna-a [:U :U :U :U
-              :I :I :I :I
-              :N :N :N :N
-              :M :M :M :M])
+  (digits->dna
+   (map (comp edn/read-string str)
+        "2203220322032203220322032203220322032203220322032203220322032203230323032303230323032303230323032303230323032303230323032303230322022202220222022202220222022202220222022202220222022202220222022301230123012301230123012301230123012301230123012301230123012301")
+   nmui-code)
 
-  (def dna-b [:U :I :N :M
-              :U :I :N :M
-              :U :I :N :M
-              :U :I :N :M])
+  (reduce-dna-seq
+   [:N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :I :I :U :U :I :I :U :U :I :I :U :U :I :I :U :I :I :M :U :I :I :M :U :I :I :M :U :I :I :M :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :I :I :U :U :I :I :U :U :I :I :U :U :I :I :U :I :I :M :U :I :I :M :U :I :I :M :U :I :I :M :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :I :I :U :U :I :I :U :U :I :I :U :U :I :I :U :I :I :M :U :I :I :M :U :I :I :M :U :I :I :M :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :I :I :U :U :I :I :U :U :I :I :U :U :I :I :U :I :I :M :U :I :I :M :U :I :I :M :U :I :I :M])
 
-  (def dna-b3 (expand-dna-seq dna-a 3))
-  ; [:U :U :U :U  :U :U :U :U  :U :U :U :U  :U :U :U :U
-  ;  :I :I :I :I  :I :I :I :I  :I :I :I :I  :I :I :I :I 
-  ;  :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N 
-  ;  :M :M :M :M  :M :M :M :M  :M :M :M :M  :M :M :M :M]
-
-  (def dna-x3 [:N :U :I :M  :U :I :M :I  :I :M :I :U  :M :I :U :N
-               :U :I :M :U  :I :M :I :I  :M :I :U :M  :I :U :N :N
-               :I :M :U :I  :M :I :I :M  :I :U :M :I  :U :N :N :U
-               :M :U :I :M  :I :I :M :I  :U :M :I :U  :N :N :U :I])
-
-  (defn get-quads
-    [dna-seq]
-    (let [dim (dna-dimension dna-seq)
-          len (count dna-seq)
-          quad-len (when (> len 3) (/ len 4))
-          quads    (when-not (nil? quad-len)
-                     (map #(let [start (* % quad-len)
-                                 end   (+ start quad-len)]
-                             (into [] (subvec dna-seq start end)))
-                          (range 4)))]
-      quads))
-
-  (let [[terms dna-seq] [[0 1] dna-a]
-        quads (get-quads dna-seq)
-        [terms dna-seq] (if (apply = quads)
-                          [(rest terms) (first quads)]
-                          [terms dna-seq])]
-    [terms dna-seq])
-
-
-  (def dim2-ex1 ['[a b] [0 0 0 0  1 1 1 1  2 2 2 2  3 3 3 3 ]])
-  (def dim2-ex2 ['[a b] [0 1 2 3  0 1 2 3  0 1 2 3  0 1 2 3 ]])
-
-  (def dim3-ex1 ['[a b c]
-                 [0 0 0 0  1 1 1 1  2 2 2 2  3 3 3 3
-                  1 1 1 1  2 2 2 2  3 3 3 3  0 0 0 0
-                  2 2 2 2  3 3 3 3  0 0 0 0  1 1 1 1
-                  3 3 3 3  0 0 0 0  1 1 1 1  2 2 2 2 ]])
-
-  (def dim3-ex2 ['[a b c]
-                 [0 1 2 3  0 1 2 3  0 1 2 3  0 1 2 3
-                  1 2 3 0  1 2 3 0  1 2 3 0  1 2 3 0
-                  2 3 0 1  2 3 0 1  2 3 0 1  2 3 0 1
-                  3 0 1 2  3 0 1 2  3 0 1 2  3 0 1 2 ]])
-
-  (def dim3-ex3 ['[a b c]
-                 [0 1 2 3  1 2 3 0  2 3 0 1  3 0 1 2
-                  0 1 2 3  1 2 3 0  2 3 0 1  3 0 1 2
-                  0 1 2 3  1 2 3 0  2 3 0 1  3 0 1 2
-                  0 1 2 3  1 2 3 0  2 3 0 1  3 0 1 2 ]])
-
-
-  (let [[terms dna-seq] dim2-ex1]
-    (loop [dna-seq dna-seq
-           terms   (utils/reversev terms)
-           dim     (dna-dimension dna-seq)
-           subdim  0]
-      (if (>= subdim dim)
-        [(utils/reversev terms) dna-seq]
-        (let [quad-len   (utils/pow-nat 4 subdim)
-              parts      (if (== 1 quad-len)
-                           dna-seq
-                           (partition quad-len dna-seq))
-              simplified (loop [[quad r] (split-at 4 parts)
-                                result   []]
-                           (when (apply = quad)
-                             (let [result (if (== 1 quad-len)
-                                            (conj result (first quad))
-                                            (into result (first quad)))]
-                               (if (< (count r) 4)
-                                 result
-                                 (recur (split-at 4 r) result)))))]
-          (if (nil? simplified)
-            (recur dna-seq terms dim (inc subdim))
-            (recur simplified
-                   (utils/dissocv terms subdim)
-                   (dec dim) subdim))))))
+  (apply str (map str (dna->digits [:N :N :N :N :U :U :U :U :U :U :I :I :U :I :I :M] nmui-code)))
+  (second (vals (dna-perspectives [:N :N :N :N  :U :U :U :U  :I :I :I :I  :M :M :M :M 
+                    :N :N :N :N  :N :N :N :N  :I :I :I :I  :I :I :I :I 
+                    :N :N :N :N  :U :U :U :U  :N :N :N :N  :U :U :U :U 
+                    :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N])))
 
   )
 

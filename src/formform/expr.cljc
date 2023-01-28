@@ -599,7 +599,8 @@
 (defn equiv
   "Equivalence check for expressions. Two expressions are considered equivalent, if their formDNAs are equivalent. Compares formDNAs from evaluation results of each expression by calling `calc/equiv-dna`.
   - ordering of variable names in formDNA is irrelevant
-  - looser than `equal`, which compares by `calc/equal-dna`"
+  - looser than `equal`, which compares by `calc/equal-dna`
+  - can be slow on expressions with 6+ variables"
   [& exprs]
   (apply calc/equiv-dna (map (comp #(op-get % :dna) =>*) exprs)))
 
@@ -1177,52 +1178,13 @@
 
 
 (comment
-
   ;; ! this shouldnt work:
   (simplify-seq-reentry [:seq-re nil] {})
-
   (op-get [:seq-re 'a] :sign)
   (op-data [:seq-re 'a])
 
-  (type (into [] (subvec [1 2 3] 1)))
-
-  (type (:c (zipmap [:a :b :c] (conj (subvec [1 2 3] 1)
-                                     (subvec ['a 'b 'c] 1)))))
-
-  (type ((conj (subvec [1 2 3] 1)
-               (subvec ['a 'b 'c] 1)) 2))
-
-  ;; ! evaluations should be contracted:
-  ; (calc/shrink-dna-seq '[:fdna [a b] :NNNNNNNNNNNNNNNN] {})
-
-  (simplify-memory (make :mem [['a :N] ['b :U]] (form 'a 'b)) {})
-
-  (make :mem [['a :N] ['b :U]] (form 'a 'b))
-  {:type :memory
-   :rems [['a :N] ['b :U]]
-   :body ['a 'b]}
-
-
-  (interpret (make :mem [['a :N] ['b :U]] 'a 'b))
-
-  (interpret (make :<u> 'a 'b 'c))
-  (simplify (make :<m>))
-
-  (take 4 (iterate interpret (make :<i> (make :<u> 'a 'b) 'c)))
-
-  (make :uncl (make) "hey" ['a] "you")
-
-
-
-  (equiv [['a] 'b] ['b ['a]]) ;=> true
-  (equal [['a] 'b] ['b ['a]]) ;=> true
-
-  (equiv [['a] 'b] [['b] 'a]) ;=> true
-  (equal [['a] 'b] [['b] 'a]) ;=> false
-
-  (equiv [['a] 'a] [[] 'a])
-  (equiv [[[]] 'a] ['a nil] ['a] ['a 'a 'a])
-
+  ;; ? should formDNA result from evaluations be contracted:
+  (calc/reduce-dna-seq [:N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N])
 
   )
 

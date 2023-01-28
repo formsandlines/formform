@@ -291,6 +291,70 @@
     )) 
 
 
+(deftest equiv-dna-test
+  (testing "Equivalence of identity"
+    (are [x] (equiv-dna x)
+      [:N] [:N :U :I :M] [:N :U :I :M
+                          :U :I :M :N
+                          :I :M :N :U
+                          :M :N :U :I])
+    (are [x] (equiv-dna x x)
+      [:N] [:U] [:I] [:M])
+    (are [x] (equiv-dna x x)
+      [:N :N :N :N] [:U :U :U :U] [:I :I :I :I] [:M :M :M :M])
+    (are [x] (equiv-dna x x)
+      [:N :U :I :M] [:N :U :I :M
+                     :U :I :M :N
+                     :I :M :N :U
+                     :M :N :U :I])
+    (is (equiv-dna [:N :U :I :M] '(:N :U :I :M))))
+
+  (testing "Non-equivalence"
+    (is (not (equiv-dna [:U] [:I]))) (is (not (equiv-dna [:M] [:N])))
+    (is (not (equiv-dna [:M] [:U]))) (is (not (equiv-dna [:M] [:I])))
+    (is (not (equiv-dna [:N] [:U]))) (is (not (equiv-dna [:N] [:I])))
+    (is (not (equiv-dna [:N] [:N :N :N :M])))
+    (is (not (equiv-dna [:N :N :N :N] [:N :N :N :M])))
+    (is (not (equiv-dna [:N :N :N :N :U :U :U :U :U :U :I :I :U :I :I :M]
+                        [:N :U :U :U :N :U :U :I :N :U :I :I :N :U :I :N])))
+    )
+
+  (testing "Equivalence of permutation"
+    (are [x] (apply equiv-dna (vals (dna-perspectives x)))
+      [:M :I :U :N :M :M :U :U :M :I :M :I :M :M :M :M]
+      [:M :I :U :N :I :I :N :N :U :N :U :N :N :N :N :N :M :I :U :N :M :I :U :N :U :N :U :N :U :N :U :N :M :I :U :N :I :I :N :N :M :I :U :N :I :I :N :N :M :I :U :N :M :I :U :N :M :I :U :N :M :I :U :N]))
+
+  (testing "Equivalence of tautology reduction"
+    (is (equiv-dna [:N] (repeat 4 :N) (repeat 16 :N) (repeat 64 :N)))
+    (is (equiv-dna [:U] (repeat 4 :U) (repeat 16 :U) (repeat 64 :U)))
+    (is (equiv-dna [:I] (repeat 4 :I) (repeat 16 :I) (repeat 64 :I)))
+    (is (equiv-dna [:M] (repeat 4 :M) (repeat 16 :M) (repeat 64 :M)))
+    (is (equiv-dna [:N :U :I :M]
+                   [:N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M]))
+    (is (equiv-dna [:N :N :N :N  :U :U :U :U  :I :I :I :I  :M :M :M :M
+                    :N :N :N :N  :N :N :N :N  :I :I :I :I  :I :I :I :I
+                    :N :N :N :N  :U :U :U :U  :N :N :N :N  :U :U :U :U
+                    :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N]
+                   [:N :U :I :M
+                    :N :N :I :I
+                    :N :U :N :U
+                    :N :N :N :N]
+                   ; permutation:
+                   [:N :U :I :M  :N :U :I :M  :N :U :I :M  :N :U :I :M
+                    :N :N :I :I  :N :N :I :I  :N :N :I :I  :N :N :I :I
+                    :N :U :N :U  :N :U :N :U  :N :U :N :U  :N :U :N :U
+                    :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N]
+                   [:N :U :I :M
+                    :N :N :I :I
+                    :N :U :N :U
+                    :N :N :N :N]))
+    (is (equiv-dna [:N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :I :I :U :U :I :I :U :U :I :I :U :U :I :I :U :I :I :M :U :I :I :M :U :I :I :M :U :I :I :M :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :I :I :U :U :I :I :U :U :I :I :U :U :I :I :U :I :I :M :U :I :I :M :U :I :I :M :U :I :I :M :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :I :I :U :U :I :I :U :U :I :I :U :U :I :I :U :I :I :M :U :I :I :M :U :I :I :M :U :I :I :M :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :I :I :U :U :I :I :U :U :I :I :U :U :I :I :U :I :I :M :U :I :I :M :U :I :I :M :U :I :I :M]
+                   [:N :N :N :N :U :U :U :U :U :U :I :I :U :I :I :M]
+                   [:N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M]
+                   [:N :U :U :U :N :U :U :I :N :U :I :I :N :U :I :M])))
+  )
+
+
 (deftest filter-dna-seq-test
   (testing "Correctness and completeness of selection"
     (are [x y] (= (filter-dna-seq [:M :I :U :N] x) y)
