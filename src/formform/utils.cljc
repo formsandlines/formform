@@ -11,6 +11,15 @@
   (vector (into [] (subvec v 0 i))
           (into [] (subvec v i (count v)))))
 
+(defn dissocv [v i]
+  (into (into [] (subvec v 0 i))
+        (subvec v (inc i))))
+
+(defn reversev [xs]
+  (vec (if (vector? xs)
+         (rseq xs)
+         (reverse xs))))
+
 ;; -> see https://stackoverflow.com/questions/26082594/converting-a-number-from-base-10-to-another-base-in-clojure for other suggestions
 (defn int->nbase [n base]
   #?(:clj
@@ -62,6 +71,7 @@
 
   (splitv-at 2 [1 2 3 4 5 6])
 
+  (type (dissocv ['a 'b 'c 'd] 1))
   
   )
 

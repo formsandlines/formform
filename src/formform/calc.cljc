@@ -2,12 +2,9 @@
   (:require [clojure.edn :as edn]
             [clojure.math :as math]
             [clojure.math.combinatorics :as combo]
-            [clojure.set :as set]
             [formform.utils :as utils]
             [clojure.spec.alpha :as s]
-            [clojure.spec.gen.alpha :as gen]
-            [criterium.core :refer [quick-bench bench]]
-            [clojure.repl :as repl]))
+            [clojure.spec.gen.alpha :as gen]))
 
 ;; ========================================================================
 ;;     formform calculation module
@@ -112,8 +109,9 @@
   "Generates a random formDNA of dimension `dim`. A vector of 4 custom elements can be provided as a second argument."
   ([dim] (rand-dna dim nil))
   ([dim elems]
-   {:pre  [(int? dim) (>= dim 0) (if (sequential? elems)
-                                   (<= 1 (count elems) 4) true)]}
+   {:pre  [(int? dim) (>= dim 0) (or (and (sequential? elems)
+                                          (<= 1 (count elems) 4))
+                                     (nil? elems))]}
    (let [len    (apply * (repeat dim 4))
          gen-fn #(rand-nth (if (and (some? elems) (<= (count elems) 4))
                              elems
@@ -129,6 +127,11 @@
   {:pre  [(dna? dna)]}
   (let [digits (dna->digits dna)]
     (apply str "4r" digits)))
+
+(def reverse-dna
+  "Reverses a formDNA (returns an rseq)
+  - make sure the input is a vector for constant-time reverse"
+  (comp rseq vec))
 
 (defn make-compare-dna
   "Given a `sort-code` (try `calc.nuim-code` or `calc.nmui-code`), returns a comparator function to sort formDNA.
@@ -253,9 +256,40 @@
     []
     dna-seq)))
 
-; (defn shrink-dna-seq
-;   [dna-seq]
-;   ...)
+(defn reduce-dna-seq
+  "Reduces a `dna-seq` by eliminating redundant/contingent terms.
+  - returns a tuple `[terms formDNA]`, where `terms` is a sequence that represents the remaining terms after reduction
+  - takes an optional `terms` sequence of any kind of items that will be used instead of the default arithmetic sequence `[0 1 2 …]` to represent each term (length has to match the formDNA dimension)
+  
+  Note: `dna-seq` can have any type of elements (not only constants)"
+  ([dna-seq]
+   (let [dim (dna-dimension dna-seq)]
+     (reduce-dna-seq (vec (range dim)) dna-seq)))
+  ([terms dna-seq]
+   (loop [dna-seq dna-seq
+          terms   (utils/reversev terms)
+          dim     (dna-dimension dna-seq)
+          subdim  0]
+     (if (>= subdim dim)
+       [(utils/reversev terms) dna-seq]
+       (let [quad-len   (utils/pow-nat 4 subdim)
+             parts      (if (== 1 quad-len)
+                          dna-seq
+                          (partition quad-len dna-seq))
+             simplified (loop [[quad r] (split-at 4 parts)
+                               result   []]
+                          (when (apply = quad)
+                            (let [result (if (== 1 quad-len)
+                                           (conj result (first quad))
+                                           (into result (first quad)))]
+                              (if (< (count r) 4)
+                                result
+                                (recur (split-at 4 r) result)))))]
+         (if (nil? simplified)
+           (recur dna-seq terms dim (inc subdim))
+           (recur simplified
+                  (utils/dissocv terms subdim)
+                  (dec dim) subdim)))))))
 
 
 ;; ? what about mixed dna-seqs?
@@ -367,9 +401,10 @@
 (defn equiv-dna
   "Equivalence check for formDNA. Two formDNAs are considered equivalent, if they belong to the same equivalence-class of `dna-perspectives` (i.e. if they are permutations of each other)."
   ([_] true)
-  ([a b] (let [->set  (comp set vals)
-               a-psps (->set (dna-perspectives a))
-               b-psps (->set (dna-perspectives b))]
+  ([a b] (let [->psps (comp dna-perspectives second reduce-dna-seq)
+               ->set  (comp set vals)
+               a-psps (-> a ->psps ->set)
+               b-psps (-> b ->psps ->set)]
            (= a-psps b-psps)))
   ([a b & more]
    (if (equiv-dna a b)
@@ -402,7 +437,8 @@
   (and (dna-dimension x) (every? vpoint? x)))
 
 (defn vspace
-  "Generates a vspace of dimension `dim`, optionally with custom `sort-code`."
+  "Generates a vspace of dimension `dim`, optionally with custom `sort-code`.
+  - returns a lazy-seq which may be too memory-expensive to fully realize for dimensions greater than 11 (> 200 Mio. elements in total!)"
   ([dim] (vspace dim nuim-code))
   ([dim sort-code]
    (let [vs sort-code]
@@ -419,8 +455,8 @@
 
 (defn vdict
   "Generates a vdict given a map from vpoint to result (constant).
-  - if the corresponding vspace is not a subset of the set of keys from `vp->r, the remaining results will be filled with :N or a given default constant.`
-  - optional `sorted?` defaults to false since sorting large vspace dimensions can be expensive."
+  - if the corresponding vspace is not a subset of the set of keys from `vp->r`, the remaining results will be filled with :N or a given default constant
+  - optional `sorted?` defaults to false since sorting large vspace dimensions can be expensive"
   [vp->r {:keys [default-result sorted?]
           :or {default-result :N sorted? false}}]
   (let [dim   (count (ffirst vp->r))
@@ -434,12 +470,15 @@
 
 (defn dna->vdict
   "Generates a vdict from a given dna.
-  - optional `sorted?` defaults to false since sorting large vspace dimensions can be expensive."
-  [dna {:keys [sorted?] :or {sorted? false}}]
-  (let [dna-rev (reverse dna)
-        vspc    (vspace (dna-dimension dna-rev))]
+  - optional `sorted?` defaults to false since sorting large vspace dimensions can be expensive"
+  [dna {:keys [sorted? unsafe?] :or {sorted? false unsafe? false}}]
+  (let [dim     (dna-dimension dna)
+        _       (when (and (not unsafe?) (> dim 11))
+                  (throw (ex-info "Aborted: operation may freeze for formDNA dimensions above 11. Set option `unsafe?` to true if you still want to proceed." {:dimension dim})))
+        dna-rev (reverse-dna dna)
+        vspc    (vspace dim)]
     (into (if sorted? (sorted-map-by compare-dna) (hash-map))
-      (map vector vspc dna-rev))))
+          (map vector vspc dna-rev))))
 
 ;;-------------------------------------------------------------------------
 ;; `vmap` -> value map -> mapping from `vspace` topology to `dna`
@@ -454,7 +493,7 @@
     (every? map? (vals x))))
 
 
-;; fast with up to 9 dimensions
+;; fast-ish with up to 10 dimensions
 (defn vdict->vmap
   "Generates a vmap from a given vdict."
   ([vdict] (vdict->vmap nil vdict))
@@ -471,7 +510,7 @@
                   (vdict (first vspc))))]
      (with-meta (aux 0 vspc) {:dim dim}))))
 
-;; ? can a custom algo be more efficient here
+;; ? can a custom algo directly from formDNA be more efficient here
 (defn dna->vmap
   [dna]
   (vdict->vmap (dna->vdict dna {})))
@@ -501,9 +540,9 @@
            (let [adim (dna-dimension a)
                  bdim (dna-dimension b)]
              (cond
-               (= adim bdim) (map rel a b)
-               (> adim bdim) (map rel a (expand-dna-seq b adim))
-               :else         (map rel (expand-dna-seq a bdim) b)))))
+               (= adim bdim) (mapv rel a b)
+               (> adim bdim) (mapv rel a (expand-dna-seq b adim))
+               :else         (mapv rel (expand-dna-seq a bdim) b)))))
   ([a b & xs] (rel a (reduce rel b xs))))
 ;; alias
 (def -- rel)
@@ -535,6 +574,12 @@
   (equiv-dna [:N :M :U :I :U :N :I :U :I :M :N :M :M :M :I :N]
              [:N :U :I :M :M :N :M :M :U :I :N :I :I :U :M :N])
 
+  (equiv-dna [:N :U :I :M  :N :U :I :M  :N :U :I :M  :N :U :I :M]
+             [:N :U :I :M])
+
+  (equiv-dna [:N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N]
+             [:N])
+
   (dna-perspectives [:N :U :I :M :M :N :M :M :U :I :N :I :I :U :M :N])
   {[0 1] [:N :U :I :M :M :N :M :M :U :I :N :I :I :U :M :N],
    [1 0] [:N :M :U :I :U :N :I :U :I :M :N :M :M :M :I :N]}
@@ -546,6 +591,140 @@
 
   (def x (dna-perspectives (rand-dna 6)))
   (equiv-dna (rand-dna 5) (rand-dna 5))
+
+
+
+  (= (reduce-dna-seq [:U])
+     (reduce-dna-seq [:U :U :U :U])
+     (reduce-dna-seq [:U :U :U :U
+                      :U :U :U :U
+                      :U :U :U :U
+                      :U :U :U :U])
+     (reduce-dna-seq
+      [:U :U :U :U  :U :U :U :U  :U :U :U :U  :U :U :U :U
+       :U :U :U :U  :U :U :U :U  :U :U :U :U  :U :U :U :U
+       :U :U :U :U  :U :U :U :U  :U :U :U :U  :U :U :U :U
+       :U :U :U :U  :U :U :U :U  :U :U :U :U  :U :U :U :U])
+     [[] [:U]])
+
+  (= (reduce-dna-seq [:N :U :I :M])
+     (reduce-dna-seq [:N :U :I :M])
+     [[0] [:N :U :I :M]])
+
+  (= (reduce-dna-seq [1] [:U :I :N :M])
+     (reduce-dna-seq [:U :I :N :M
+                      :U :I :N :M
+                      :U :I :N :M
+                      :U :I :N :M])
+     (reduce-dna-seq [1 0] [:U :U :U :U
+                            :I :I :I :I
+                            :N :N :N :N
+                            :M :M :M :M])
+     [[1] [:U :I :N :M]])
+
+  (= (reduce-dna-seq [:U :I :N :M])
+     (reduce-dna-seq [:U :U :U :U
+                      :I :I :I :I
+                      :N :N :N :N
+                      :M :M :M :M])
+     (reduce-dna-seq [1 0] [:U :I :N :M
+                            :U :I :N :M
+                            :U :I :N :M
+                            :U :I :N :M])
+     [[0] [:U :I :N :M]])
+
+
+  (require '[criterium.core :as crt])
+
+
+  (def dna-a [:U :U :U :U
+              :I :I :I :I
+              :N :N :N :N
+              :M :M :M :M])
+
+  (def dna-b [:U :I :N :M
+              :U :I :N :M
+              :U :I :N :M
+              :U :I :N :M])
+
+  (def dna-b3 (expand-dna-seq dna-a 3))
+  ; [:U :U :U :U  :U :U :U :U  :U :U :U :U  :U :U :U :U
+  ;  :I :I :I :I  :I :I :I :I  :I :I :I :I  :I :I :I :I 
+  ;  :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N 
+  ;  :M :M :M :M  :M :M :M :M  :M :M :M :M  :M :M :M :M]
+
+  (def dna-x3 [:N :U :I :M  :U :I :M :I  :I :M :I :U  :M :I :U :N
+               :U :I :M :U  :I :M :I :I  :M :I :U :M  :I :U :N :N
+               :I :M :U :I  :M :I :I :M  :I :U :M :I  :U :N :N :U
+               :M :U :I :M  :I :I :M :I  :U :M :I :U  :N :N :U :I])
+
+  (defn get-quads
+    [dna-seq]
+    (let [dim (dna-dimension dna-seq)
+          len (count dna-seq)
+          quad-len (when (> len 3) (/ len 4))
+          quads    (when-not (nil? quad-len)
+                     (map #(let [start (* % quad-len)
+                                 end   (+ start quad-len)]
+                             (into [] (subvec dna-seq start end)))
+                          (range 4)))]
+      quads))
+
+  (let [[terms dna-seq] [[0 1] dna-a]
+        quads (get-quads dna-seq)
+        [terms dna-seq] (if (apply = quads)
+                          [(rest terms) (first quads)]
+                          [terms dna-seq])]
+    [terms dna-seq])
+
+
+  (def dim2-ex1 ['[a b] [0 0 0 0  1 1 1 1  2 2 2 2  3 3 3 3 ]])
+  (def dim2-ex2 ['[a b] [0 1 2 3  0 1 2 3  0 1 2 3  0 1 2 3 ]])
+
+  (def dim3-ex1 ['[a b c]
+                 [0 0 0 0  1 1 1 1  2 2 2 2  3 3 3 3
+                  1 1 1 1  2 2 2 2  3 3 3 3  0 0 0 0
+                  2 2 2 2  3 3 3 3  0 0 0 0  1 1 1 1
+                  3 3 3 3  0 0 0 0  1 1 1 1  2 2 2 2 ]])
+
+  (def dim3-ex2 ['[a b c]
+                 [0 1 2 3  0 1 2 3  0 1 2 3  0 1 2 3
+                  1 2 3 0  1 2 3 0  1 2 3 0  1 2 3 0
+                  2 3 0 1  2 3 0 1  2 3 0 1  2 3 0 1
+                  3 0 1 2  3 0 1 2  3 0 1 2  3 0 1 2 ]])
+
+  (def dim3-ex3 ['[a b c]
+                 [0 1 2 3  1 2 3 0  2 3 0 1  3 0 1 2
+                  0 1 2 3  1 2 3 0  2 3 0 1  3 0 1 2
+                  0 1 2 3  1 2 3 0  2 3 0 1  3 0 1 2
+                  0 1 2 3  1 2 3 0  2 3 0 1  3 0 1 2 ]])
+
+
+  (let [[terms dna-seq] dim2-ex1]
+    (loop [dna-seq dna-seq
+           terms   (utils/reversev terms)
+           dim     (dna-dimension dna-seq)
+           subdim  0]
+      (if (>= subdim dim)
+        [(utils/reversev terms) dna-seq]
+        (let [quad-len   (utils/pow-nat 4 subdim)
+              parts      (if (== 1 quad-len)
+                           dna-seq
+                           (partition quad-len dna-seq))
+              simplified (loop [[quad r] (split-at 4 parts)
+                                result   []]
+                           (when (apply = quad)
+                             (let [result (if (== 1 quad-len)
+                                            (conj result (first quad))
+                                            (into result (first quad)))]
+                               (if (< (count r) 4)
+                                 result
+                                 (recur (split-at 4 r) result)))))]
+          (if (nil? simplified)
+            (recur dna-seq terms dim (inc subdim))
+            (recur simplified
+                   (utils/dissocv terms subdim)
+                   (dec dim) subdim))))))
 
   )
 
