@@ -103,7 +103,7 @@
 
 (def expr (parse input))
 
-(def dna (FDNA->dna (first (=>* expr))))
+(def dna (op-get (=>* expr) :dna))
 
 (def vdct (dna->vdict dna {}))
 

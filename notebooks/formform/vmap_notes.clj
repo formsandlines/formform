@@ -45,7 +45,7 @@
                           :cellsize 12
                           :gap-growth 2.5} opts)
                   (dna->vdict
-                   (FDNA->dna (first (=>* (parse input) opts)))
+                   (op-get (=>* (parse input) opts) :dna)
                    {}))))
 
 
@@ -73,7 +73,7 @@
 
 (def expr (parse input))
 
-(def dna (FDNA->dna (first (=>* expr {:vars ["L" "E" "R"]}))))
+(def dna (op-get (=>* expr {:vars ["L" "E" "R"]}) :dna))
 
 (vdict->vmap (dna->vdict dna {}))
 

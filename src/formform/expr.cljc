@@ -3,8 +3,11 @@
    [clojure.set :as set]
    [formform.calc :as calc]
    [formform.utils :as utils]
-   [clojure.core.match :refer [match]]
-   [clojure.spec.alpha :as s]))
+   #?(:clj  [clojure.core.match :refer [match]]
+      :cljs [cljs.core.match :refer-macros [match]])
+   [clojure.spec.alpha :as s])
+  #?(:cljs (:require-macros
+            [formform.expr :refer [defoperator defsymbol]])))
 
 ;; ========================================================================
 ;;     formform expression module
@@ -111,7 +114,7 @@
                         (list predicate op-sym)
                         ;; default predicate just checks arg count
                         `(and (sequential? ~op-sym)
-                              (~(if varargs? >= ==)
+                              (~(if varargs? '>= '==)
                                (count ~op-sym)
                                ~(inc (count params))))))
          ;; if no constructor specified, default `make-op` case applies
@@ -368,16 +371,16 @@
          (form? (first cnt))) (vec (first cnt))
     :else [cnt]))
 
-(defn- simplify-matching-content
+(defn simplify-matching-content
   "Tries to reduce given content `x` to its simplest FORM if it matches a simple equivalent representation."
   ([x] (simplify-matching-content x x))
   ([x default]
    (case x ;; [] = '() in cases! (cljs doesn’t like ((…)) in cases)
      ([] :M [nil] [:N] [[[]]] [[:M]] [[[nil]]] [[[:N]]]
-         ((:U :I)) ((:I :U)))
+         [[:U :I]] [[:I :U]])
      []
      (nil :N [[]] [:M] [[nil]] [[:N]]
-          (:U :I) (:I :U))
+          [:U :I] [:I :U])
      nil
      (:U [:I] [[:U]] [[[:I]]])
      :U
@@ -528,10 +531,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Evaluation
 
-(defn =>
+(defn eval-expr
   "Evaluates a FORM expression with an optional `env` and returns a Constant expression with attached metadata including the maximally reduced expression in `:expr` and the environment in `:env`.
   - `env` must be a map with a content/variable in `expr` as a key"
-  ([expr] (=> expr {}))
+  ([expr] (eval-expr expr {}))
   ([expr env]
    (let [res (cnt> expr env)
          v (case res
@@ -545,11 +548,13 @@
        ;; ? maybe a map instead
        (with-meta [ v ] m)
        (with-meta [ :_ ] m)))))
+;; alias
+(def => eval-expr)
 
-(defn =>*
+(defn eval-all
   "Evaluates a FORM expression for all possible interpretations of any occurring variable in the expression. Returns a formDNA expression by default.
   - if `to-fdna?` is false, returns a seq of results as returned by `=>` in the order of the corresponding `vspace` ordering"
-  ([expr] (=>* expr {}))
+  ([expr] (eval-all expr {}))
   ([expr {:keys [to-fdna? vars] :or {to-fdna? true}}]
    (let [vars (if (nil? vars) (find-vars expr {:ordered? true}) vars)
          vspc (calc/vspace (count vars))
@@ -558,39 +563,40 @@
                                (partial interleave vars)) vspc))
          envs (all-envs vars)]
      (if to-fdna?
-       (let [consts (mapv (comp first (partial => expr)) envs)]
+       (let [consts (mapv (comp first (partial eval-expr expr)) envs)]
          (make :fdna (vec vars) (rseq consts)))
-       (let [results (map (partial => expr) envs)]
+       (let [results (map (partial eval-expr expr) envs)]
          (with-meta results {:vars vars :vspc vspc}))))))
+;; alias
+(def =>* eval-all)
 
-
-(defn eval-expr
-  "Calls `=>` but instead of an expression returns the `const` value or nil."
-  ([expr]     (eval-expr expr {}))
-  ([expr env] (let [[x] (=> expr env)]
-                (if (calc/const? x)
-                  x
-                  :_)))) ; nil?
+#_(defn eval-expr
+      "Calls `=>` but instead of an expression returns the `const` value or nil."
+      ([expr]     (eval-expr expr {}))
+      ([expr env] (let [[x] (=> expr env)]
+                    (if (calc/const? x)
+                      x
+                      :_)))) ; nil?
 
 ;; ? return a map of map-keys var->interpr. instead
-(defn eval-all
-  "Calls `=>*` but instead of an expression returns a `vdict`"
-  [expr {:keys [sorted?] :or {sorted? true}}]
-  (let [rs (=>* expr {:to-fdna? false})
-        {:keys [vars vspc]} (meta rs)]
-    (with-meta
-      (->> rs
-           (map first)
-           (map vector vspc)
-           (into (if sorted? (sorted-map-by calc/compare-dna) (hash-map))))
-      {:vars vars})))
+#_(defn eval-all
+      "Calls `=>*` but instead of an expression returns a `vdict`"
+      [expr {:keys [sorted?] :or {sorted? true}}]
+      (let [rs (=>* expr {:to-fdna? false})
+            {:keys [vars vspc]} (meta rs)]
+        (with-meta
+          (->> rs
+               (map first)
+               (map vector vspc)
+               (into (if sorted? (sorted-map-by calc/compare-dna) (hash-map))))
+          {:vars vars})))
 
 (defn equal
   "Equality check for expressions. Two expressions are considered equal, if their formDNAs are equal. Compares formDNAs from evaluation results of each expression by calling `calc/equal-dna`.
   - ordering of variable names in formDNA matters, see `find-vars`
   - stricter than `equiv`, which compares by `calc/equiv-dna`"
   [& exprs]
-  (let [data     (map (comp op-data =>*) exprs)
+  (let [data     (map (comp op-data eval-all) exprs)
         dnas     (map :dna data)
         varlists (map :vars data)]
     (and (apply = varlists)
@@ -602,7 +608,7 @@
   - looser than `equal`, which compares by `calc/equal-dna`
   - can be slow on expressions with 6+ variables"
   [& exprs]
-  (apply calc/equiv-dna (map (comp #(op-get % :dna) =>*) exprs)))
+  (apply calc/equiv-dna (map (comp #(op-get % :dna) eval-all) exprs)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1178,6 +1184,9 @@
 
 
 (comment
+  (simplify-content :N {})
+  (simplify-matching-content :X :default)
+
   ;; ! this shouldnt work:
   (simplify-seq-reentry [:seq-re nil] {})
   (op-get [:seq-re 'a] :sign)
@@ -1186,6 +1195,16 @@
   ;; ? should formDNA result from evaluations be contracted:
   (calc/reduce-dna-seq [:N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N])
 
+  (seq-re {} 'l 'e 'r)
+
+  (make :* 'a 'b)
+
+  (seq-re :<r 'x)
+
+  (=>* (seq-re :<r 'a 'b))
+
+  (eval-expr [:M :N] {})
+  (cnt> [:M :N] {})
   )
 
   

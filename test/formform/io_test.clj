@@ -1,14 +1,13 @@
 (ns formform.io-test
   (:require [clojure.test :as t :refer [deftest is are testing]]
-            ; [formform.calc :as calc]
-            [formform.io :as io :refer :all]
+            [formform.formula :refer [parser]]
             [formform.calc :as calc]
-            [formform.expr :as expr :refer :all]
+            [formform.io :as io :refer [read-expr parse-tree print-expr]]
             [instaparse.core :as insta]))
 
 
-(def tree formula->parsetree)
-(def trees (partial insta/parses formula->parsetree))
+(def tree parser)
+(def trees (partial insta/parses parser))
 
 (def fail? insta/failure?)
 
@@ -224,72 +223,72 @@
 
 (def ->nmui {:sort-code calc/nmui-code})
 
-(deftest parse-test
+(deftest formula->expr-test
   (testing "Correctness of single transformations"
-    (is (= (parse "") nil))
+    (is (= (read-expr "") nil))
 
-    (is (= (parse "()") '()))
+    (is (= (read-expr "()") '()))
 
-    (is (= (parse "{}")
-           (parse "{@}") '[:seq-re :<r nil]))
-    (is (= (parse "{..@}") '[:seq-re :<..r nil]))
-    (is (= (parse "{..@.}") '[:seq-re :<..r. nil]))
-    (is (= (parse "{@_}") '[:seq-re :<r_ nil]))
-    (is (= (parse "{..@_}") '[:seq-re :<..r_ nil]))
-    (is (= (parse "{..@._}") '[:seq-re :<..r._ nil]))
-    (is (= (parse "{@~}") '[:seq-re :<r' nil]))
-    (is (= (parse "{..@~}") '[:seq-re :<..r' nil]))
-    (is (= (parse "{..@~.}") '[:seq-re :<..r'. nil]))
-    (is (= (parse "{@~_}") '[:seq-re :<r'_ nil]))
-    (is (= (parse "{..@~_}") '[:seq-re :<..r'_ nil]))
-    (is (= (parse "{..@~._}") '[:seq-re :<..r'._ nil]))
-    (is (= (parse "{2r|}") '[:seq-re :<..r nil]))
-    (is (= (parse "{2r+1|}") '[:seq-re :<..r. nil]))
-    (is (= (parse "{alt|}") '[:seq-re :<r' nil]))
-    (is (= (parse "{open|}") '[:seq-re :<r_ nil]))
+    (is (= (read-expr "{}")
+           (read-expr "{@}") '[:seq-re :<r nil]))
+    (is (= (read-expr "{..@}") '[:seq-re :<..r nil]))
+    (is (= (read-expr "{..@.}") '[:seq-re :<..r. nil]))
+    (is (= (read-expr "{@_}") '[:seq-re :<r_ nil]))
+    (is (= (read-expr "{..@_}") '[:seq-re :<..r_ nil]))
+    (is (= (read-expr "{..@._}") '[:seq-re :<..r._ nil]))
+    (is (= (read-expr "{@~}") '[:seq-re :<r' nil]))
+    (is (= (read-expr "{..@~}") '[:seq-re :<..r' nil]))
+    (is (= (read-expr "{..@~.}") '[:seq-re :<..r'. nil]))
+    (is (= (read-expr "{@~_}") '[:seq-re :<r'_ nil]))
+    (is (= (read-expr "{..@~_}") '[:seq-re :<..r'_ nil]))
+    (is (= (read-expr "{..@~._}") '[:seq-re :<..r'._ nil]))
+    (is (= (read-expr "{2r|}") '[:seq-re :<..r nil]))
+    (is (= (read-expr "{2r+1|}") '[:seq-re :<..r. nil]))
+    (is (= (read-expr "{alt|}") '[:seq-re :<r' nil]))
+    (is (= (read-expr "{open|}") '[:seq-re :<r_ nil]))
 
-    (is (= (parse "{,}")
-           (parse "{@ ,}") '[:seq-re :<r nil nil]))
-    (is (= (parse "{,,}")
-           (parse "{@ ,,}") '[:seq-re :<r nil nil nil]))
-    (is (= (parse "{2r|,}") '[:seq-re :<..r nil nil]))
-    (is (= (parse "{2r|,,}") '[:seq-re :<..r nil nil nil]))
+    (is (= (read-expr "{,}")
+           (read-expr "{@ ,}") '[:seq-re :<r nil nil]))
+    (is (= (read-expr "{,,}")
+           (read-expr "{@ ,,}") '[:seq-re :<r nil nil nil]))
+    (is (= (read-expr "{2r|,}") '[:seq-re :<..r nil nil]))
+    (is (= (read-expr "{2r|,,}") '[:seq-re :<..r nil nil nil]))
 
-    (is (= (parse "a") "a"))
-    (is (= (parse "apple") "apple"))
-    (is (= (parse "'apple juice'") "apple juice"))
+    (is (= (read-expr "a") "a"))
+    (is (= (read-expr "apple") "apple"))
+    (is (= (read-expr "'apple juice'") "apple juice"))
 
-    (is (= (parse "/some smell/") '[:uncl "some smell"]))
+    (is (= (read-expr "/some smell/") '[:uncl "some smell"]))
 
-    (is (= (parse ":M") (parse ->nmui ":M") :M))
-    (is (= (parse ":1") (parse ->nmui ":2") :1))
-    (is (= (parse "::M") (parse ->nmui "::M") [:fdna [] [:M]]))
-    (is (= (parse "::1") (parse ->nmui "::2") [:fdna [] [:U]]))
-    (is (= (parse "::NUIM")
-           (parse "::0123") '[:fdna ["v__0"] [:N :U :I :M]]))
-    (is (= (parse ->nmui "::NUIM")
-           (parse ->nmui "::0231") '[:fdna ["v__0"] [:I :N :U :M]]))
-    (is (= (parse ->nmui "::2310302310012021221111113232332212132133023103213021320233011023")
+    (is (= (read-expr ":M") (read-expr ->nmui ":M") :M))
+    (is (= (read-expr ":1") (read-expr ->nmui ":2") :1))
+    (is (= (read-expr "::M") (read-expr ->nmui "::M") [:fdna [] [:M]]))
+    (is (= (read-expr "::1") (read-expr ->nmui "::2") [:fdna [] [:U]]))
+    (is (= (read-expr "::NUIM")
+           (read-expr "::0123") '[:fdna ["v__0"] [:N :U :I :M]]))
+    (is (= (read-expr ->nmui "::NUIM")
+           (read-expr ->nmui "::0231") '[:fdna ["v__0"] [:I :N :U :M]]))
+    (is (= (read-expr ->nmui "::2310302310012021221111113232332212132133023103213021320233011023")
            '[:fdna ["v__0" "v__1" "v__2"]
              [:I :N :U :M  :M :M :U :I  :I :U :M :I  :U :N :I :M
               :N :M :N :M  :M :U :I :N  :U :I :N :I  :U :U :N :M
               :I :I :U :U  :M :U :U :M  :M :M :M :M  :U :I :I :U
               :N :I :I :M  :U :I :N :M  :N :I :U :U  :U :M :N :I]]))
 
-    (is (= (parse "[:fdna []::M]")
-           (parse "[:fdna []::3]") [:fdna [] [:M]]))
-    (is (= (parse ->nmui "[:fdna []::I]")
-           (parse ->nmui "[:fdna []::3]") [:fdna [] [:I]]))
-    (is (= (parse "[:fdna [a]::NUIM]")
-           (parse "[:fdna [a]::0123]") '[:fdna ["a"] [:N :U :I :M]]))
-    (is (= (parse ->nmui "[:fdna [a]::NUIM]")
-           (parse ->nmui "[:fdna [a]::0231]") '[:fdna ["a"] [:I :N :U :M]]))
-    (is (= (parse "[:fdna [a,'z_3']::NUIMMNIIIUNMMUNU]")
+    (is (= (read-expr "[:fdna []::M]")
+           (read-expr "[:fdna []::3]") [:fdna [] [:M]]))
+    (is (= (read-expr ->nmui "[:fdna []::I]")
+           (read-expr ->nmui "[:fdna []::3]") [:fdna [] [:I]]))
+    (is (= (read-expr "[:fdna [a]::NUIM]")
+           (read-expr "[:fdna [a]::0123]") '[:fdna ["a"] [:N :U :I :M]]))
+    (is (= (read-expr ->nmui "[:fdna [a]::NUIM]")
+           (read-expr ->nmui "[:fdna [a]::0231]") '[:fdna ["a"] [:I :N :U :M]]))
+    (is (= (read-expr "[:fdna [a,'z_3']::NUIMMNIIIUNMMUNU]")
            '[:fdna ["a" "z_3"] [:N :U :I :M
                                 :M :N :I :I
                                 :I :U :N :M
                                 :M :U :N :U]]))
-    (is (= (parse ->nmui "[:fdna [a,b,c]::2310302310012021221111113232332212132133023103213021320233011023]")
+    (is (= (read-expr ->nmui "[:fdna [a,b,c]::2310302310012021221111113232332212132133023103213021320233011023]")
            '[:fdna ["a" "b" "c"]
              [:I :N :U :M  :M :M :U :I  :I :U :M :I  :U :N :I :M
               :N :M :N :M  :M :U :I :N  :U :I :N :I  :U :U :N :M
@@ -300,18 +299,18 @@
 
   (testing "Correctness of related transformations"
     (testing "of the same type"
-      (is (= (parse "()()") '[:- () ()]))
-      (is (= (parse "()()()()") '[:- () () () ()]))
-      (is (= (parse "{}{}") '[:- [:seq-re :<r nil] [:seq-re :<r nil]]))
-      (is (= (parse "a a") '[:- "a" "a"]))
-      (is (= (parse "'a ball''a ball'") '[:- "a ball" "a ball"]))
-      (is (= (parse "/b 4//b 4/") '[:- [:uncl "b 4"] [:uncl "b 4"]]))
-      (is (= (parse ":M :M") '[:- :M :M]))
-      (is (= (parse ":3 :3") '[:- :3 :3]))
-      ;; ? parse as fdna instead
-      (is (= (parse "[:fdna []::M] [:fdna []::M]")
+      (is (= (read-expr "()()") '[:- () ()]))
+      (is (= (read-expr "()()()()") '[:- () () () ()]))
+      (is (= (read-expr "{}{}") '[:- [:seq-re :<r nil] [:seq-re :<r nil]]))
+      (is (= (read-expr "a a") '[:- "a" "a"]))
+      (is (= (read-expr "'a ball''a ball'") '[:- "a ball" "a ball"]))
+      (is (= (read-expr "/b 4//b 4/") '[:- [:uncl "b 4"] [:uncl "b 4"]]))
+      (is (= (read-expr ":M :M") '[:- :M :M]))
+      (is (= (read-expr ":3 :3") '[:- :3 :3]))
+      ;; ? read-expr as fdna instead
+      (is (= (read-expr "[:fdna []::M] [:fdna []::M]")
              '[:- [:fdna [] [:M]] [:fdna [] [:M]]]))
-      (is (= (parse "[:fdna [a]::NUIM] [:fdna [a]::NUIM]")
+      (is (= (read-expr "[:fdna [a]::NUIM] [:fdna [a]::NUIM]")
              '[:-
                [:fdna ["a"] [:N :U :I :M]]
                [:fdna ["a"] [:N :U :I :M]]]))
@@ -320,16 +319,16 @@
 
   (testing "Correctness of nested transformations"
     (testing "of the same type"
-      (is (= (parse "(())") '(())))
-      (is (= (parse "(((()))(()())())") '(((())) (() ()) ())))
-      (is (= (parse "{{}}") '[:seq-re :<r [:seq-re :<r nil]]))
-      (is (= (parse "{{{{}}}{{}{}}{}}")
+      (is (= (read-expr "(())") '(())))
+      (is (= (read-expr "(((()))(()())())") '(((())) (() ()) ())))
+      (is (= (read-expr "{{}}") '[:seq-re :<r [:seq-re :<r nil]]))
+      (is (= (read-expr "{{{{}}}{{}{}}{}}")
              '[:seq-re :<r
                [:-
                 [:seq-re :<r [:seq-re :<r [:seq-re :<r nil]]]
                 [:seq-re :<r [:- [:seq-re :<r nil] [:seq-re :<r nil]]]
                 [:seq-re :<r nil]]]))
-      (is (= (parse "{{,{},{,}},{{}},{{},,},,,}")
+      (is (= (read-expr "{{,{},{,}},{{}},{{},,},,,}")
              '[:seq-re :<r
                [:seq-re :<r nil [:seq-re :<r nil] [:seq-re :<r nil nil]]
                [:seq-re :<r [:seq-re :<r nil]]
@@ -337,32 +336,32 @@
       )
 
     (testing "of different types"
-      (is (= (parse "(:U 'x_1' [:fdna ['x_1']::NMUI] /はあ/ {alt|2r|} :2)")
+      (is (= (read-expr "(:U 'x_1' [:fdna ['x_1']::NMUI] /はあ/ {alt|2r|} :2)")
              '(:U "x_1" [:fdna ["x_1"] [:N :M :U :I]] [:uncl "はあ"]
                   [:seq-re :<..r' nil] :2)))
-      (is (= (parse "{:U 'x_1', [:fdna ['x_1']::NMUI], /はあ/ {alt|2r|}, :2}")
+      (is (= (read-expr "{:U 'x_1', [:fdna ['x_1']::NMUI], /はあ/ {alt|2r|}, :2}")
              '[:seq-re :<r [:- :U "x_1"] [:fdna ["x_1"] [:N :M :U :I]]
                [:- [:uncl "はあ"] [:seq-re :<..r' nil]] :2]))
-      (is (= (parse "(a(b(c)))") '("a" ("b" ("c")))))
-      (is (= (parse "(((a)b)c)") '((("a") "b") "c")))
-      (is (= (parse "((a (b :U))c d(e):2 f)g")
+      (is (= (read-expr "(a(b(c)))") '("a" ("b" ("c")))))
+      (is (= (read-expr "(((a)b)c)") '((("a") "b") "c")))
+      (is (= (read-expr "((a (b :U))c d(e):2 f)g")
              '[:- (("a" ("b" :U)) "c" "d" ("e") :2 "f") "g"]))
-      (is (= (parse "{a,b,c}") '[:seq-re :<r "a" "b" "c"]))
-      (is (= (parse "{(a {b,(c),:U d}),{e,f :2}}g")
+      (is (= (read-expr "{a,b,c}") '[:seq-re :<r "a" "b" "c"]))
+      (is (= (read-expr "{(a {b,(c),:U d}),{e,f :2}}g")
              '[:- [:seq-re :<r ["a" [:seq-re :<r "b" ["c"] [:- :U "d"]]]
                    [:seq-re :<r "e" [:- "f" :2]]] "g"]))
 
-      (is (= (parse "{L,R} {2r+1|L,E,R}")
+      (is (= (read-expr "{L,R} {2r+1|L,E,R}")
              '[:- [:seq-re :<r "L" "R"] [:seq-re :<..r. "L" "E" "R"]]))
-      (is (= (parse "{alt|L,R}{alt|R,L}")
+      (is (= (read-expr "{alt|L,R}{alt|R,L}")
              '[:- [:seq-re :<r' "L" "R"] [:seq-re :<r' "R" "L"]]))
-      (is (= (parse "(({L,E,R}{E,R,L}{L,R,E})(L E R))")
+      (is (= (read-expr "(({L,E,R}{E,R,L}{L,R,E})(L E R))")
              '(([:seq-re :<r "L" "E" "R"]
                 [:seq-re :<r "E" "R" "L"]
                 [:seq-re :<r "L" "R" "E"]) ("L" "E" "R"))))
-      (is (= (parse "((/green apple/)/red apple/)")
+      (is (= (read-expr "((/green apple/)/red apple/)")
              '(([:uncl "green apple"]) [:uncl "red apple"])))
-      (is (= (parse "{2r+1|/deeming/,/telling/,/understanding/}")
+      (is (= (read-expr "{2r+1|/deeming/,/telling/,/understanding/}")
              '[:seq-re :<..r.
                [:uncl "deeming"]
                [:uncl "telling"]
@@ -373,93 +372,93 @@
 
   (testing "Operator parsing"
     (testing "predefined operators"
-      (is (fail? (parse "[:uncl []()]"))) ;; ? should this work
-      (is (= (parse "[:uncl foo bar]") '[:uncl "foo bar"]))
+      (is (fail? (read-expr "[:uncl []()]"))) ;; ? should this work
+      (is (= (read-expr "[:uncl foo bar]") '[:uncl "foo bar"]))
 
-      (is (fail? (parse "[:fdna [] [:M]]"))) ;; ? should this work
-      (is (= (parse "[:fdna [] ::M]") '[:fdna [] [:M]]))
-      (is (= (parse "[:fdna [a] ::MNUI]") '[:fdna ["a"] [:M :N :U :I]]))
+      (is (fail? (read-expr "[:fdna [] [:M]]"))) ;; ? should this work
+      (is (= (read-expr "[:fdna [] ::M]") '[:fdna [] [:M]]))
+      (is (= (read-expr "[:fdna [a] ::MNUI]") '[:fdna ["a"] [:M :N :U :I]]))
       (is (fail?
-            (parse "[:fdna [a b] ::MNUIMMNIIUMNNINI]"))) ;; ? should this work
-      (is (= (parse "[:fdna [a, b] ::MNUIMMNIIUMNNINI]")
-             '[:fdna ["a" "b"] [:M :N :U :I 
-                                :M :M :N :I 
-                                :I :U :M :N 
+           (read-expr "[:fdna [a b] ::MNUIMMNIIUMNNINI]"))) ;; ? should this work
+      (is (= (read-expr "[:fdna [a, b] ::MNUIMMNIIUMNNINI]")
+             '[:fdna ["a" "b"] [:M :N :U :I
+                                :M :M :N :I
+                                :I :U :M :N
                                 :N :I :N :I]]))
 
-      (is (= (parse "[:seq-re @]") '[:seq-re :<r nil]))
-      (is (= (parse "[:seq-re @ ,]") '[:seq-re :<r nil nil]))
-      (is (= (parse "[:seq-re ..@~._ a,b c,:U]")
+      (is (= (read-expr "[:seq-re @]") '[:seq-re :<r nil]))
+      (is (= (read-expr "[:seq-re @ ,]") '[:seq-re :<r nil nil]))
+      (is (= (read-expr "[:seq-re ..@~._ a,b c,:U]")
              '[:seq-re :<..r'._ "a" [:- "b" "c"] :U]))
 
-      (is (fail? (parse "[:mem ((a :M)) a]")))
-      (is (fail? (parse "[:mem ]")))
-      (is (= (parse "[:mem | ]") '[:mem [] nil]))
-      (is (= (parse "[:mem a = (x) | (a (b))]")
+      (is (fail? (read-expr "[:mem ((a :M)) a]")))
+      (is (fail? (read-expr "[:mem ]")))
+      (is (= (read-expr "[:mem | ]") '[:mem [] nil]))
+      (is (= (read-expr "[:mem a = (x) | (a (b))]")
              '[:mem [["a" ["x"]]] ["a" ["b"]]]))
-      (is (= (parse "[:mem a = ((a) (b)), ((a) (b)) = :U | a]")
+      (is (= (read-expr "[:mem a = ((a) (b)), ((a) (b)) = :U | a]")
              '[:mem [["a" [["a"] ["b"]]] [[["a"] ["b"]] :U]] "a"]))
 
       ;; Expression symbols and Operators need not be known
-      (is (= (parse ":foo") :foo))
-      (is (= (parse "[:foo x y]") '[:foo "x" "y"]))
-      (is (= (parse "[:x a () [:y]]") '[:x "a" [] [:y]]))
+      (is (= (read-expr ":foo") :foo))
+      (is (= (read-expr "[:foo x y]") '[:foo "x" "y"]))
+      (is (= (read-expr "[:x a () [:y]]") '[:x "a" [] [:y]]))
       ))
   ) 
 
-(deftest formula-test
+(deftest expr->formula-test
   (testing "Correct formula output"
     (testing "simple expressions"
-      (is (= (formula []) "()"))
-      (is (= (formula 'foo) "foo"))
-      (is (= (formula "foo bar") "'foo bar'"))
-      (is (= (formula :I) ":I"))
-      (is (= (formula :3) ":3"))
-      (is (= (formula [:-]) ""))
-      (is (= (formula [:- 'a :I nil []]) "a :I ()"))
-      (is (= (formula [:seq-re :<..r'._ nil]) "{..@~._ }"))
-      (is (= (formula [:fdna [] [:U]]) "[:fdna [] ::U]")) ;; syntax shortcut?
-      (is (= (formula [:uncl "!"]) "[:uncl !]"))
-      (is (= (formula [:uncl "hello world"]) "[:uncl hello world]"))
-      (is (= (formula [:mem [] nil]) "[:mem  | ]"))
-      (is (= (formula [:mem [['x :M] ["why you?" :U]] ['x "why"]])
+      (is (= (print-expr []) "()"))
+      (is (= (print-expr 'foo) "foo"))
+      (is (= (print-expr "foo bar") "'foo bar'"))
+      (is (= (print-expr :I) ":I"))
+      (is (= (print-expr :3) ":3"))
+      (is (= (print-expr [:-]) ""))
+      (is (= (print-expr [:- 'a :I nil []]) "a :I ()"))
+      (is (= (print-expr [:seq-re :<..r'._ nil]) "{..@~._ }"))
+      (is (= (print-expr [:fdna [] [:U]]) "[:fdna [] ::U]")) ;; syntax shortcut?
+      (is (= (print-expr [:uncl "!"]) "[:uncl !]"))
+      (is (= (print-expr [:uncl "hello world"]) "[:uncl hello world]"))
+      (is (= (print-expr [:mem [] nil]) "[:mem  | ]"))
+      (is (= (print-expr [:mem [['x :M] ["why you?" :U]] ['x "why"]])
              "[:mem x = :M, 'why you?' = :U | (x why)]")))
 
     (testing "compound expressions"
-      (is (= (formula [nil [[] nil [[] [[nil]]]]])
+      (is (= (print-expr [nil [[] nil [[] [[nil]]]]])
              "((() (() (()))))"))
-      (is (= (formula [:- nil [:- [:- nil []] [:-] nil] nil])
+      (is (= (print-expr [:- nil [:- [:- nil []] [:-] nil] nil])
              "()"))
-      (is (= (formula [:seq-re :<r [:- 'a ['b]] [nil] nil [:- nil 'c]])
+      (is (= (print-expr [:seq-re :<r [:- 'a ['b]] [nil] nil [:- nil 'c]])
              "{@ a (b), (), , c}"))
-      (is (= (formula [:fdna ['a "my var"]
+      (is (= (print-expr [:fdna ['a "my var"]
                        [:M :I :U :N  :I :M :N :U  :U :N :M :I  :N :U :I :M]])
              "[:fdna [a, 'my var'] ::MIUNIMNUUNMINUIM]"))
-      (is (= (formula [:mem [[['x ['y]] [:- nil [] [['x]]]]] [:- ['x ['y]]]])
+      (is (= (print-expr [:mem [[['x ['y]] [:- nil [] [['x]]]]] [:- ['x ['y]]]])
              "[:mem (x (y)) = () ((x)) | (x (y))]"))
-      (is (= (formula [ nil [[:seq-re :<..r' 'a [:seq-re :<r_ nil] 'b]]
+      (is (= (print-expr [ nil [[:seq-re :<..r' 'a [:seq-re :<r_ nil] 'b]]
                        [:seq-re :<..r. [:fdna [] [:U]]] ])
              "(({..@~ a, {@_ }, b}) {..@. [:fdna [] ::U]})"))
-      (is (= (formula [:- [[:mem [] [:mem [["foo" "bar"] ["bar" :M]] nil]]
+      (is (= (print-expr [:- [[:mem [] [:mem [["foo" "bar"] ["bar" :M]] nil]]
                            [:mem [[[:seq-re :<r nil] nil]] [:uncl "hey x"]]]])
              "([:mem  | [:mem foo = bar, bar = :M | ]] [:mem {@ } =  | [:uncl hey x]])"))
       )
 
     (testing "input validation"
       ;; Expression symbols and Operators need not be known
-      (is (= (formula :foo) ":foo"))
-      (is (= (formula [:foo]) "(:foo)"))
-      (is (= (formula [:- [:- :foo]]) ":foo"))
+      (is (= (print-expr :foo) ":foo"))
+      (is (= (print-expr [:foo]) "(:foo)"))
+      (is (= (print-expr [:- [:- :foo]]) ":foo"))
       ;; Known operators need to be validated
       (is (thrown? clojure.lang.ExceptionInfo
-                   (formula [:uncl ""])))
+                   (print-expr [:uncl ""])))
       (is (thrown? clojure.lang.ExceptionInfo
-                   (formula [:mem [[]] nil])))))
+                   (print-expr [:mem [[]] nil])))))
 
   (testing "Equal data when parsing formula output"
     (is (let [expr [:seq-re :<..r'._ nil]]
-          (= (parse (formula expr)) expr)))
+          (= (read-expr (print-expr expr)) expr)))
     (is (let [fml "[:mem a = ((a) (b)), ((a) (b)) = :U | a]"]
-          (= (formula (parse fml)) fml))))) 
+          (= (print-expr (read-expr fml)) fml))))) 
 
 

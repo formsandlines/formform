@@ -571,44 +571,8 @@
 
   (defn k->dna [k] (chars->dna (name k)))
 
-  (equiv-dna [:N :M :U :I :U :N :I :U :I :M :N :M :M :M :I :N]
-             [:N :U :I :M :M :N :M :M :U :I :N :I :I :U :M :N])
-
-  (equiv-dna [:N :U :I :M  :N :U :I :M  :N :U :I :M  :N :U :I :M]
-             [:N :U :I :M])
-
-  (equiv-dna [:N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N]
-             [:N])
-
-  (dna-perspectives [:N :U :I :M :M :N :M :M :U :I :N :I :I :U :M :N])
-  {[0 1] [:N :U :I :M :M :N :M :M :U :I :N :I :I :U :M :N],
-   [1 0] [:N :M :U :I :U :N :I :U :I :M :N :M :M :M :I :N]}
-
-  (dna-perspectives [:N :M :U :I :U :N :I :U :I :M :N :M :M :M :I :N])
-  {[0 1] [:N :M :U :I :U :N :I :U :I :M :N :M :M :M :I :N],
-   [1 0] [:N :U :I :M :M :N :M :M :U :I :N :I :I :U :M :N]}
-
-
-  (def x (dna-perspectives (rand-dna 6)))
-  (equiv-dna (rand-dna 5) (rand-dna 5))
-
-
   (require '[criterium.core :as crt])
 
-
-  (digits->dna
-   (map (comp edn/read-string str)
-        "2203220322032203220322032203220322032203220322032203220322032203230323032303230323032303230323032303230323032303230323032303230322022202220222022202220222022202220222022202220222022202220222022301230123012301230123012301230123012301230123012301230123012301")
-   nmui-code)
-
-  (reduce-dna-seq
-   [:N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :I :I :U :U :I :I :U :U :I :I :U :U :I :I :U :I :I :M :U :I :I :M :U :I :I :M :U :I :I :M :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :I :I :U :U :I :I :U :U :I :I :U :U :I :I :U :I :I :M :U :I :I :M :U :I :I :M :U :I :I :M :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :I :I :U :U :I :I :U :U :I :I :U :U :I :I :U :I :I :M :U :I :I :M :U :I :I :M :U :I :I :M :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :I :I :U :U :I :I :U :U :I :I :U :U :I :I :U :I :I :M :U :I :I :M :U :I :I :M :U :I :I :M])
-
-  (apply str (map str (dna->digits [:N :N :N :N :U :U :U :U :U :U :I :I :U :I :I :M] nmui-code)))
-  (second (vals (dna-perspectives [:N :N :N :N  :U :U :U :U  :I :I :I :I  :M :M :M :M 
-                    :N :N :N :N  :N :N :N :N  :I :I :I :I  :I :I :I :I 
-                    :N :N :N :N  :U :U :U :U  :N :N :N :N  :U :U :U :U 
-                    :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N])))
 
   )
 

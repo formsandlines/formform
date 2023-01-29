@@ -8,4 +8,5 @@
 .lsp/
 .cpcache/
 .clerk/
+src/formform/mmtest.cljc
 msg.txt

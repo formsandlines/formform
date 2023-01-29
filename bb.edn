@@ -1,0 +1,7 @@
+{:paths ["src" "bb"]
+ :tasks
+ {:requires ([tasks])
+  instafix
+  {:doc "formula.ebnf -> formula.cljc (instaparse fix for ClojureScript)"
+   :task (tasks/grammar->cljc "formform/formula.ebnf"
+                              {:parser-opts {:auto-whitespace :standard}})}}}

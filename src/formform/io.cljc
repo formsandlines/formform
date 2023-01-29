@@ -1,8 +1,10 @@
 (ns formform.io
   (:require [formform.calc :as calc]
             [formform.expr :as expr]
+            [formform.formula :refer [parser]]
             [clojure.string :as str]
-            [instaparse.core :as insta]))
+            #?(:clj  [instaparse.core :as insta]
+               :cljs [instaparse.core :as insta])))
 
 ;; ========================================================================
 ;;     formform io module
@@ -12,8 +14,9 @@
 ;;-------------------------------------------------------------------------
 ;; read formula notation
 
-(insta/defparser formula->parsetree
-  "src/formform/formula.ebnf" :auto-whitespace :standard)
+; (defparser formula->parsetree
+;   "src/formform/formula.ebnf"
+;   :auto-whitespace :standard)
 
 (defn parse-symbol
   [sort-code s]
@@ -103,25 +106,28 @@
      :REM       vector}
     tree)))
 
-(defn parse
-  ([s] (parse {} s))
+(defn formula->expr
+  ([s] (formula->expr {} s))
   ([opts s]
-   (parse-tree opts (formula->parsetree s))))
+   (parse-tree opts (parser s))))
+
+;; alias
+(def read-expr formula->expr)
 
 ;;-------------------------------------------------------------------------
 ;; print formula notation
 
-(declare formula)
+(declare expr->formula)
 
 (def whitespace? #(or (nil? %) (= "" %)))
 
 (defn ctx->formula
   [ctx]
-  (str/join " " (remove whitespace? (map formula ctx))))
+  (str/join " " (remove whitespace? (map expr->formula ctx))))
 
 (defn ctx-seq->formula
   [ctx-seq]
-  (str/join ", " (map formula ctx-seq)))
+  (str/join ", " (map expr->formula ctx-seq)))
 
 (defn form->formula
   [form]
@@ -163,9 +169,10 @@
 (defn memory->formula
   [[op-k rems expr]]
   (let [rems (str/join ", " (map (fn [[x y]]
-                                   (str (formula x) " = " (formula y)))
+                                   (str (expr->formula x) " = "
+                                        (expr->formula y)))
                                  rems))]
-    (str "[" op-k " " rems " | " (formula expr) "]")))
+    (str "[" op-k " " rems " | " (expr->formula expr) "]")))
 
 (defn unclear->formula
   [[op-k & label]]
@@ -182,7 +189,7 @@
        :uncl   unclear->formula
        str) op)))
 
-(defn formula
+(defn expr->formula
   [expr]
   (condp #(%1 %2) expr
     nil?           ""
@@ -191,6 +198,9 @@
     expr/operator? (operator->formula expr)
     expr/form?     (form->formula expr)
     (throw (ex-info "Unknown expression type." {}))))
+
+;; alias
+(def print-expr expr->formula)
 
 ;;-------------------------------------------------------------------------
 ;; uniform expressions
@@ -280,63 +290,6 @@
 
 (comment
 
-  (parse {:sort-code calc/nmui-code} ":1 ()")
-
-  (parse "::N")
-  (parse "::0123")
-  (parse "(a [:fdna [a, b]::0123012301230123] b)")
-  (parse "[:x ((a) (b))]")
-  (parse "[:seq-re ..@ a, b]")
-  (parse-tree [:RE_SIGN "..@"])
-  (parse ":seq-re")
-  (parse "{a, b}")
-  (parse "[:uncl hey]")
-  ; (parse "[:mem [[a (x)] ['be os' /to/]] (a (b))]")
-  (parse "[:mem a = (x), 'be os' = /to/ | (a (b))]")
-  (parse "[:mem a = (x) | (a (b))]")
-  (parse "[:mem | (a (b))]")
-
-  (parse "a = (x), b = y | (a (b))")
-
-  (keyword "dna")
-
-  (parse "[:uncl []]")
-  (parse "[:uncl \"foo bar\"]")
-
-  (parse  "[:fdna [a]::0123]")
-
-  (parse-tree [:VARLIST [:VAR "a"]])
-  (parse-tree [:FDNA "::0123"])
-  (parse-tree [:FDNA_SPEC [:VARLIST [:VAR "a"]] "::0123"])
-  (parse-tree [:SYMBOL ":fdna"])
-
-  (parse "((a (x)) b)")
-  (parse "/unkfo/")
-  (parse ":NUIM")
-
-  (expr/=>* (parse "(((a b c) (x y)) (a c y)) ((b) (x) a c y)"))
-
-  (formula [:fdna ['a] [:N :U :I :M]])
-  (formula [:mem [['x :M] ['y :U]] ['x ['y]]])
-
-
-  (expr/equiv (parse "(({L,E,R}{E,R,L}{L,R,E})(L E R))")
-              (parse "(({E,L,R}{L,R,E}{E,R,L})(E L R))"))
-
-  (expr/equiv (parse "((a) b)")
-              (parse "((b) a)"))
-
-  (expr/equal (parse "(x (y))")
-              (parse "((b) a)"))
-
-
-
-  (condp #(%1 %2) "hi"
-    expr/form? :form
-    string? :t
-    :f)
-
-  ; #_:clj-kondo/ignore
   ; {:type :form
   ;  :ctx [{:type :var
   ;         :attr {:symbol "a"}}
