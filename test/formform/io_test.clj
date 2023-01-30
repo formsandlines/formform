@@ -1,6 +1,6 @@
 (ns formform.io-test
   (:require [clojure.test :as t :refer [deftest is are testing]]
-            [formform.formula :refer [parser]]
+            [formform.grammar.formula :refer [parser]]
             [formform.calc :as calc]
             [formform.io :as io :refer [read-expr parse-tree print-expr]]
             [instaparse.core :as insta]))

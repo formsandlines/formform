@@ -1,10 +1,10 @@
 ;; !! This is an auto-generated file and should not be edited directly !!
 ;;
 ;; Please edit the source file of the grammar instead:
-;;   `src/formform/formula.ebnf`
+;;   `src/formform/grammar/formula.ebnf`
 ;; and then execute the dedicated task in `bb.edn` to re-generate this file.
 
-(ns formform.formula
+(ns formform.grammar.formula
   (:require #?(:clj  [instaparse.core :as insta :refer [defparser]]
                :cljs [instaparse.core :as insta :refer-macros [defparser]])))
 

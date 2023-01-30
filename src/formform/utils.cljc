@@ -67,13 +67,6 @@
 ;   (with-meta x (merge (meta x) metadata)))
 
 (comment
-
-  ; (meta (extend-meta (with-meta ['x] {:foo true}) {:bar true}))
-  (pad-left "abc" 6 "0")
-
-  (splitv-at 2 [1 2 3 4 5 6])
-
-  (type (dissocv ['a 'b 'c 'd] 1))
   
   )
 

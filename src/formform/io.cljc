@@ -1,22 +1,18 @@
-(ns formform.io
-  (:require [formform.calc :as calc]
-            [formform.expr :as expr]
-            [formform.formula :refer [parser]]
-            [clojure.string :as str]
-            #?(:clj  [instaparse.core :as insta]
-               :cljs [instaparse.core :as insta])))
-
 ;; ========================================================================
 ;;     formform io module
 ;;     -- created 11/2022, (c) Peter Hofmann
 ;; ========================================================================
 
+(ns formform.io
+  (:require [formform.calc :as calc]
+            [formform.expr :as expr]
+            [formform.grammar.formula :refer [parser]]
+            [clojure.string :as str]
+            #?(:clj  [instaparse.core :as insta]
+               :cljs [instaparse.core :as insta])))
+
 ;;-------------------------------------------------------------------------
 ;; read formula notation
-
-; (defparser formula->parsetree
-;   "src/formform/formula.ebnf"
-;   :auto-whitespace :standard)
 
 (defn parse-symbol
   [sort-code s]
@@ -114,6 +110,7 @@
 ;; alias
 (def read-expr formula->expr)
 
+
 ;;-------------------------------------------------------------------------
 ;; print formula notation
 
@@ -202,112 +199,6 @@
 ;; alias
 (def print-expr expr->formula)
 
-;;-------------------------------------------------------------------------
-;; uniform expressions
-
-#_(comment
-
-      (declare ctx->uniform)
-      (declare cnt->uniform)
-
-      (defn- FORM->uniform
-        [form]
-        {:type :form
-         :ctx  (ctx->uniform form)})
-
-      (def UFORM-uniform {:type :uform})
-      (def IFORM-uniform {:type :iform})
-
-      (defn- VAR->uniform
-        [variable]
-        {:type :var
-         :label variable})
-
-      (defn- UNCLEAR->uniform
-        [uncl]
-        {:type  :uncl
-         :label (expr/UNCLEAR->label uncl)})
-
-      (defn- SEQ-REENTRY->uniform
-        [seq-re]
-        {:type :seq-reentry
-         :sign (expr/SEQ-REENTRY->sign seq-re)
-         :ctx  (mapv (fn [nested-ctx]
-                       {:type :nested-ctx
-                        :ctx (ctx->uniform nested-ctx)})
-                     (expr/SEQ-REENTRY->ctxs seq-re))})
-
-      (defn- FDNA->uniform
-        [fdna]
-        {:type :fdna
-         :dna (expr/FDNA->dna fdna)
-         :varlist (expr/FDNA->varlist fdna)})
-
-      (defn- MEMORY->uniform
-        [mem]
-        {:type :mem
-         :rems (mapv (fn [[k v]] {:type :rem
-                                  :ctx (vector (cnt->uniform k)
-                                               (ctx->uniform v))})
-                     (expr/MEMORY->rems mem))
-         :ctx  (ctx->uniform (expr/MEMORY->ctx mem))})
-
-      (defn- const->uniform
-        [c]
-        {:type  :const
-         :value c})
-
-      (defn- cnt->uniform
-        [x]
-        (cond
-          (calc/const? x)       (const->uniform x)
-          (expr/fdna? x)        (FDNA->uniform x)
-          (expr/memory? x)      (MEMORY->uniform x)
-          (expr/unclear? x)     (UNCLEAR->uniform x)
-          (expr/seq-reentry? x) (SEQ-REENTRY->uniform x)
-          (expr/pure-form? x)   (FORM->uniform x)
-          (expr/uform? x)       UFORM-uniform
-          (expr/iform? x)       IFORM-uniform
-          (expr/variable? x)    (VAR->uniform x)
-          :else x))
-
-      (defn- ctx->uniform
-        [ctx]
-        (mapv cnt->uniform ctx))
-
-      (defn uniform-expr [expr]
-        {:type :expr
-         :ctx  (ctx->uniform expr)})
-
-      )
-
-
-#_(comment
-
-      (uniform-expr (expr/<-> (expr/<> 'a :U (expr/<fdna> ["x"] :NUIM)) 'b))
-
-      )
 
 (comment
-
-  ; {:type :form
-  ;  :ctx [{:type :var
-  ;         :attr {:symbol "a"}}
-  ;        {:type :fdna
-  ;         :attr {:dna :NUIM
-  ;                :varlist ["a"]}}
-  ;        {:type :seq-re
-  ;         :attr {:sign :<..re}
-  ;         :ctx [{:type :nested-ctx
-  ;                :ctx [{:type :form
-  ;                       ...}
-  ;                      {:type :var
-  ;                       :attr {:symbol "b"}}]}
-  ;               {:type :nested-ctx
-  ;                :ctx [{:type :var
-  ;                       :attr {:symbol "b"}}]}]}
-  ;        {:type :const
-  ;         :attr {:value :U
-  ;                :symbol ":U"}}]}
-
   )

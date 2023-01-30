@@ -1,3 +1,8 @@
+;; ========================================================================
+;;     formform calculation module
+;;     -- created 08/2022, (c) Peter Hofmann
+;; ========================================================================
+
 (ns formform.calc
   (:require [clojure.edn :as edn]
             [clojure.math :as math]
@@ -5,11 +10,6 @@
             [formform.utils :as utils]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]))
-
-;; ========================================================================
-;;     formform calculation module
-;;     -- created 08/2022, (c) Peter Hofmann
-;; ========================================================================
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Constant
