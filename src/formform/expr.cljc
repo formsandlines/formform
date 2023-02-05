@@ -537,10 +537,10 @@
   ([expr env]
    (let [res (cnt> expr env)
          v (case res
-             []   calc/M
-             nil  calc/N
-             :U   calc/U
-             [:U] calc/I
+             []   :M
+             nil  :N
+             :U   :U
+             [:U] :I
              nil)
          m {:expr res :env env}]
      (if (some? v)
@@ -1070,9 +1070,9 @@
 (defn sel
   ([vars->consts] (sel vars->consts true))
   ([vars->consts simplify?]
-   (if (and simplify? (every? #{calc/M calc/N} (vals vars->consts)))
+   (if (and simplify? (every? #{:M :N} (vals vars->consts)))
      (apply form (map (fn [[v c]]
-                        (if (= c calc/M) (form v) v)) vars->consts))
+                        (if (= c :M) (form v) v)) vars->consts))
      (let [select-UI (fn [[v c]] (case c
                                    :N [(form v) (form v)]
                                    :M [v v]
@@ -1140,7 +1140,7 @@
       filtered-fdna)))
 
 (defn- construct-formDNA
-  ([op-k] (construct-formDNA op-k [] [calc/N]))
+  ([op-k] (construct-formDNA op-k [] [:N]))
   ([op-k dna] (let [vars (vec (gen-vars (calc/dna-dimension dna)))]
                 (construct-formDNA op-k vars dna)))
   ([op-k vars dna]

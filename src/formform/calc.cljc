@@ -16,43 +16,44 @@
 ;; -> element of formDNA representing a primitive FORM value
 ;; -> single-digit formDNA
 
-(def N :N)
-(def U :U)
-(def I :I)
-(def M :M)
+(def consts #{:N :U :I :M})
 
 (s/def :formform.specs.calc/const
   (s/with-gen
     #(case %
        (:N :U :I :M) true
        false)
-    #(gen/elements [N U I M])))
+    #(gen/elements [:N :U :I :M])))
+
+(s/def :formform.specs.calc/const?
+  (s/with-gen
+    (s/or :const :formform.specs.calc/const
+          :var-const #(= % :_))
+    #(gen/elements [:N :U :I :M :_])))
 
 (s/def :formform.specs.calc/sort-code
   (s/with-gen
     (s/and
       vector?
       #(== 4 (count %))
-      #(= #{N U I M} (set %)))
-    #(gen/shuffle [N U I M])))
+      #(= #{:N :U :I :M} (set %)))
+    #(gen/shuffle [:N :U :I :M])))
 
 (def const? (partial s/valid? :formform.specs.calc/const))
 (def rand-const #(gen/generate (s/gen :formform.specs.calc/const)))
 
 (def sort-code? (partial s/valid? :formform.specs.calc/sort-code))
 
-(def nuim-code [N U I M])
-(def nmui-code [N M U I])
+;; predefined sort-codes
+(def nuim-code [:N :U :I :M])
+(def nmui-code [:N :M :U :I])
 
 (defn digit->const
   ([n] (digit->const n nuim-code))
   ([n sort-code]
-   (let [n (if (int? n)
-             n
-             (edn/read-string (if (char? n) (str n) n)))]
-     (if (== n -1)
-       :_ ;; “hole” or variable value
-       (sort-code n)))))
+   (if (== n -1)
+     :_ ;; “hole” or variable value
+     (sort-code n))))
 
 (defn char->const
   ([c] (char->const c nuim-code))
@@ -62,7 +63,9 @@
      (\u \U) :U
      (\i \I) :I
      (\m \M) :M
-     (digit->const c sort-code))))
+     \_      :_
+     (when-let [n (edn/read-string (str c))]
+       (digit->const n sort-code)))))
 
 
 (defn const->digit
@@ -87,31 +90,59 @@
 ;; ? not sure if keyword representation is really needed here
 ;;   and a seqable should rather always be used for better performance
 
-(defn dna-dimension
-  "Calculates the dimension of a formDNA (corresponds to the number of variables in a FORM). The length of `dna` is 4^d for its dimension d."
-  [dna]
-  (let [dim (/ (math/log (count dna))
-               (math/log 4.0))]
-    (if (or (infinite? dim) (utils/has-decimal? dim))
-      nil
-      (int dim))))
+(def dna-lengths (iterate (partial * 4) 1))
 
-(s/def :formform.specs.calc/dna-dimension
-  #(some? (dna-dimension %)))
+;; ? true for JavaScript
+(def max-safe-dna-dim 25)
+
+(def max-safe-dna-len
+  (last (take max-safe-dna-dim dna-lengths)))
+
+(def cached_dna-length->dim
+  (into {} (map vector (take max-safe-dna-dim dna-lengths) (range))))
+
+(defn dna-length->dim
+  [n]
+  (if (<= n max-safe-dna-len)
+    (cached_dna-length->dim n)
+    (let [dim (/ (math/log n) ;; ? can count return a BigInt
+                 (math/log 4.0))]
+      (if (or (infinite? dim) (utils/has-decimal? dim))
+        nil
+        (int dim)))))
+
+(defn dna-dimension
+  "Calculates the dimension of a formDNA/`dna-seq` (corresponds to the number of variables in a FORM). The length of a `dna-seq` is 4^d for its dimension d.
+  - the input sequence can have any type of elements"
+  [xs]
+  (dna-length->dim (count xs)))
+
+(s/def :formform.specs.calc/dna-length
+  (s/with-gen
+    #(some? (dna-length->dim %))
+    #(gen/elements (take 12 dna-lengths)))) 
+
+(s/def :formform.specs.calc/dna-dimension nat-int?)
+
+;; ? necessary
+(s/def :formform.specs.calc/dna-count #(some? (dna-dimension %)))
+
+(s/def :formform.specs.calc/dna-seq
+  (s/and sequential? #(<= (count (set %)) 4)
+         :formform.specs.calc/dna-count))
 
 (s/def :formform.specs.calc/dna
-  (s/and (s/coll-of #{:N :U :I :M}) :formform.specs.calc/dna-dimension))
+  (s/and (s/coll-of consts)
+         (comp (partial s/valid? :formform.specs.calc/dna-length)
+               count)))
 
-(def dna-dimension? (partial s/valid? :formform.specs.calc/dna-dimension))
+(def dna-dimension? (partial s/valid? :formform.specs.calc/dna-count))
 (def dna? (partial s/valid? :formform.specs.calc/dna))
 
 (defn rand-dna
-  "Generates a random formDNA of dimension `dim`. A vector of 4 custom elements can be provided as a second argument."
+  "Generates a random formDNA/`dna-seq` of dimension `dim`. A vector of 4 custom elements can be provided as a second argument."
   ([dim] (rand-dna dim nil))
   ([dim elems]
-   {:pre  [(int? dim) (>= dim 0) (or (and (sequential? elems)
-                                          (<= 1 (count elems) 4))
-                                     (nil? elems))]}
    (let [len    (apply * (repeat dim 4))
          gen-fn #(rand-nth (if (and (some? elems) (<= (count elems) 4))
                              elems
@@ -124,7 +155,6 @@
   "Converts formDNA to its corresponding quaternary number (as a string, prefixed by '4r').
   - use `read-string` to obtain the decimal value as a BigInt"
   [dna]
-  {:pre  [(dna? dna)]}
   (let [digits (dna->digits dna)]
     (apply str "4r" digits)))
 
@@ -133,12 +163,12 @@
   - make sure the input is a vector for constant-time reverse"
   (comp rseq vec))
 
+;; ! does not distinguish between formDNA and arbitrary const/dna collections
 (defn make-compare-dna
   "Given a `sort-code` (try `calc.nuim-code` or `calc.nmui-code`), returns a comparator function to sort formDNA.
-  - compares simple and composite constants
+  - compares constants and formDNA
   - compares collections of formDNA (not recursively!)"
   [sort-code]
-  {:pre  [(sort-code? sort-code)]}
   (fn [a b]
     (let [sort-map  (zipmap sort-code (range))
           comp-dna? #(and (dna? %) (> (dna-dimension %) 0))
@@ -150,6 +180,7 @@
                               (edn/read-string (dna->quaternary x))
                               (sort-map x)))]
       (cond
+        ;; ? (not (nda? a))
         (and (coll? a) (coll? b)) (let [ns-a (mapv convert a)
                                         ns-b (mapv convert b)]
                                     (compare ns-a ns-b))
@@ -215,7 +246,6 @@
   (fn f
     ([dna] (f dna nuim-code))
     ([dna sort-code]
-     {:pre [(dna? dna)]}
      (let [dna-seq (mapv (partial sort+const->x sort-code) dna)]
        (if (= sort-code nuim-code)
          dna-seq
@@ -292,20 +322,30 @@
                   (dec dim) subdim)))))))
 
 
-;; ? what about mixed dna-seqs?
 (defn make-dna
-  "Creates a formDNA from arguments, which may be either constants or numbers.
-  - string or char constants will be converted to keywords"
+  "Creates a formDNA from arguments, which may be valid chars, keywords, integers or sequences thereof.
+  - valid chars are: \\n \\u \\i \\m (upper- or lowercase) and \\0 \\1 \\2 \\3
+  - valid integers are: 0 1 2 3
+  - valid keywords are: :N :U :I :M
+  - total argument count (including count of sequence args) must match a valid formDNA length, which is 4^d, where d is a natural number"
   [& xs]
-  {:pre [(dna-dimension xs)]}
-  (condp #(%1 %2) (first xs)
-    keyword?    (if (dna? xs)
-                  (vec xs)
-                  (throw (ex-info "invalid arguments" {:args xs})))
-    char?       (chars->dna xs)
-    integer?    (digits->dna xs)
-    sequential? (apply make-dna (flatten xs))
-    (throw (ex-info "unsupported type" {:args xs}))))
+  (let [x->const
+        (fn [x] (if-let [c (condp #(%1 %2) x
+                             keyword?    (when (const? x) x)
+                             char?       (char->const x)
+                             integer?    (digit->const x)
+                             sequential? (apply make-dna x)
+                             (throw (ex-info "unsupported type" {:val x})))]
+                  c
+                  (throw (ex-info "invalid value" {:val x}))))
+        dna (->> xs
+                 (map x->const)
+                 (reduce #(if (sequential? %2)
+                            (into %1 %2)
+                            (conj %1 %2)) []))]
+    (if (some? (dna-dimension dna))
+      dna
+      (throw (ex-info "invalid dna length" {:dna dna})))))
 
 
 (defn filter-dna-seq
@@ -420,21 +460,32 @@
 ;;-------------------------------------------------------------------------
 ;; `vpoint` -> value point -> vector of `const`-coordinates in a `vspace`
 
-(defn vpoint?
-  [x]
-  (every? (set nuim-code) x))
+(s/def :formform.specs.calc/vpoint
+  (s/every :formform.specs.calc/const?
+           :kind sequential?))
+
+(def vpoint? (partial s/valid? :formform.specs.calc/vpoint))
 
 (defn rand-vpoint
-  "Generates a random vpoint either as a lazy seq or with given dimension `dim`."
+  "Generates a random vpoint either as an infinite lazy seq or with given dimension `dim`."
   ([]    (repeatedly #(rand-nth nuim-code)))
   ([dim] (repeatedly dim #(rand-nth nuim-code))))
 
 ;;-------------------------------------------------------------------------
 ;; `vspace` -> value space -> vector of all `n`-dimensional `vpoint`s
 
-(defn vspace?
-  [x]
-  (and (dna-dimension x) (every? vpoint? x)))
+(s/def :formform.specs.calc/vspace
+  (s/and (s/coll-of :formform.specs.calc/vpoint
+                    :min-count 1
+                    :distinct true)
+         (fn [vspc] (let [vs-dim (dna-dimension (seq vspc))
+                          vp-dim (count (first vspc))]
+                      (and (some? vs-dim)
+                           (== vs-dim vp-dim)
+                           (every? #(== vp-dim (count %)) vspc))))))
+;; ? add spec ordered-vspace
+
+(def vspace? (partial s/valid? :formform.specs.calc/vspace))
 
 (defn vspace
   "Generates a vspace of dimension `dim`, optionally with custom `sort-code`.
@@ -449,9 +500,12 @@
 ;; - for value table generation
 ;; - like a flat vmap
 
-(defn vdict?
-  [x]
-  (and (map? x) (vspace? (keys x)) (dna? (vals x))))
+(s/def :formform.specs.calc/vdict
+  (s/and map?
+         #(s/valid? :formform.specs.calc/vspace (keys %))
+         #(s/valid? :formform.specs.calc/dna    (vals %))))
+
+(def vdict? (partial s/valid? :formform.specs.calc/vdict))
 
 (defn vdict
   "Generates a vdict given a map from vpoint to result (constant).
@@ -483,15 +537,20 @@
 ;;-------------------------------------------------------------------------
 ;; `vmap` -> value map -> mapping from `vspace` topology to `dna`
 
-;; ? should this really be a map? if yes, must it be sorted?
+(s/def :formform.specs.calc/vmap
+  (s/map-of :formform.specs.calc/const
+            (s/or :vmap :formform.specs.calc/vmap
+                  :res  :formform.specs.calc/const)
+            :count 4))
 
-(defn vmap?
-  ;; ! insufficient -> checks only root form
-  [x]
-  (and (map? x) (== (count x) 4)
-    (every? const? (keys x))
-    (every? map? (vals x))))
+(def vmap? (partial s/valid? :formform.specs.calc/vmap))
 
+(vmap? (let [m {:N {:N :N :U :U :I :I :M :M}
+                :U {:N :N :U :U :I :I :M :M}
+                :I {:N :N :U :U :I :I :M :M}
+                :M {:N :N :U :U :I :I :M :M}}]
+         {:N m :U m :I m :M m}))
+(vmap? {:N :N :U :U :I :I :M :M})
 
 ;; fast-ish with up to 10 dimensions
 (defn vdict->vmap
@@ -515,25 +574,30 @@
   [dna]
   (vdict->vmap (dna->vdict dna {})))
 
+; (vmap? (dna->vmap (rand-dna 1)))
+; (vdict->vmap {[] :U})
+; (vdict->vmap
+;  (fn [vmap vspc depth dim] (assoc vmap :depth depth :vspace vspc))
+;  (dna->vdict (rand-dna 2) {}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; formDNA arithmetic
 
 (defn- relc [a b]
   (case a
-    :M M
+    :M :M
     :N b
     (case b
-      :M M
+      :M :M
       :N a
       (case [a b]
-        [:U :U] U
-        [:I :I] I
-        ([:U :I] [:I :U]) M))))
+        [:U :U] :U
+        [:I :I] :I
+        ([:U :I] [:I :U]) :M))))
 
 (defn rel
   "Relates the values of 2 constants in a formDNA to each other."
-  ([]  N)
+  ([]  :N)
   ([a] a)
   ([a b] (if (and (const? a) (const? b))
            (relc a b)
@@ -550,14 +614,14 @@
 
 (defn- invc [a]
   (case a
-    :N M
-    :U I
-    :I U
-    :M N))
+    :N :M
+    :U :I
+    :I :U
+    :M :N))
 
 (defn inv
   "Inverts the value of a every constant in a formDNA."
-  ([]  M)
+  ([]  :M)
   ([a] (if (const? a)
          (invc a)
          (mapv inv a)))
@@ -567,11 +631,9 @@
 
 
 (comment
-  (set! *print-length* 50)
+  ; (set! *print-length* 50)
+  ; (require '[criterium.core :as crt])
 
-  (defn k->dna [k] (chars->dna (name k)))
-
-  (require '[criterium.core :as crt])
 
 
   )

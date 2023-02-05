@@ -1,6 +1,45 @@
 (ns formform.calc-test
   (:require [clojure.test :as t :refer [deftest is are testing]]
-            [formform.calc :as calc :refer :all]))
+            [formform.calc :as calc :refer :all]
+            [formform.specs.calc]
+            [clojure.spec.test.alpha :as stest]))
+
+(stest/instrument 'formform.calc/digit->const)
+(stest/instrument 'formform.calc/char->const)
+(stest/instrument 'formform.calc/const->digit)
+
+(stest/instrument 'formform.calc/dna-dimension)
+(stest/instrument 'formform.calc/rand-dna)
+(stest/instrument 'formform.calc/dna->quaternary)
+(stest/instrument 'formform.calc/make-compare-dna)
+(stest/instrument 'formform.calc/reorder-dna-seq)
+
+(stest/instrument 'formform.calc/prod=dna-seq->dna)
+(stest/instrument 'formform.calc/prod=dna->dna-seq)
+(stest/instrument 'formform.calc/digits->dna)
+(stest/instrument 'formform.calc/chars->dna)
+(stest/instrument 'formform.calc/dna->digits)
+(stest/instrument 'formform.calc/expand-dna-seq)
+(stest/instrument 'formform.calc/reduce-dna-seq)
+(stest/instrument 'formform.calc/make-dna)
+(stest/instrument 'formform.calc/filter-dna-seq)
+(stest/instrument 'formform.calc/filter-dna)
+
+(stest/instrument 'formform.calc/permute-dna-seq)
+(stest/instrument 'formform.calc/dna-seq-perspectives)
+(stest/instrument 'formform.calc/dna-perspectives)
+(stest/instrument 'formform.calc/equal-dna)
+(stest/instrument 'formform.calc/equiv-dna)
+
+(stest/instrument 'formform.calc/rand-vpoint)
+(stest/instrument 'formform.calc/vspace)
+(stest/instrument 'formform.calc/vdict)
+(stest/instrument 'formform.calc/dna->vdict)
+(stest/instrument 'formform.calc/vdict->vmap)
+(stest/instrument 'formform.calc/dna->vmap)
+
+(stest/instrument 'formform.calc/rel)
+(stest/instrument 'formform.calc/inv)
 
 
 ;; ? should test dna functions with lists too
@@ -46,10 +85,44 @@
       (is (dna? (rand-dna n))))
     (is (dna-dimension? (rand-dna 4 [0 1 2])))
     (is (dna-dimension? (rand-dna 6 [nil])))
-    (is (thrown? java.lang.AssertionError
+    (is (thrown? clojure.lang.ExceptionInfo
                  (rand-dna 4 [:x :y :z :v :w])))
-    (is (thrown? java.lang.AssertionError
-                 (rand-dna 1 [])))))
+    (is (thrown? clojure.lang.ExceptionInfo
+                 (rand-dna 1 [])))
+    ))
+
+
+(deftest make-dna-test
+  (testing "Correct transformation of mixed element types"
+    (is (= (make-dna :M \U \I 0 [1 2 1 3] :U :U :I \n [1 2 1 3])
+           [:M :U :I :N :U :I :U :M :U :U :I :N :U :I :U :M])
+        (= (make-dna \n \1 :U \M
+                     :I :U \n \M
+                     [:M :U 2 :N]
+                     [\n \n \u 3])
+           [:N :U :U :M :I :U :N :M :M :U :I :N :N :N :U :M])))
+  (testing "Correct dna-dimension for nested dna-seqs"
+    (is (= (dna-dimension
+            (make-dna (rand-dna 2) (rand-dna 2) (rand-dna 2) (rand-dna 2)))
+           3))
+    (is (= (dna-dimension
+            (make-dna [[nuim-code nuim-code nuim-code nuim-code]
+                       [nuim-code nuim-code nuim-code nuim-code]
+                       [nuim-code nuim-code nuim-code nuim-code]
+                       [nuim-code nuim-code nuim-code nuim-code]]
+                      [[nuim-code nuim-code nuim-code nuim-code]
+                       [nuim-code nuim-code nuim-code nuim-code]
+                       [nuim-code nuim-code nuim-code nuim-code]
+                       [nuim-code nuim-code nuim-code nuim-code]]
+                      [[nuim-code nuim-code nuim-code nuim-code]
+                       [nuim-code nuim-code nuim-code nuim-code]
+                       [nuim-code nuim-code nuim-code nuim-code]
+                       [nuim-code nuim-code nuim-code nuim-code]]
+                      [[nuim-code nuim-code nuim-code nuim-code]
+                       [nuim-code nuim-code nuim-code nuim-code]
+                       [nuim-code nuim-code nuim-code nuim-code]
+                       [nuim-code nuim-code nuim-code nuim-code]]))
+           4)))) 
 
 
 (deftest dna->digits-test
@@ -456,9 +529,9 @@
                                                   :I :I :M :I])))
     (is (= "4r0312" (dna->quaternary [:N :M :U :I])))
     ;; should this return nil?
-    (is (thrown? java.lang.AssertionError
+    (is (thrown? clojure.lang.ExceptionInfo
                  (dna->quaternary [:I :M])))
-    (is (thrown? java.lang.AssertionError
+    (is (thrown? clojure.lang.ExceptionInfo
                  (dna->quaternary [])))))
 
 
@@ -486,13 +559,26 @@
             [1 0] [:U :U :U :U :I :I :I :I :M :M :M :M :N :N :N :N]}))))
 
 
+(deftest vpoint-test
+  (testing "Validity of vpoint"
+    (is (vpoint? []))
+    (is (vpoint? [:N]))
+    (is (vpoint? [:N :U]))
+    (is (not (vpoint? #{:N :U}))))) 
+
 (deftest rand-vpoint-test
   (testing "Validity of vpoint"
-    (is (vpoint? (rand-vpoint 5)))))
+    (is (vpoint? (rand-vpoint 0)))
+    (is (vpoint? (rand-vpoint 1)))
+    (is (vpoint? (rand-vpoint 5)))
+    (take 10 (rand-vpoint))))
 
 
 (deftest vspace-test
   (testing "Validity of vspace"
+    (is (vspace? [[:N] [:I] [:U] [:M]]))
+    (is (vspace? #{[:N] [:I] [:U] [:M]})) ;; ? can be a set
+    (is (not (vspace? [[:N :N] [:N :U] [:N :I] [:I :U]])))
     (is (vspace? (vspace 3 nuim-code)))
     (is (vspace? (vspace 3 nmui-code)))))
 
@@ -501,7 +587,7 @@
   (testing "Validity of vdict"
     (is (vdict? (let [vp->r {[:N :M] :M
                              [:U :U] :I
-                             [:X :Y] :M
+                             ; [:X :Y] :M
                              [:U :U :I] :N}]
                   (vdict vp->r {:default-result :U}))))) )
 
@@ -514,7 +600,6 @@
 (deftest vdict->vmap-test
   (testing "Validity of vmap"
     (is (vmap? (vdict->vmap (dna->vdict (rand-dna 3) {}))))))
-
 
 (deftest rel-test
   (testing "Correctness of relation"
