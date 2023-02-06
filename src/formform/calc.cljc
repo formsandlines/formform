@@ -165,30 +165,24 @@
 
 ;; ! does not distinguish between formDNA and arbitrary const/dna collections
 (defn make-compare-dna
-  "Given a `sort-code` (try `calc.nuim-code` or `calc.nmui-code`), returns a comparator function to sort formDNA.
-  - compares constants and formDNA
-  - compares collections of formDNA (not recursively!)"
+  "Given a `sort-code` (try `calc.nuim-code` or `calc.nmui-code`), returns a comparator function to sort formDNA and single constants (can be mixed).
+  - can also compare map-entries by their constant or formDNA keys"
   [sort-code]
   (fn [a b]
     (let [sort-map  (zipmap sort-code (range))
-          comp-dna? #(and (dna? %) (> (dna-dimension %) 0))
-          convert   (fn [x] (if (comp-dna? x)
-                              ;; ! not interoperable for cljs will not
-                              ;;   parse BigInt here
-                              ;;   -> maybe use interop with js/BigInt
-                              ;;   or a different approach
-                              (edn/read-string (dna->quaternary x))
-                              (sort-map x)))]
-      (cond
-        ;; ? (not (nda? a))
-        (and (coll? a) (coll? b)) (let [ns-a (mapv convert a)
-                                        ns-b (mapv convert b)]
-                                    (compare ns-a ns-b))
-
-        (and ((complement coll?) a)
-             ((complement coll?) b)) (compare (convert a) (convert b))
-
-        :else (throw (ex-info "Cannot compare: " {:a a :b b}))))))
+          convert   (fn convert [x]
+                      (cond
+                        ;; ! not interoperable for cljs will not
+                        ;;   parse BigInt here
+                        ;;   -> maybe use interop with js/BigInt
+                        ;;   or a different approach
+                        (dna? x)   (edn/read-string (dna->quaternary x))
+                        (const? x) (sort-map x)
+                        ; (coll? x)  (mapv convert x)
+                        :else (throw (ex-info "Incompatible type: " {:x x}))))]
+      (if (and (map-entry? a) (map-entry? b))
+        (compare (convert (first a)) (convert (first b)))
+        (compare (convert a) (convert b))))))
 
 ;; convenience function
 (def compare-dna (make-compare-dna nuim-code))
@@ -288,7 +282,7 @@
 
 (defn reduce-dna-seq
   "Reduces a `dna-seq` by eliminating redundant/contingent terms.
-  - returns a tuple `[terms formDNA]`, where `terms` is a sequence that represents the remaining terms after reduction
+  - returns a tuple `[terms dna-seq]`, where `terms` is a sequence that represents the remaining terms after reduction
   - takes an optional `terms` sequence of any kind of items that will be used instead of the default arithmetic sequence `[0 1 2 …]` to represent each term (length has to match the formDNA dimension)
   
   Note: `dna-seq` can have any type of elements (not only constants)"
@@ -544,13 +538,6 @@
             :count 4))
 
 (def vmap? (partial s/valid? :formform.specs.calc/vmap))
-
-(vmap? (let [m {:N {:N :N :U :U :I :I :M :M}
-                :U {:N :N :U :U :I :I :M :M}
-                :I {:N :N :U :U :I :I :M :M}
-                :M {:N :N :U :U :I :I :M :M}}]
-         {:N m :U m :I m :M m}))
-(vmap? {:N :N :U :U :I :I :M :M})
 
 ;; fast-ish with up to 10 dimensions
 (defn vdict->vmap

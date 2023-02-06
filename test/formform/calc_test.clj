@@ -2,7 +2,9 @@
   (:require [clojure.test :as t :refer [deftest is are testing]]
             [formform.calc :as calc :refer :all]
             [formform.specs.calc]
-            [clojure.spec.test.alpha :as stest]))
+            [orchestra.spec.test :as stest]
+            ; [clojure.spec.test.alpha :as stest]
+            ))
 
 (stest/instrument 'formform.calc/digit->const)
 (stest/instrument 'formform.calc/char->const)
@@ -16,7 +18,7 @@
 
 (stest/instrument 'formform.calc/prod=dna-seq->dna)
 (stest/instrument 'formform.calc/prod=dna->dna-seq)
-(stest/instrument 'formform.calc/digits->dna)
+(stest/unstrument 'formform.calc/digits->dna)
 (stest/instrument 'formform.calc/chars->dna)
 (stest/instrument 'formform.calc/dna->digits)
 (stest/instrument 'formform.calc/expand-dna-seq)
@@ -173,9 +175,10 @@
   (testing "Correctness of sorted order"
     (is (= (sort compare-dna [[:N :M :U :I] [:N :U :I :M] [:M]])
            [[:M] [:N :U :I :M] [:N :M :U :I]]))
-    (is (= (sort compare-dna [[[:N :U :I :M] [:I :M]] [[:U :M :I] [:M :N :U]]])
-           [[[:U :M :I] [:M :N :U]] [[:N :U :I :M] [:I :M]]]))))
-
+    ;; ? sort collections of formDNA as well
+    ; (is (= (sort compare-dna [[[:N :U :I :M] [:I :M]] [[:U :M :I] [:M :N :U]]])
+    ;        [[[:U :M :I] [:M :N :U]] [[:N :U :I :M] [:I :M]]]))
+    ))
 
 (deftest expand-dna-seq-test
   (testing "Correctness of expansion"

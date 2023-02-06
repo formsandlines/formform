@@ -193,8 +193,13 @@
   (s/and keyword? #(% (methods interpret-op))))
 
 (s/def :formform.specs.expr/operator
-  (s/and sequential?
-         #(s/valid? :formform.specs.expr/op-symbol (op-symbol %))))
+  (s/cat :tag            :formform.specs.expr/op-symbol
+         :args-unchecked (s/* any?)))
+
+(defmulti op-spec first)
+(defmethod op-spec :default [_] :formform.specs.expr/operator)
+
+(s/def :formform.specs.expr/valid-operator (s/multi-spec op-spec first))
 
 (s/def :formform.specs.expr/pure-form
   (s/and (partial s/valid? :formform.specs.expr/form)
@@ -224,6 +229,12 @@
 (def expr->const {nil :N, [] :M, [:U] :I})
 
 (declare arrangement?)
+
+(def tag_arrangement :-)
+(def tag_unclear :uncl)
+(def tag_memory :mem)
+(def tag_formDNA :fdna)
+(def tag_seq-reentry :seq-re)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -265,7 +276,7 @@
                 (if (expression? expr)
                   expr
                   (throw (ex-info "Invalid expression." {:expr expr}))))
-            (apply vector :- exprs)))))))
+            (apply vector tag_arrangement exprs)))))))
 
 (defn form
   "Constructor for FORM expressions. Calls `make` on arguments."
@@ -563,7 +574,7 @@
          envs (all-envs vars)]
      (if to-fdna?
        (let [consts (mapv (comp first (partial eval-expr expr)) envs)]
-         (make :fdna (vec vars) (rseq consts)))
+         (make tag_formDNA (vec vars) (rseq consts)))
        (let [results (map (partial eval-expr expr) envs)]
          (with-meta results {:vars vars :vspc vspc}))))))
 ;; alias
@@ -732,20 +743,22 @@
 ;; syntactic operators
 
 (s/def :formform.specs.expr/arrangement
-  (s/cat :tag   (partial = :-)
+  (s/cat :tag   (partial = tag_arrangement)
          :exprs (s/* #(s/valid? :formform.specs.expr/expression %))))
 
 (def arrangement? (partial s/valid? :formform.specs.expr/arrangement))
 
-(defoperator :- [& exprs] (vector (into [] exprs))
+(defmethod op-spec tag_arrangement [_] :formform.specs.expr/arrangement)
+
+(defoperator tag_arrangement [& exprs] (vector (into [] exprs))
   :predicate arrangement?
   ; :reducer (fn [[_ & exprs] env] (simplify-content [exprs] env))
   )
 
 (defn arr-prepend [x rel-expr]
-  (apply vector :- x (rest rel-expr)))
+  (apply vector tag_arrangement x (rest rel-expr)))
 
-(defoperator :* [& exprs] (apply vector :- (map form exprs)))
+(defoperator :* [& exprs] (apply vector tag_arrangement (map form exprs)))
 (defoperator :| [& exprs] (mapv form exprs))
 
 ;; Nested expressions
@@ -770,10 +783,12 @@
 ;; unclear FORMs
 
 (s/def :formform.specs.expr/unclear
-  (s/cat :tag   (partial = :uncl)
+  (s/cat :tag   (partial = tag_unclear)
          :label #(and (string? %) ((complement empty?) %))))
 
 (def unclear? (partial s/valid? :formform.specs.expr/unclear))
+
+(defmethod op-spec tag_unclear [_] :formform.specs.expr/unclear)
 
 (defn construct-unclear [op-k & args]
   (let [label (->> args
@@ -786,12 +801,12 @@
       (throw (ex-info "Invalid label for unclear FORM."
                       {:label label})))))
 
-(defoperator :uncl [label] [:seq-re :<r label label]
+(defoperator tag_unclear [label] [tag_seq-reentry :<r label label]
   :constructor construct-unclear
   :predicate unclear?
   :reducer
   (fn [[_ label] env]
-    (let [fdna [:fdna [label] [:N :U :U :U]]]
+    (let [fdna [tag_formDNA [label] [:N :U :U :U]]]
       (simplify-op fdna env))))
 
 ;;-------------------------------------------------------------------------
@@ -805,7 +820,7 @@
               #(s/valid? :formform.specs.expr/expression %)) :into []))
 
 (s/def :formform.specs.expr/memory
-  (s/cat :tag  (partial = :mem)
+  (s/cat :tag  (partial = tag_memory)
          :rems :formform.specs.expr/rem-pairs
          :ctx  (s/* #(s/valid? :formform.specs.expr/expression %))))
 
@@ -813,13 +828,15 @@
 
 (def memory? (partial s/valid? :formform.specs.expr/memory))
 
+(defmethod op-spec tag_memory [_] :formform.specs.expr/memory)
+
 (defn memory-replace [[_ _ & ctx] & repl-pairs]
   {:pre [(rem-pairs? repl-pairs)]}
-  (apply make-op :mem (vec repl-pairs) ctx))
+  (apply make-op tag_memory (vec repl-pairs) ctx))
 
 (defn memory-extend [[_ rems & ctx] & ext-pairs]
   {:pre [(rem-pairs? ext-pairs)]}
-  (apply make-op :mem (vec (concat rems ext-pairs)) ctx))
+  (apply make-op tag_memory (vec (concat rems ext-pairs)) ctx))
 
 (defn- simplify-rems
   [rems env]
@@ -862,9 +879,9 @@
         rems (filter-rems rems ctx)]
     (if (empty? rems)
       (apply make ctx)
-      (apply make-op :mem rems ctx))))
+      (apply make-op tag_memory rems ctx))))
 
-(defoperator :mem [rems & ctx]
+(defoperator tag_memory [rems & ctx]
   (let [eqs (apply make
                    (map (fn [[k v]] (form (form k v)
                                           (form (form k) (form v))))
@@ -876,7 +893,7 @@
 (defn memory
   "Constructs a memory FORM."
   [rems & exprs]
-  (make-op :mem rems exprs))
+  (make-op tag_memory rems exprs))
 
 ;;-------------------------------------------------------------------------
 ;; self-equivalent re-entry FORMs
@@ -915,7 +932,7 @@
   (comp some? (set (vals seq-reentry-sign->opts))))
 
 (s/def :formform.specs.expr/seq-reentry
-  (s/cat :tag (partial = :seq-re)
+  (s/cat :tag (partial = tag_seq-reentry)
          :sign #(s/valid? :formform.specs.expr/seq-reentry-signature %)
          :nested-exprs (s/+ #(s/valid? :formform.specs.expr/expression %))))
 
@@ -927,6 +944,8 @@
 
 (def seq-reentry? (partial s/valid? :formform.specs.expr/seq-reentry))
 
+(defmethod op-spec tag_seq-reentry [_] :formform.specs.expr/seq-reentry)
+
 (defn simplify-seq-reentry
   [seq-re env]
   (let [env   (observed-removeall env) ;; no de/generation across seq-re bounds
@@ -937,7 +956,7 @@
         [re-entry? exprs]
         (let [re-expr     (if (arrangement? (first exprs))
                             (arr-prepend sign (first exprs))
-                            [:- sign (first exprs)]) ;; apply?
+                            [tag_arrangement sign (first exprs)]) ;; apply?
               [e & exprs] (simplify-expr-chain {:rtl? true}
                                                (cons re-expr (rest exprs))
                                                env)
@@ -947,7 +966,7 @@
           (if (= x sign)
             [true  (cons (cond (empty? r) nil
                                (== 1 (count r)) (first r)
-                               :else (apply make :- r))
+                               :else (apply make tag_arrangement r))
                          exprs)]
             [false (cons e exprs)]))
         >< (fn [expr] (simplify-content expr env))] ; interpret ?
@@ -990,8 +1009,8 @@
             [_ false _     nil (:or :U ([:U] :seq)) nil] :U ;; (((f) U/I))
 
              ;; if nothing applies, return the reduced seq-reentry FORM:
-            :else (apply make :seq-re sign exprs)))
-        (apply make :seq-re sign exprs))
+            :else (apply make tag_seq-reentry sign exprs)))
+        (apply make tag_seq-reentry sign exprs))
       ;; re-entry vanished due to dominance of the mark
       ;; this is not a re-entry FORM anymore
       (>< (apply nested-expr {:unmarked? open? :rightwards? false}
@@ -1009,7 +1028,7 @@
           :else (throw (ex-info "Invalid re-entry specifications."
                                 {:arg specs})))
         nested-exprs (if (empty? nested-exprs) [nil] nested-exprs)
-        op (apply vector :seq-re signature nested-exprs)]
+        op (apply vector tag_seq-reentry signature nested-exprs)]
     (if (seq-reentry? op)
       op
       ;; ! redundant checks
@@ -1017,7 +1036,7 @@
                       {:op op-k :args (cons specs nested-exprs)})))))
 
 ;; ? should even/odd construct redundant re-entries in interpretation?
-(defoperator :seq-re [sign & nested-exprs]
+(defoperator tag_seq-reentry [sign & nested-exprs]
   (let [[x & ys :as exprs] nested-exprs
         {:keys [parity open?]} (seq-reentry-sign->opts sign)
         res-odd?  (odd? (count exprs))
@@ -1034,7 +1053,7 @@
                [:f1 (apply nested-expr {:unmarked? true :rightwards? false}
                            (make (if pre-step? :f2 :f*) x) ys)])
         init (if (or pre-step? open?) :f1 :f*)]
-    (make-op :mem (vec (remove nil? [re pre open])) init))
+    (make-op tag_memory (vec (remove nil? [re pre open])) init))
   :constructor construct-seq-reentry
   :predicate seq-reentry?
   :reducer simplify-seq-reentry)
@@ -1044,7 +1063,7 @@
   - `specs`: either a `seq-reentry-signature` or an options map
   - `nested-exprs`: zero or more expressions intended as a nested sequence"
   [specs & nested-exprs]
-  (apply construct-seq-reentry :seq-re specs nested-exprs))
+  (apply construct-seq-reentry tag_seq-reentry specs nested-exprs))
 
 ;;-------------------------------------------------------------------------
 ;; Compound expressions
@@ -1079,8 +1098,10 @@
                                    :U [v (form v)]
                                    :I [(form v) v]))
            all-selections (map select-UI vars->consts)]
-       (make (form (apply make (map first all-selections)) (form :seq-re :<..r))
-             (form (apply make (map second all-selections)) (form :seq-re :<r)))))))
+       (make (form (apply make (map first all-selections))
+                   (form tag_seq-reentry :<..r))
+             (form (apply make (map second all-selections))
+                   (form tag_seq-reentry :<r)))))))
 
 
 ;; Logical spaces
@@ -1109,12 +1130,14 @@
 
 (s/def :formform.specs.expr/formDNA
   (s/and (s/nonconforming
-          (s/cat :tag  (partial = :fdna)
+          (s/cat :tag  (partial = tag_formDNA)
                  :vars (s/coll-of :formform.specs.expr/variable)
                  :dna  :formform.specs.calc/dna))
          #(== (count (second %)) (calc/dna-dimension (nth % 2)))))
 
 (def formDNA? (partial s/valid? :formform.specs.expr/formDNA))
+
+(defmethod op-spec tag_formDNA [_] :formform.specs.expr/formDNA)
 
 (defn- filter-formDNA
   "Filters the `dna` by values from given `env` whose keys match variables in the `varlist` of the formDNA."
@@ -1129,7 +1152,7 @@
                         (vector % v))
                      vars)
         vpoint (map second matches)]
-    (make :fdna (mapv first (filter #(= (second %) :_) matches))
+    (make tag_formDNA (mapv first (filter #(= (second %) :_) matches))
           (calc/filter-dna dna vpoint))))
 
 (defn- simplify-formDNA
@@ -1150,7 +1173,7 @@
        (throw (ex-info (str "Invalid operator arguments" op-k)
                        {:op op-k :vars vars :dna dna}))))))
 
-(defoperator :fdna [vars dna]
+(defoperator tag_formDNA [vars dna]
   (if (empty? vars)
     (make (first dna))
     (let [vdict (calc/dna->vdict dna {})]

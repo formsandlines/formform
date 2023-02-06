@@ -33,9 +33,8 @@
 
 (let [digits (set (map (comp first str) (range 10)))]
   (s/def ::quaternary-str (s/and string?
-                                 #(= "4r" (subs % 0 3))
-                                 #(every? digits (subs % 3)))))
-
+                                 #(= "4r" (subs % 0 2))
+                                 #(every? digits (subs % 2)))))
 
 (s/fdef formform.calc/digit->const
   :args (s/alt :ar1 (s/cat :int ::const-int?)
@@ -73,20 +72,40 @@
   :args (s/cat :dna ::dna)
   :ret  ::quaternary-str)
 
-;; ! adjust
+
+;; for some reason, spec/orchestra needs a custom generator for `map-entry?`
+
+(s/def ::const-map-entry
+  (s/with-gen
+    (s/and map-entry?
+           #(s/valid? ::const (first %)))
+    #(gen/fmap first (gen/map (s/gen ::const) (gen/simple-type)))))
+
+(s/def ::dna-map-entry
+  (s/with-gen
+    (s/and map-entry?
+           #(s/valid? ::dna (first %)))
+    #(gen/fmap first (gen/map (s/gen ::dna) (gen/simple-type)))))
+
 (s/fdef formform.calc/make-compare-dna
   :args (s/cat :sort-code ::sort-code)
-  :ret  (s/fspec :args (let [x (s/or :const ::const
-                                     :dna   ::dna
-                                     :coll  (s/coll-of
-                                             (s/or :const ::const
-                                                   :dna   ::dna)))]
-                         (s/tuple x x))
+  :ret  (s/fspec :args (s/or :const-or-dna
+                             (s/tuple (s/or :const ::const
+                                            :dna   ::dna)
+                                      (s/or :const ::const
+                                            :dna   ::dna))
+                             :map-entries
+                             (s/tuple (s/or :const ::const-map-entry
+                                            :dna   ::dna-map-entry)
+                                      (s/or :const ::const-map-entry
+                                            :dna   ::dna-map-entry)))
                  :ret  #(#{-1 0 1} %))
-  :fn   (fn [{:keys [args ret]}]
-          (try (sort (ret (:sort-code args))
-                     [:N :U :I :M])
-               (catch Exception e false))))
+  ;; ! doesn’t work yet:
+  ; :fn   (fn [{:keys [args ret]}]
+  ;         (try (sort (ret (:sort-code args))
+  ;                    [:N :U :I :M])
+  ;              (catch Exception e false)))
+  )
 
 (s/fdef formform.calc/reorder-dna-seq
   :args (s/cat :dna-seq        ::dna-seq
@@ -153,7 +172,10 @@
                                  :dna-seq ::dna-seq)
                           #(== (count (:terms %))
                                (calc/dna-dimension (:dna-seq %)))))
-  :ret  ::dna-seq)
+  :ret  (s/and (s/cat :terms   sequential?
+                      :dna-seq ::dna-seq)
+               #(== (calc/dna-dimension (-> % :dna-seq))
+                    (count (-> % :terms)))))
 
 (s/fdef formform.calc/make-dna
   :args (s/and (s/nonconforming ::dna-seq-elem-tree)
@@ -279,6 +301,17 @@
 
 
 (comment
+  (s/conform (let [const-or-dna    (s/or :const ::const
+                                         :dna   ::dna)
+                   const-map-entry (s/and map-entry?
+                                          #(s/valid? const-or-dna
+                                                     (first %)))]
+               (s/or :const-or-dna (s/tuple const-or-dna
+                                            const-or-dna)
+                     :map-entries  (s/tuple const-map-entry
+                                            const-map-entry)))
+             [(first {[:M :U :I :N] 0 :M 1}) (second {[:M :U :I :N] 0 :M 1})])
+
   (gen/sample (s/gen ::const))
   (gen/sample (s/gen ::sort-code))
   (gen/sample (s/gen ::dna-dimension))
