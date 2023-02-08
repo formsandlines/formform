@@ -1,7 +1,51 @@
 (ns formform.expr-test
   (:require [clojure.test :as t :refer [deftest is are testing]]
             [formform.calc :as calc]
-            [formform.expr :as expr :refer :all]))
+            [formform.expr :as expr :refer :all]
+            [formform.specs.expr]
+            [orchestra.spec.test :as stest]
+            ; [clojure.spec.test.alpha :as stest]
+            ))
+
+;; Multimethods
+;; -> instrumentation of multimethods causes issues with defmethod 
+;;    and other problems (e.g. ClassCastException) due to wrapping
+; (stest/instrument 'formform.expr/make-op)
+; (stest/instrument 'formform.expr/valid-op?)
+; (stest/instrument 'formform.expr/interpret-op)
+; (stest/instrument 'formform.expr/simplify-op)
+; (stest/instrument 'formform.expr/op-get)
+; (stest/instrument 'formform.expr/op-data)
+; (stest/instrument 'formform.expr/interpret-sym)
+; (stest/instrument 'formform.expr/simplify-sym)
+
+;; Functions
+(stest/instrument 'formform.expr/splice-ctx)
+(stest/instrument 'formform.expr/make)
+(stest/instrument 'formform.expr/form)
+(stest/instrument 'formform.expr/substitute-expr)
+(stest/instrument 'formform.expr/interpret)
+(stest/instrument 'formform.expr/interpret*)
+(stest/instrument 'formform.expr/find-subexprs)
+(stest/instrument 'formform.expr/find-vars)
+(stest/instrument 'formform.expr/gen-vars)
+
+(stest/instrument 'formform.expr/simplify-matching-content)
+(stest/instrument 'formform.expr/simplify-form)
+(stest/instrument 'formform.expr/simplify-content)
+(stest/instrument 'formform.expr/simplify-context)
+(stest/instrument 'formform.expr/cnt>)
+(stest/instrument 'formform.expr/ctx>)
+
+(stest/instrument 'formform.expr/eval-expr)
+(stest/instrument 'formform.expr/eval-all)
+(stest/instrument 'formform.expr/equal)
+(stest/instrument 'formform.expr/equiv)
+
+(stest/instrument 'formform.expr/mark-exprs)
+(stest/instrument 'formform.expr/nest-exprs)
+(stest/instrument 'formform.expr/simplify-expr-chain)
+
 
 (deftest make-op-test
   (testing "Missing operator keyword"
@@ -9,8 +53,8 @@
                  (make-op 'a 'b))))
 
   (testing "Unknown operator keyword"
-    (is (thrown-with-msg? Exception #"Unknown operator"
-                          (make-op :x 'a))))
+    (is (thrown? clojure.lang.ExceptionInfo
+                 (make-op :x 'a))))
 
   (testing "Known operators"
     (is (= '[:- a b] (make-op :- 'a 'b)))
@@ -1204,52 +1248,52 @@
                            first)))))
 
 
-(deftest nested-expr-test
+(deftest nest-exprs-test
   (testing "Shape of simple cases"
-    (is (= (nested-expr {} nil)
+    (is (= (nest-exprs {} nil)
            '()))
-    (is (= (nested-expr {} nil nil)
+    (is (= (nest-exprs {} nil nil)
            '(())))
-    (is (= (nested-expr {} 'a)
+    (is (= (nest-exprs {} 'a)
            '(a)))
-    (is (= (nested-expr {} 'a 'b)
+    (is (= (nest-exprs {} 'a 'b)
            '((a) b)))
-    (is (= (nested-expr {} 'a 'b 'c)
+    (is (= (nest-exprs {} 'a 'b 'c)
            '(((a) b) c)))
-    (is (= (nested-expr {:unmarked? true} nil)
+    (is (= (nest-exprs {:unmarked? true} nil)
            nil))
-    (is (= (nested-expr {:unmarked? true} nil nil)
+    (is (= (nest-exprs {:unmarked? true} nil nil)
            '()))
-    (is (= (nested-expr {:unmarked? true} 'a)
+    (is (= (nest-exprs {:unmarked? true} 'a)
            'a))
-    (is (= (nested-expr {:unmarked? true} 'a 'b)
+    (is (= (nest-exprs {:unmarked? true} 'a 'b)
            '[:- (a) b]))
-    (is (= (nested-expr {:unmarked? true} 'a 'b 'c)
+    (is (= (nest-exprs {:unmarked? true} 'a 'b 'c)
            '[:- ((a) b) c]))
 
-    (is (= (nested-expr {:rightwards? true} nil)
+    (is (= (nest-exprs {:ltr? true} nil)
            '()))
-    (is (= (nested-expr {:rightwards? true} nil nil)
+    (is (= (nest-exprs {:ltr? true} nil nil)
            '(())))
-    (is (= (nested-expr {:rightwards? true} 'a)
+    (is (= (nest-exprs {:ltr? true} 'a)
            '(a)))
-    (is (= (nested-expr {:rightwards? true} 'a 'b)
+    (is (= (nest-exprs {:ltr? true} 'a 'b)
            '(a (b))))
-    (is (= (nested-expr {:rightwards? true} 'a 'b 'c)
+    (is (= (nest-exprs {:ltr? true} 'a 'b 'c)
            '(a (b (c)))))
-    (is (= (nested-expr {:rightwards? true :unmarked? true} nil)
+    (is (= (nest-exprs {:ltr? true :unmarked? true} nil)
            nil))
-    (is (= (nested-expr {:rightwards? true :unmarked? true} nil nil)
+    (is (= (nest-exprs {:ltr? true :unmarked? true} nil nil)
            '()))
-    (is (= (nested-expr {:rightwards? true :unmarked? true} 'a)
+    (is (= (nest-exprs {:ltr? true :unmarked? true} 'a)
            'a))
-    (is (= (nested-expr {:rightwards? true :unmarked? true} 'a 'b)
+    (is (= (nest-exprs {:ltr? true :unmarked? true} 'a 'b)
            '[:- a (b)]))
-    (is (= (nested-expr {:rightwards? true :unmarked? true} 'a 'b 'c)
+    (is (= (nest-exprs {:ltr? true :unmarked? true} 'a 'b 'c)
            '[:- a (b (c))])))
 
   (testing "Shape of output expression"
-    (is (= (nested-expr {} [:- :f 'a] nil 'b nil)
+    (is (= (nest-exprs {} [:- :f 'a] nil 'b nil)
            '((((:f a)) b))))))
 
 

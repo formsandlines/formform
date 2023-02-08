@@ -17,6 +17,7 @@
 ;; -> single-digit formDNA
 
 (def consts #{:N :U :I :M})
+(def var-const :_)
 
 (s/def :formform.specs.calc/const
   (s/with-gen
@@ -25,11 +26,13 @@
        false)
     #(gen/elements [:N :U :I :M])))
 
+(s/def :formform.specs.calc/var-const #(= % var-const))
+
 (s/def :formform.specs.calc/const?
   (s/with-gen
-    (s/or :const :formform.specs.calc/const
-          :var-const #(= % :_))
-    #(gen/elements [:N :U :I :M :_])))
+    (s/or :const     :formform.specs.calc/const
+          :var-const :formform.specs.calc/var-const)
+    #(gen/elements [:N :U :I :M var-const])))
 
 (s/def :formform.specs.calc/sort-code
   (s/with-gen
@@ -52,7 +55,7 @@
   ([n] (digit->const n nuim-code))
   ([n sort-code]
    (if (== n -1)
-     :_ ;; “hole” or variable value
+     var-const ;; “hole” or variable value
      (sort-code n))))
 
 (defn char->const
@@ -63,7 +66,7 @@
      (\u \U) :U
      (\i \I) :I
      (\m \M) :M
-     \_      :_
+     \_      var-const
      (when-let [n (edn/read-string (str c))]
        (digit->const n sort-code)))))
 
@@ -71,7 +74,7 @@
 (defn const->digit
   ([c] (const->digit c nuim-code))
   ([c sort-code]
-   (if (= c :_)
+   (if (= c var-const)
      -1 ;; “hole” or variable value
      ((zipmap sort-code (range)) c))))
 

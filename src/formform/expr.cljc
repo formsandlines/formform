@@ -192,18 +192,19 @@
 (s/def :formform.specs.expr/op-symbol
   (s/and keyword? #(% (methods interpret-op))))
 
-(s/def :formform.specs.expr/operator
+(s/def :formform.specs.expr/generic-operator
   (s/cat :tag            :formform.specs.expr/op-symbol
          :args-unchecked (s/* any?)))
 
 (defmulti op-spec first)
-(defmethod op-spec :default [_] :formform.specs.expr/operator)
+(defmethod op-spec :default [_] :formform.specs.expr/generic-operator)
 
-(s/def :formform.specs.expr/valid-operator (s/multi-spec op-spec first))
+(s/def :formform.specs.expr/operator (s/multi-spec op-spec first))
 
 (s/def :formform.specs.expr/pure-form
   (s/and (partial s/valid? :formform.specs.expr/form)
-         (complement (partial s/valid? :formform.specs.expr/operator))))
+         (complement
+          (partial s/valid? :formform.specs.expr/generic-operator))))
 
 (s/def :formform.specs.expr/variable (s/or :str string? :sym symbol?))
 
@@ -212,13 +213,17 @@
         :empty nil?
         :symbolic-expr keyword?
         ; :expr-symbol (partial s/valid? :formform.specs.expr/expr-symbol)
-        ; :operator (partial s/valid? :formform.specs.expr/operator)
+        ; :operator (partial s/valid? :formform.specs.expr/generic-operator)
         :variable (partial s/valid? :formform.specs.expr/variable)))
+
+(s/def :formform.specs.expr/context
+  (s/every :formform.specs.expr/expression))
+(s/def :formform.specs.expr/environment (s/keys))
 
 (def form? (partial s/valid? :formform.specs.expr/form))
 (def expr-symbol? (partial s/valid? :formform.specs.expr/expr-symbol))
 (def op-symbol? (partial s/valid? :formform.specs.expr/op-symbol))
-(def operator? (partial s/valid? :formform.specs.expr/operator))
+(def operator? (partial s/valid? :formform.specs.expr/generic-operator))
 (def pure-form? (partial s/valid? :formform.specs.expr/pure-form))
 (def variable? (partial s/valid? :formform.specs.expr/variable))
 (def expression? (partial s/valid? :formform.specs.expr/expression))
@@ -318,6 +323,17 @@
                                         {:type :infinite-substitution}))
          :else (recur expr' (inc i)))))))
 
+;; ? be more specific than `sequential?`
+(defn find-subexprs
+  "Finds all subexpressions in `expr` that match any element of the given set `subexprs`."
+  [expr subexprs]
+  (if (some? (subexprs expr))
+    (list expr)
+    (if (sequential? expr)
+      (filter subexprs
+              (tree-seq sequential? seq (seq expr)))
+      '())))
+
 (defn find-vars
   "Finds all variables in an expresson or returns the expression itself if it is a variable.
   
@@ -328,7 +344,7 @@
   (if (sequential? expr)
     (let [children (fn [x] (filter #(or (struct-expr? %) (if (nil? vars)
                                                            (variable? %)
-                                                           (vars %)))
+                                                           ((set vars) %)))
                                    x))
           vs (->> (seq expr)
                   (tree-seq sequential? children)
@@ -557,7 +573,7 @@
      (if (some? v)
        ;; ? maybe a map instead
        (with-meta [ v ] m)
-       (with-meta [ :_ ] m)))))
+       (with-meta [ calc/var-const ] m)))))
 ;; alias
 (def => eval-expr)
 
@@ -586,7 +602,7 @@
       ([expr env] (let [[x] (=> expr env)]
                     (if (calc/const? x)
                       x
-                      :_)))) ; nil?
+                      calc/var-const)))) ; nil?
 
 ;; ? return a map of map-keys var->interpr. instead
 #_(defn eval-all
@@ -624,14 +640,13 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Chained expressions
 
-(defn- chain [exprs] (map form exprs))
+(defn- mark [exprs] (map form exprs))
 
-;; ? choose different term than “chain”
-(defn chained-expr
+(defn mark-exprs
   "Chains expressions like `((a)(b)…)` or `(a)(b)…` if {:unmarked? true}`
   - group expressions with arrangements: `[:- x y …]`"
   [{:keys [unmarked?] :or {unmarked? false}} & exprs]
-  (let [f-chained (chain exprs)]
+  (let [f-chained (mark exprs)]
     (if unmarked?
       (apply make f-chained)
       (apply form f-chained))))
@@ -663,29 +678,33 @@
         (splice-ctx [expr])
         (splice-ctx (concat [expr] [(nest-right r)]))))))
 
-(defn nested-expr
-  "Nests expressions leftwards `(((…)a)b)` or rightwards `(a(b(…)))` if `{:rightwards? true}`
+(defn nest-exprs
+  "Nests expressions leftwards `(((…)a)b)` or rightwards `(a(b(…)))` if `{:ltr? true}`
   - use `nil` for empty expressions
   - use an arrangement `(make x y …)` to add multiple exprs. to the same level"
-  [{:keys [unmarked? rightwards?]
-    :or {unmarked? false rightwards? false} :as opts} expr & exprs]
+  [{:keys [unmarked? ltr?]
+    :or {unmarked? false ltr? false} :as opts} expr & exprs]
   {:pre [(map? opts)]}
   (let [exprs  (cons expr exprs)
-        nested (if rightwards? (nest-right exprs) (nest-left exprs))]
+        nested (if ltr? (nest-right exprs) (nest-left exprs))]
     (apply (if unmarked? make form) nested)))
+
+;; ? size or nil constrains
+(s/def :formform.specs.expr/expr-chain
+  :formform.specs.expr/context)
 
 ;; ! check assumptions about env while merging nesting contexts via crossing
 ;; ! needs MASSIVE refactoring
 (defn simplify-expr-chain
-  "Reduces a sequence of expressions, intended to be linked in a chain, to a sequence of simplified expressions, possibly spliced or shortened via inference.
+  "Reduces a sequence of expressions, intended to be linked in a `chain`, to a sequence of simplified expressions, possibly spliced or shortened via inference.
   - assumes rightward-nesting, e.g. `(…(…(…)))`
   - for leftward-nesting, e.g. `(((…)…)…)`, pass `{:rtl? true}`"
-  ([exprs env] (simplify-expr-chain {} exprs env))
-  ([{:keys [rtl?] :or {rtl? false}} exprs env]
+  ([chain env] (simplify-expr-chain {} chain env))
+  ([{:keys [rtl?] :or {rtl? false}} chain env]
    (vec
-    (loop [[expr & r]  (if rtl? (reverse exprs) exprs)
+    (loop [[expr & r]  (if rtl? (reverse chain) chain)
            env         env
-           simpl-exprs (if rtl? '() [])]
+           simpl-chain (if rtl? '() [])]
       (let [[expr m] (ctx->cnt {:+meta? true}
                                (simplify-context (cnt->ctx expr) env))
             ;; needs upstream env to reduce with observed values
@@ -693,47 +712,47 @@
             ;; ? :depth will be incremented in simplify -> maybe not
             env (dissoc (:env-next m) :depth)]
         (if (and (empty? r) (= expr nil))
-          (condp == (count simpl-exprs)
-            0 (conj simpl-exprs nil)
+          (condp == (count simpl-chain)
+            0 (conj simpl-chain nil)
             ;; by law of calling
             ;; > (a ()) = (())
-            1 (conj (empty simpl-exprs) (form))
+            1 (conj (empty simpl-chain) (form))
             ;; > (a (() (… (z)))) = (a (())) = (a)
             (if rtl?
-              (rest simpl-exprs)
-              (butlast simpl-exprs)))
-          (let [simpl-exprs (if (and (> (count simpl-exprs) 1)
+              (rest simpl-chain)
+              (butlast simpl-chain)))
+          (let [simpl-chain (if (and (> (count simpl-chain) 1)
                                      (nil? ((if rtl? first last)
-                                            simpl-exprs)))
+                                            simpl-chain)))
                               ;; by law of crossing
                               ;; > (a (b ( (x …)))) = (a (b x …))
                               ;; > (a (b ( (() …)))) = (a (()))
                               (if rtl?
-                                (let [[xs before] (split-at 2 simpl-exprs)
+                                (let [[xs before] (split-at 2 simpl-chain)
                                       ctx  [expr (second xs)]
                                       expr (ctx->cnt
                                             {} ;; ? correct env
                                             (simplify-context ctx {}))]
                                   (conj before expr))
                                 (let [[before xs] (split-at
-                                                   (- (count simpl-exprs) 2)
-                                                   simpl-exprs)
+                                                   (- (count simpl-chain) 2)
+                                                   simpl-chain)
                                       ctx  [(first xs) expr]
                                       expr (ctx->cnt
                                             {} ;; ? correct env
                                             (simplify-context ctx {}))]
                                   (conj (vec before) expr)))
-                              (conj simpl-exprs expr))]
+                              (conj simpl-chain expr))]
             (cond (= expr []) (cond
                                 ;; by law of calling/crossing
                                 ;; > (()) = (())
                                 ;; > (a (b (() …))) = (a (b))
                                 ;; > (a (b ( (() …)))) = (a (())) = (a)
-                                (== 1 (count simpl-exprs)) simpl-exprs
-                                rtl? (rest simpl-exprs)
-                                :else (butlast simpl-exprs))
-                  (empty? r) simpl-exprs
-                  :else (recur r env simpl-exprs)))))))))
+                                (== 1 (count simpl-chain)) simpl-chain
+                                rtl? (rest simpl-chain)
+                                :else (butlast simpl-chain))
+                  (empty? r) simpl-chain
+                  :else (recur r env simpl-chain)))))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -763,20 +782,20 @@
 
 ;; Nested expressions
 (defoperator :<- [& exprs]
-  (apply nested-expr {:unmarked? false :rightwards? false} exprs))
+  (apply nest-exprs {:unmarked? false :ltr? false} exprs))
 (defoperator :-> [& exprs]
-  (apply nested-expr {:unmarked? false :rightwards? true} exprs))
+  (apply nest-exprs {:unmarked? false :ltr? true} exprs))
 (defoperator :< [& exprs]
-  (apply nested-expr {:unmarked? true :rightwards? false} exprs))
+  (apply nest-exprs {:unmarked? true :ltr? false} exprs))
 (defoperator :> [& exprs]
-  (apply nested-expr {:unmarked? true :rightwards? true} exprs))
+  (apply nest-exprs {:unmarked? true :ltr? true} exprs))
 
 ;; Chained expressions
 ;; ? redundant because of :* and :|
 (defoperator :<-> [& exprs]
-  (apply chained-expr {:unmarked? false} exprs))
+  (apply mark-exprs {:unmarked? false} exprs))
 (defoperator :<> [& exprs]
-  (apply chained-expr {:unmarked? true} exprs))
+  (apply mark-exprs {:unmarked? true} exprs))
 
 
 ;;-------------------------------------------------------------------------
@@ -852,24 +871,26 @@
           [rems-reduced env]
           (recur r rems-reduced env))))))
 
+;; variables for `find-vars` can be every expression in :mem enviornments
+;; ? different find-vars that takes every expr as var?
+;; ? make everything a variable
 (defn- filter-rems
   [rems ctx]
-  (let [rem-vars (set (find-vars ctx {:vars (set (map first rems))}))
+  (let [rem-keys (set (find-subexprs ctx (set (map first rems))))
         rev-rems (reverse rems)]
     (first (reduce
-            (fn [[acc rem-vars varlist-next] [v x :as rem]]
-              (if (some? (rem-vars v))
+            (fn [[acc rem-keys varlist-next] [v x :as rem]]
+              (if (some? (rem-keys v))
                 (if (= v x) ;; remove self-reference [x x]
-                  [acc rem-vars (rest varlist-next)]
-                  (let [opts {:vars (set varlist-next)}
-                        vars (if (struct-expr? x)
-                               (find-vars x opts)
-                               '())]
+                  [acc rem-keys (rest varlist-next)]
+                  (let [new-ks (if (struct-expr? x)
+                                 (find-subexprs x (set varlist-next))
+                                 '())]
                     [(conj acc rem)
-                     (disj (into rem-vars vars) v)
+                     (disj (into rem-keys new-ks) v)
                      (rest varlist-next)]))
-                [acc rem-vars (rest varlist-next)]))
-            [[] rem-vars (map first (rest rev-rems))]
+                [acc rem-keys (rest varlist-next)]))
+            [[] rem-keys (map first (rest rev-rems))]
             rev-rems))))
 
 (defn- simplify-memory
@@ -1013,7 +1034,7 @@
         (apply make tag_seq-reentry sign exprs))
       ;; re-entry vanished due to dominance of the mark
       ;; this is not a re-entry FORM anymore
-      (>< (apply nested-expr {:unmarked? open? :rightwards? false}
+      (>< (apply nest-exprs {:unmarked? open? :ltr? false}
                  exprs)))))
 
 (defn- construct-seq-reentry
@@ -1041,16 +1062,16 @@
         {:keys [parity open?]} (seq-reentry-sign->opts sign)
         res-odd?  (odd? (count exprs))
         pre-step? (and res-odd? (not (= parity :even)))
-        re   [:f* (apply nested-expr {:unmarked? false :rightwards? false}
+        re   [:f* (apply nest-exprs {:unmarked? false :ltr? false}
                          (make :f* x) (if res-odd?
                                         (concat ys (cons x ys))
                                         ys))]
         pre  (when pre-step?
                [(if open? :f2 :f1)
-                (apply nested-expr {:unmarked? false :rightwards? false}
+                (apply nest-exprs {:unmarked? false :ltr? false}
                        (make :f* x) ys)])
         open (when open?
-               [:f1 (apply nested-expr {:unmarked? true :rightwards? false}
+               [:f1 (apply nest-exprs {:unmarked? true :ltr? false}
                            (make (if pre-step? :f2 :f*) x) ys)])
         init (if (or pre-step? open?) :f1 :f*)]
     (make-op tag_memory (vec (remove nil? [re pre open])) init))
@@ -1145,14 +1166,15 @@
   (let [;; assumes only constant values
         ;; ? what about unevaluated FORMs and formDNA?
         {:keys [vars dna]} (op-data fdna)
-        matches (map #(let [v (get env % :_)
-                            v (if (or (= :_ v) (calc/const? v))
+        matches (map #(let [v (get env % calc/var-const)
+                            v (if (or (= calc/var-const v) (calc/const? v))
                                 v
                                 (expr->const v))]
                         (vector % v))
                      vars)
         vpoint (map second matches)]
-    (make tag_formDNA (mapv first (filter #(= (second %) :_) matches))
+    (make tag_formDNA
+          (mapv first (filter #(= (second %) calc/var-const) matches))
           (calc/filter-dna dna vpoint))))
 
 (defn- simplify-formDNA
@@ -1227,6 +1249,16 @@
 
   (eval-expr [:M :N] {})
   (cnt> [:M :N] {})
+
+  (make :mem [['a :M]] 'a)
+  (make-op :mem [['a :M]] 'a)
+  (make-op :- 'a 'b)
+
+
+  (substitute-expr {'a []} 'a)
+  (simplify-env {'a :M})
+  (find-vars ['a [:M ["c"]]] {})
+
   )
 
   
