@@ -183,9 +183,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Expression types
 
-;; ? is this general notion confusing
-(s/def :formform.specs.expr/form sequential?)
-
 (s/def :formform.specs.expr/expr-symbol
   (s/and keyword? #(% (methods interpret-sym))))
 
@@ -202,23 +199,32 @@
 (s/def :formform.specs.expr/operator (s/multi-spec op-spec first))
 
 (s/def :formform.specs.expr/pure-form
-  (s/and (partial s/valid? :formform.specs.expr/form)
+  (s/and :formform.specs.expr/form
          (complement
           (partial s/valid? :formform.specs.expr/generic-operator))))
 
 (s/def :formform.specs.expr/variable (s/or :str string? :sym symbol?))
 
+;; ! check for predicates in input validation -> performance
 (s/def :formform.specs.expr/expression
-  (s/or :form (partial s/valid? :formform.specs.expr/form)
-        :empty nil?
-        :symbolic-expr keyword?
-        ; :expr-symbol (partial s/valid? :formform.specs.expr/expr-symbol)
-        ; :operator (partial s/valid? :formform.specs.expr/generic-operator)
-        :variable (partial s/valid? :formform.specs.expr/variable)))
+  (s/or :empty nil?
+        :operator :formform.specs.expr/generic-operator
+        :form :formform.specs.expr/form
+        :expr-symbol :formform.specs.expr/expr-symbol
+        :variable :formform.specs.expr/variable
+        :unknown-symbol keyword?))
+
+;; ? is this general notion confusing
+; (s/def :formform.specs.expr/form sequential?)
+(s/def :formform.specs.expr/form 
+  (s/every :formform.specs.expr/expression
+           :kind sequential?))
 
 (s/def :formform.specs.expr/context
-  (s/every :formform.specs.expr/expression))
-(s/def :formform.specs.expr/environment (s/keys))
+  (s/coll-of :formform.specs.expr/expression
+             :kind sequential?))
+
+(s/def :formform.specs.expr/environment map?)
 
 (def form? (partial s/valid? :formform.specs.expr/form))
 (def expr-symbol? (partial s/valid? :formform.specs.expr/expr-symbol))
@@ -389,6 +395,8 @@
                (apply make ctx))]
     (if +meta? [expr (meta ctx)] expr)))
 
+;; ! implicitly simplifies ((…)) -> […]
+;; ? should this be ((…)) -> [((…))] instead
 (defn- cnt->ctx [cnt]
   (cond
     (arrangement? cnt) (rest cnt)
@@ -689,9 +697,10 @@
         nested (if ltr? (nest-right exprs) (nest-left exprs))]
     (apply (if unmarked? make form) nested)))
 
-;; ? size or nil constrains
 (s/def :formform.specs.expr/expr-chain
-  :formform.specs.expr/context)
+  (s/coll-of :formform.specs.expr/expression
+             :kind sequential?
+             :min-count 1))
 
 ;; ! check assumptions about env while merging nesting contexts via crossing
 ;; ! needs MASSIVE refactoring
@@ -831,19 +840,16 @@
 ;;-------------------------------------------------------------------------
 ;; memory FORMs
 
-(s/def :formform.specs.expr/rem-pairs
-  ;; ? maybe allow all expressions as keys
-  (s/coll-of (s/tuple
-              ; #(or (keyword? %) (symbol? %))
-              #(s/valid? :formform.specs.expr/expression %)
-              #(s/valid? :formform.specs.expr/expression %)) :into []))
+(s/def :formform.specs.expr/rem-pair
+  (s/tuple #(s/valid? :formform.specs.expr/expression %)
+           #(s/valid? :formform.specs.expr/expression %)))
 
 (s/def :formform.specs.expr/memory
   (s/cat :tag  (partial = tag_memory)
-         :rems :formform.specs.expr/rem-pairs
+         :rems (s/coll-of :formform.specs.expr/rem-pair :into [])
          :ctx  (s/* #(s/valid? :formform.specs.expr/expression %))))
 
-(def rem-pairs? (partial s/valid? :formform.specs.expr/rem-pairs))
+(def rem-pairs? (partial s/valid? (s/coll-of :formform.specs.expr/rem-pair)))
 
 (def memory? (partial s/valid? :formform.specs.expr/memory))
 
@@ -871,9 +877,7 @@
           [rems-reduced env]
           (recur r rems-reduced env))))))
 
-;; variables for `find-vars` can be every expression in :mem enviornments
-;; ? different find-vars that takes every expr as var?
-;; ? make everything a variable
+;; ? `& exprs` instead of `ctx`
 (defn- filter-rems
   [rems ctx]
   (let [rem-keys (set (find-subexprs ctx (set (map first rems))))
@@ -949,13 +953,19 @@
 (s/def :formform.specs.expr/seq-reentry-signature
   (comp some? seq-reentry-sign->opts))
 
+(s/def :opts.seq-reentry/parity #{:odd :even :any})
+(s/def :opts.seq-reentry/open? boolean?)
+(s/def :opts.seq-reentry/interpr #{:rec-ident :rec-instr})
+
 (s/def :formform.specs.expr/seq-reentry-opts
-  (comp some? (set (vals seq-reentry-sign->opts))))
+  (s/keys :req-un [:opts.seq-reentry/parity
+                   :opts.seq-reentry/open?
+                   :opts.seq-reentry/interpr]))
 
 (s/def :formform.specs.expr/seq-reentry
   (s/cat :tag (partial = tag_seq-reentry)
-         :sign #(s/valid? :formform.specs.expr/seq-reentry-signature %)
-         :nested-exprs (s/+ #(s/valid? :formform.specs.expr/expression %))))
+         :sign :formform.specs.expr/seq-reentry-signature
+         :nested-exprs (s/+ :formform.specs.expr/expression)))
 
 (def seq-reentry-signature?
   (partial s/valid? :formform.specs.expr/seq-reentry-signature))

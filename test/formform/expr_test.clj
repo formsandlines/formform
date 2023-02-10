@@ -30,10 +30,16 @@
 (stest/instrument 'formform.expr/find-vars)
 (stest/instrument 'formform.expr/gen-vars)
 
+(stest/instrument 'formform.expr/ctx->cnt)
+(stest/instrument 'formform.expr/cnt->ctx)
 (stest/instrument 'formform.expr/simplify-matching-content)
 (stest/instrument 'formform.expr/simplify-form)
 (stest/instrument 'formform.expr/simplify-content)
+(stest/instrument 'formform.expr/simplify-by-calling)
+(stest/instrument 'formform.expr/simplify-by-crossing)
+(stest/instrument 'formform.expr/substitute-in-context)
 (stest/instrument 'formform.expr/simplify-context)
+(stest/instrument 'formform.expr/simplify-env)
 (stest/instrument 'formform.expr/cnt>)
 (stest/instrument 'formform.expr/ctx>)
 
@@ -42,9 +48,32 @@
 (stest/instrument 'formform.expr/equal)
 (stest/instrument 'formform.expr/equiv)
 
+(stest/instrument 'formform.expr/mark)
 (stest/instrument 'formform.expr/mark-exprs)
+(stest/instrument 'formform.expr/nest-left)
+(stest/instrument 'formform.expr/nest-right)
 (stest/instrument 'formform.expr/nest-exprs)
 (stest/instrument 'formform.expr/simplify-expr-chain)
+
+(stest/instrument 'formform.expr/construct-unclear)
+
+(stest/instrument 'formform.expr/memory-replace)
+(stest/instrument 'formform.expr/memory-extend)
+(stest/instrument 'formform.expr/simplify-rems)
+(stest/instrument 'formform.expr/filter-rems)
+(stest/instrument 'formform.expr/simplify-memory)
+(stest/instrument 'formform.expr/memory)
+
+(stest/instrument 'formform.expr/seq-reentry-opts->sign)
+(stest/instrument 'formform.expr/simplify-seq-reentry)
+(stest/instrument 'formform.expr/construct-seq-reentry)
+(stest/instrument 'formform.expr/seq-re)
+
+(stest/instrument 'formform.expr/sel)
+
+(stest/instrument 'formform.expr/filter-formDNA)
+(stest/instrument 'formform.expr/simplify-formDNA)
+(stest/instrument 'formform.expr/construct-formDNA)
 
 
 (deftest make-op-test
@@ -217,7 +246,10 @@
   (let [xc '[ a nil b ]]
     {:normal (simplify-expr-chain xc {})
      :rtl (simplify-expr-chain->rtl xc {})
-     :reverse (reverse (simplify-expr-chain (reverse xc) {}))}))
+     :reverse (reverse (simplify-expr-chain (reverse xc) {}))})
+  
+  (simplify-expr-chain '( nil ) {})
+  )
 
 ;; ! add more tests with marks ()
 (deftest simplify-expr-chain-test
@@ -1190,9 +1222,9 @@
 
 (deftest filter-rems-test
   (testing "Removal of unreferenced shadowed rems"
-    (is (= (#'expr/filter-rems '[[a (x)] [x a] [x :M]] 'x)
+    (is (= (#'expr/filter-rems '[[a (x)] [x a] [x :M]] ['x])
            '[[x :M]]))
-    (is (= (#'expr/filter-rems '[[a :N] [x :M] [a (x)]] 'a)
+    (is (= (#'expr/filter-rems '[[a :N] [x :M] [a (x)]] ['a])
            '[[a (x)] [x :M]]))))
 
 
