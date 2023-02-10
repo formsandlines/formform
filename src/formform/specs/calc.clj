@@ -26,9 +26,12 @@
         :char  ::const-char
         :int   ::const-int))
 
-(s/def ::dna-seq-elem-tree
+;; specifically for make-dna
+
+(s/def ::dna-seq-elem-tree 
   (s/coll-of (s/or :leaf   ::dna-seq-elem
-                   :branch ::dna-seq-elem-tree)))
+                   :branch ::dna-seq-elem-tree)
+             :kind (complement map?)))
 
 
 (let [digits (set (map (comp first str) (range 10)))]
@@ -143,16 +146,22 @@
                  :ret  ::dna-seq))
 
 (s/fdef formform.calc/digits->dna
-  :args (spec--dna-seq-args (s/coll-of ::const-int))
+  :args (spec--dna-seq-args (s/coll-of ::const-int 
+                                       :min-count 1
+                                       :kind sequential?))
   :ret  ::dna)
 
 (s/fdef formform.calc/chars->dna
-  :args (spec--dna-seq-args (s/coll-of ::const-char))
+  :args (spec--dna-seq-args (s/coll-of ::const-char 
+                                       :min-count 1
+                                       :kind sequential?))
   :ret  ::dna)
 
 (s/fdef formform.calc/dna->digits
   :args (spec--dna-args)
-  :ret  (s/coll-of ::const-int))
+  :ret  (s/coll-of ::const-int
+                   :min-count 1
+                   :kind sequential?))
 
 
 (s/fdef formform.calc/expand-dna-seq
@@ -186,7 +195,8 @@
 
 (s/fdef formform.calc/filter-dna-seq
   :args (s/and (s/cat :dna-seq          ::dna-seq
-                      :depth-selections (s/coll-of ::const-int?))
+                      :depth-selections (s/coll-of ::const-int?
+                                                   :kind sequential?))
                #(== (calc/dna-dimension (-> % :dna-seq))
                     (count (-> % :depth-selections))))
   :ret  ::dna-seq)
@@ -200,7 +210,9 @@
 
 
 (s/def ::permutation-order
-  (s/coll-of nat-int? :distinct true))
+  (s/coll-of nat-int?
+             :distinct true
+             :kind sequential?))
 
 (s/def ::dna-seq-perspective
   (s/cat :perm-order ::permutation-order
@@ -228,7 +240,8 @@
   :args (s/alt :ar1 (s/cat :dna-seq ::dna-seq)
                :ar2 (s/cat :dna-seq ::dna-seq
                            :opts (s/keys :opt-un [:opts.safety/limit?])))
-  :ret  (s/coll-of ::dna-seq-perspective))
+  :ret  (s/coll-of ::dna-seq-perspective
+                   :kind sequential?))
 
 (s/fdef formform.calc/dna-perspectives
   :args (s/alt :ar1 (s/cat :dna ::dna)

@@ -205,6 +205,9 @@
 
 (s/def :formform.specs.expr/variable (s/or :str string? :sym symbol?))
 
+(s/def :formform.specs.expr/vars (s/coll-of :formform.specs.expr/variable
+                                            :kind (complement map?)))
+
 ;; ! check for predicates in input validation -> performance
 (s/def :formform.specs.expr/expression
   (s/or :empty nil?
@@ -844,12 +847,17 @@
   (s/tuple #(s/valid? :formform.specs.expr/expression %)
            #(s/valid? :formform.specs.expr/expression %)))
 
+(s/def :formform.specs.expr/rems
+  (s/coll-of :formform.specs.expr/rem-pair 
+             :kind sequential?
+             :into []))
+
 (s/def :formform.specs.expr/memory
   (s/cat :tag  (partial = tag_memory)
-         :rems (s/coll-of :formform.specs.expr/rem-pair :into [])
+         :rems :formform.specs.expr/rems
          :ctx  (s/* #(s/valid? :formform.specs.expr/expression %))))
 
-(def rem-pairs? (partial s/valid? (s/coll-of :formform.specs.expr/rem-pair)))
+(def rem-pairs? (partial s/valid? :formform.specs.expr/rems))
 
 (def memory? (partial s/valid? :formform.specs.expr/memory))
 
@@ -1162,7 +1170,7 @@
 (s/def :formform.specs.expr/formDNA
   (s/and (s/nonconforming
           (s/cat :tag  (partial = tag_formDNA)
-                 :vars (s/coll-of :formform.specs.expr/variable)
+                 :vars :formform.specs.expr/vars
                  :dna  :formform.specs.calc/dna))
          #(== (count (second %)) (calc/dna-dimension (nth % 2)))))
 
@@ -1238,36 +1246,10 @@
 
 
 (comment
-  (simplify-content :N {})
-  (simplify-matching-content :X :default)
-
   ;; ! this shouldnt work:
   (simplify-seq-reentry [:seq-re nil] {})
   (op-get [:seq-re 'a] :sign)
   (op-data [:seq-re 'a])
-
-  ;; ? should formDNA result from evaluations be contracted:
-  (calc/reduce-dna-seq [:N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N])
-
-  (seq-re {} 'l 'e 'r)
-
-  (make :* 'a 'b)
-
-  (seq-re :<r 'x)
-
-  (=>* (seq-re :<r 'a 'b))
-
-  (eval-expr [:M :N] {})
-  (cnt> [:M :N] {})
-
-  (make :mem [['a :M]] 'a)
-  (make-op :mem [['a :M]] 'a)
-  (make-op :- 'a 'b)
-
-
-  (substitute-expr {'a []} 'a)
-  (simplify-env {'a :M})
-  (find-vars ['a [:M ["c"]]] {})
 
   )
 

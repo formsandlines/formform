@@ -135,7 +135,9 @@
          :formform.specs.calc/dna-count))
 
 (s/def :formform.specs.calc/dna
-  (s/and (s/coll-of consts)
+  (s/and (s/coll-of consts 
+                    :kind sequential? 
+                    :min-count 1)
          (comp (partial s/valid? :formform.specs.calc/dna-length)
                count)))
 
@@ -623,8 +625,6 @@
 (comment
   ; (set! *print-length* 50)
   ; (require '[criterium.core :as crt])
-
-
 
   )
 

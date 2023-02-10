@@ -18,7 +18,7 @@
 
 (stest/instrument 'formform.calc/prod=dna-seq->dna)
 (stest/instrument 'formform.calc/prod=dna->dna-seq)
-(stest/unstrument 'formform.calc/digits->dna)
+(stest/instrument 'formform.calc/digits->dna)
 (stest/instrument 'formform.calc/chars->dna)
 (stest/instrument 'formform.calc/dna->digits)
 (stest/instrument 'formform.calc/expand-dna-seq)

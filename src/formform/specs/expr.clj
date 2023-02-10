@@ -6,8 +6,6 @@
             [clojure.spec.gen.alpha :as gen]))
 
 
-(s/def ::vars (s/coll-of ::variable))
-
 (s/def :opts/ordered? boolean?)
 (s/def :opts/unmarked? boolean?)
 (s/def :opts/+meta? boolean?)
@@ -90,7 +88,8 @@
 (s/fdef formform.expr/find-subexprs
   :args (s/cat :expr ::expression
                :subexprs (s/coll-of ::expression :kind set?))
-  :ret  (s/every ::expression))
+  :ret  (s/every ::expression
+                 :kind sequential?))
 
 (s/fdef formform.expr/find-vars
   :args (s/cat :expr ::expression
@@ -183,7 +182,8 @@
                            :opts (s/keys :opt-un [:opts.eval-all/to-fdna?
                                                   ::vars])))
   :ret  (s/or :formDNA ::formDNA
-              :results (s/and (s/coll-of (s/tuple :formform.specs.calc/const))
+              :results (s/and (s/coll-of (s/tuple :formform.specs.calc/const)
+                                         :kind sequential?)
                               :formform.specs.calc/dna-count)))
 
 (s/fdef formform.expr/equal
@@ -246,15 +246,15 @@
   :ret  ::memory)
 
 (s/fdef formform.expr/simplify-rems
-  :args (s/cat :rems (s/coll-of ::rem-pair)
+  :args (s/cat :rems ::rems
                :env  ::environment)
-  :ret  (s/tuple (s/coll-of ::rem-pair)
+  :ret  (s/tuple ::rems
                  ::environment))
 
 (s/fdef formform.expr/filter-rems
-  :args (s/cat :rems (s/coll-of ::rem-pair)
+  :args (s/cat :rems ::rems
                :ctx  ::context)
-  :ret  (s/coll-of ::rem-pair))
+  :ret  ::rems)
 
 (s/fdef formform.expr/simplify-memory
   :args (s/cat :mem (s/spec ::memory)
@@ -262,7 +262,7 @@
   :ret  ::expression)
 
 (s/fdef formform.expr/memory
-  :args (s/cat :rems  (s/coll-of ::rem-pair)
+  :args (s/cat :rems  ::rems
                :exprs (s/* ::expression))
   :ret  ::memory)
 
@@ -330,46 +330,6 @@
 
 
 (comment
-
-  (s/conform ::seq-reentry
-             [:seq-re :<r [nil]])
-
-  (expr/simplify-expr-chain {} [nil] {})
-  (s/conform ::expr-chain
-             [])
-
-  (s/conform (s/cat :op-k         ::op-symbol
-                    :specs        (s/or :sign ::seq-reentry-signature
-                                        :opts ::seq-reentry-opts)
-                    :nested-exprs (s/* ::expression))
-             [:seq-re :<r nil])
-
-  (s/conform ::seq-reentry-signature
-             :<..r)
-
-  (s/conform (s/keys :req-un [:opts.seq-reentry/parity
-                              :opts.seq-reentry/open?
-                              :opts.seq-reentry/interpr])
-             {:parity :even :open? false :interpr :rec-ident})
-
-  (expr/memory [] {})
-  (s/conform ::expression '())
-  (s/conform (s/coll-of nil?)
-             {})
-
-
-
-  (s/conform (s/cat :mem        (s/spec ::memory)
-                    :repl-pairs (s/* ::rem-pair))
-             [[:mem [] nil] ['a :b] [:x []] ])
-
-  (s/conform (s/cat :n (s/coll-of int?)
-                    :s (s/* ::rem-pair))
-             [[12] ['a 'b]])
-
-  (s/conform ::memory [:mem [] nil])
-  (s/conform (s/* ::rem-pair) [[:a :b]])
-
   (s/conform ::expression []) ;=> [:form []]
   (s/conform ::expression :a) ;=> [:unknown-symbol :a]
   (s/conform ::expression :M) ;=> [:expr-symbol :M]
@@ -387,87 +347,7 @@
   (s/conform ::context [[:M] [:- 'a ['b]] 'x :U nil])
   ;=> [[:form [:M]] [:operator {:tag :-, :args-unchecked [a [b]]}] [:variable [:sym x]] [:expr-symbol :U] [:empty nil]]
 
-
-
-  (s/conform :formform.specs.calc/dna [:N :U :I :M])
-  (s/conform (s/and (s/coll-of (s/tuple :formform.specs.calc/const))
-                    :formform.specs.calc/dna-count)
-             [[:N] [:U] [:I] [:M]])
-
-  (set [1 2 3])
-
-  (s/conform ::expression '(:x))
-  (s/conform :opts/ordered? false)
-  (s/conform ::vars #{:x})
-  (s/conform ::variable :x)
-  (s/conform (s/coll-of keyword?) #{:x})
-
-
-  (defn foo-disp [[k & _]] k)
-  (defmulti foo foo-disp)
-  (defmethod foo :add [[k a b]] (+ a b))
-  (defmethod foo :mul [[k a b]] (* a b))
-  (defmethod foo :join [[k a b]] (str a b))
-
-  (defmethod foo :div [[k a b]] (/ a b))
-
-  (foo [:add 2 5])
-  (foo [:mul 2 1])
-  (foo [:div 10 2])
-  (foo [:join 2 4])
-
-  (s/fdef foo-disp
-    :args (s/cat :op (s/spec
-                      (s/cat :tag keyword?
-                             :a int?
-                             :b int?)))
-    :ret  int?)
-
-  (stest/instrument `foo-disp)
-
-
   )
 
-(comment
 
-  (s/conform (s/cat :op (s/spec ::generic-operator))
-             [[:- 'a 'b]])
-
-  (s/explain (s/cat :op ::generic-operator)
-             [[:uncl "hello"]])
-
-  (s/explain ::op-symbol [:uncl "hello"])
-
-  (s/conform ::valid-operator
-             [:seq-re :<r 'b])
-
-  (s/conform ::valid-operator
-             [:- 'x 'y])
-
-
-  )
-
-(comment
-  
-  (defmulti mspec :tag)
-
-  (defmethod mspec :int [_] (s/keys :req-un [::tag ::i]))
-
-  (s/conform (s/multi-spec mspec :tag)
-             {:tag :int
-              :i 12})
-
-
-
-  (defmulti mspec2 first)
-
-  (defmethod mspec2 :x [_] #(int? (second %)))
-  (defmethod mspec2 :y [_] #(string? (second %)))
-
-  (s/conform (s/multi-spec mspec2 first)
-             [:y "12"])
-
-  (mspec2 [:x 12])
-  
-  )
 
