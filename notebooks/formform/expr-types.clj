@@ -119,6 +119,15 @@
 
 (first (=> (form 'a 'b) {'a :N, 'b :U}))
 
+;; But unlike an environment, a memory FORM can memorize any expression, not just variables, which enables ad-hoc substitution:
+
+(simplify (make :mem [[[['p] ['q]] 'z] [['r] 'w]]
+                [ 'x [['p] ['q]] ['y ['r]]]))
+
+;; Or ad-hoc identification of uninterpreted expression symbols:
+
+(simplify (make :mem [[:foo [:uncl "foo"]]] [:foo 'x]))
+
 
 ;; ### Self-equivalent re-entry FORMs
 

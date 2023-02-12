@@ -74,14 +74,26 @@
 
 (s/fdef formform.expr/interpret
   :args (s/alt :ar1 (s/cat :expr ::expression)
-               :ar2 (s/cat :expr ::expression
-                           :env  ::environment))
+               :ar2 (s/cat :env  ::environment
+                           :expr ::expression))
   :ret  ::expression)
 
 (s/fdef formform.expr/interpret*
   :args (s/alt :ar1 (s/cat :expr ::expression)
-               :ar2 (s/cat :expr ::expression
-                           :env  ::environment))
+               :ar2 (s/cat :env  ::environment
+                           :expr ::expression))
+  :ret  ::expression)
+
+(s/fdef formform.expr/interpret-walk
+  :args (s/alt :ar1 (s/cat :expr ::expression)
+               :ar2 (s/cat :env  ::environment
+                           :expr ::expression))
+  :ret  ::expression)
+
+(s/fdef formform.expr/interpret-walk*
+  :args (s/alt :ar1 (s/cat :expr ::expression)
+               :ar2 (s/cat :env  ::environment
+                           :expr ::expression))
   :ret  ::expression)
 
 ;; ? check if :ret is subset of :subexprs

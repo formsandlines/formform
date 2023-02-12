@@ -87,8 +87,6 @@
 (clerk/row
  (make :N) (make :U) (make :I) (make :M))
 
-;; These are the four value symbols that are used throughout formform.
-
 ;; ### Constructing operators
 
 ;; Other predefined expressions can be constructed by specifying their operator as a first argument
@@ -100,8 +98,6 @@
 
 ;; however, as nested data it will not be omitted, to enable other args to step into the arrangement:
 (make [:uncl "cool"]) ;=> [:- [:uncl "cool"]]
-
-(make [:uncl "cool"] 'x) ;=> [:- [:uncl "cool"] x]
 
 ;; `form` will just mark the expression, either way:
 (= [[:uncl "cool"]]
@@ -116,14 +112,16 @@
 ;; In symexprs that expand to nested expressions, each argument is interpreted as a nested space
 ;; multiple elements can enter the same space by using `(make)` or just `[:-]`:
 
-(interpret-op (make :seq-re :<r [:- 'a 'b] [:- 'c 'd] 'e))
+; !!! fixme
+
+; (interpret-op (make :seq-re :<r [:- 'a 'b] [:- 'c 'd] 'e))
 
 (make (make :seq-re :<r 'l 'e 'r)
       (make :seq-re :<r 'l 'r 'e))
 
 ;; ---
 
-;; interpretation is 1:1 substitution of variables, expression symbols and operators with other expressions that have been previously defined as their corresponding interpretation
+;; interpretation is 1:1 substitution
 (= [[]]
    (interpret (make :-))
    (interpret [:-])
@@ -140,9 +138,7 @@
 
 ;; through an env, variables can be interpreted
 (interpret (make 'a 'b))
-
-(interpret (interpret (make 'a 'b)) {'a :N, 'b :U}) ;=> [[:N :U]]
-
+; (interpret (make 'a 'b) {'a :N, 'b :U}) ;=> [[:N :U]]
 (take 3 (iterate interpret [:- :N :U]))
 
 ;; simplification is recursive substitution

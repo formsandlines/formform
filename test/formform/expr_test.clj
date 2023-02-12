@@ -26,6 +26,8 @@
 (stest/instrument 'formform.expr/substitute-expr)
 (stest/instrument 'formform.expr/interpret)
 (stest/instrument 'formform.expr/interpret*)
+(stest/instrument 'formform.expr/interpret-walk)
+(stest/instrument 'formform.expr/interpret-walk*)
 (stest/instrument 'formform.expr/find-subexprs)
 (stest/instrument 'formform.expr/find-vars)
 (stest/instrument 'formform.expr/gen-vars)
@@ -983,7 +985,60 @@
     (is (= (interpret [:- 'x 'y])
            '((x y))))
     (is (= (interpret [:mem [['a :M] ['b :U]] [:- 'x 'y]])
-           '[[[a :M] [[a] [:M]]] [[b :U] [[b] [:U]]] [x y]]))))
+           '[[[a :M] [[a] [:M]]] [[b :U] [[b] [:U]]] [x y]]))
+    (is (= (interpret 'a)
+           'a))
+    (is (= (interpret {'a :M} 'a)
+           :M))
+    (is (= (interpret {'a :M} '(a (b (a))))
+           '(a (b (a)))))
+    (is (= (interpret [:* 'a [:* 'b 'c]])
+           '[:- [a] [[:* b c]]]))
+    (is (= (interpret [:- :U [:- 'a [:I]]])
+           '[[:U [:- a [:I]]]])))
+  (testing "--defocus flags"
+    (is (= (interpret {:--defocus #{:ops}} [:uncl "hey"])
+           [:uncl "hey"]))))
+
+(deftest interpret*-test
+  (testing "Correctness of transformation"
+    (is (= (interpret* [:* 'a 'b 'c])
+           '[[[a] [b] [c]]]))
+    (is (= (interpret* {'a :M} 'a)
+           []))
+    (is (= (interpret* [:* 'a [:* 'b 'c]])
+           '[[[a] [[:* b c]]]]))
+    (is (= (interpret* [:- :U [:- 'a [:I]]])
+           '[[:U [:- a [:I]]]]))))
+
+(deftest interpret-walk-test
+  (testing "Correctness of transformation"
+    (is (= (interpret-walk {'a :M} '(a (b (a))))
+           '(:M (b (:M)))))
+    ;; is it okay to splice expressions in interpret?
+    (is (= (interpret-walk [:* 'a [:* 'b 'c]])
+           '[:- [a] [[b] [c]]]))
+    (is (= (interpret-walk [:- :U [:- 'a [:I]]])
+           '[[[:seq-re :<r nil nil] [[a [[:U]]]]]]))))
+
+(deftest interpret-walk*-test
+  (testing "Correctness of transformation"
+    (is (= (interpret-walk* {'a :M} '(a (b (a))))
+           '([] (b ([])))))
+    (is (= (interpret-walk* [:* 'a [:* 'b 'c]])
+           '[[[a] [[b] [c]]]]))
+    (is (= (interpret-walk* [:- :U [:- 'a [:I]]])
+           '[[[[[:f* [[:f*]]] [[:f*] [[[:f*]]]]] [:f*]] 
+              [[a [[[[[:f* [[:f*]]] [[:f*] [[[:f*]]]]] [:f*]]]]]]]]))
+    )
+  (testing "--defocus flags"
+    (is (= (interpret-walk* {:--defocus #{:ops}} [:- :U [:- 'a [:I]]])
+           '[:- [:seq-re :<r nil nil] [:- a [[[:seq-re :<r nil nil]]]]]))
+    (is (= (interpret-walk* {:--defocus #{:mem}} [:- :U [:- 'a [:I]]])
+           '[[[:mem [[:f* [[:f*]]]] :f*] 
+              [[a [[[:mem [[:f* [[:f*]]]] :f*]]]]]]]))
+    )
+  )
 
 
 (deftest simplify-op-test

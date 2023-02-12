@@ -6,6 +6,7 @@
 (ns formform.expr
   (:require
    [clojure.set :as set]
+   [clojure.walk :as walk]
    [formform.calc :as calc]
    [formform.utils :as utils]
    #?(:clj  [clojure.core.match :refer [match]]
@@ -51,7 +52,7 @@
 ;; default methods
 
 (declare op-symbol?)
-(declare interpret)
+(declare simplify-content)
 
 ;; default constructor
 (defmethod make-op :default make-op->unknown
@@ -80,7 +81,7 @@
 (defmethod simplify-op :default simplify-op->unknown
   [[op-k & _ :as expr] env]
   (if (op-symbol? op-k)
-    (interpret expr env) ;; defaults to interpretation
+    (simplify-content (interpret-op expr) env) ;; defaults to interpretation
     (throw (ex-info (str "Don’t know how to simplify " op-k)
                     {:op op-k :expr expr :env env}))))
 
@@ -300,37 +301,61 @@
                      [{} args])]
     (apply make (merge opts {:mark? true}) ctx)))
 
+
 (defn- substitute-expr
   "Substitutes an expression by a matching expression in given environment. Returns the original expression if match failed."
   [env expr]
   (let [x (get env expr :not-found)]
     (if (= x :not-found) expr x)))
 
-;; ? should registered keywords be substitutable by env
 (defn interpret
-  "Interprets expressions of any kind. Unless defined otherwise, contents are only interpreted for simple FORMs."
-  ([expr] (interpret expr {}))
-  ([expr env]
-   (let [expr (substitute-expr env expr)]
-     (cond
-       (operator? expr)    (interpret-op expr)
-       (form? expr)        (into (empty expr)
-                                 (remove nil? (map #(interpret % env) expr)))
-       (expr-symbol? expr) (interpret-sym expr)
-       :else expr))))
+  "Interprets an expression of any kind. Returns the original expression if it cannot be interpreted.
 
-(defn interpret*
-  "Recursively calls `interpret` on given expression and its subexpressions down to the deepest nesting, until there is nothing left to interpret."
-  ([expr] (interpret* expr {}))
-  ([expr env]
-   (loop [expr expr
-          i    0]
-     (let [expr' (interpret expr env)]
-       (cond
-         (= expr' expr) expr'
-         (> i 400)      (throw (ex-info "Too many interpretation attempts! Possibly caused by co-dependent interpretations or mutually recursive associations in the env."
-                                        {:type :infinite-substitution}))
-         :else (recur expr' (inc i)))))))
+  Can be given an `env` map to interpret variables (as keys).
+  This map can have an optional `--defocus` entry whose value is a set of items that should not be interpreted.
+  - the keywords `:ops` / `:syms` / `:vars` exclude all operations / expression symbols / variables
+  - an operator symbol can provided to exclude a specific operator
+  - any other expression (like a variable) can be excluded as well"
+  ([expr] (interpret {} expr))
+  ([{:keys [--defocus] :or {--defocus #{}} :as env} expr]
+   (cond
+     (--defocus expr) expr
+     (and (nil? (--defocus :ops))
+          (operator? expr)
+          (nil? (--defocus (op-symbol expr)))) (interpret-op expr)
+     (and (nil? (--defocus :syms))
+          (expr-symbol? expr))                 (interpret-sym expr)
+     (and (nil? (--defocus :vars))
+          (variable? expr))                    (substitute-expr env expr)
+     :else expr)))
+
+(defn interpret-walk
+  "Recursively calls `interpret` on given expression and all its subexpressions with a depth-first walk."
+  ([expr] (interpret-walk {} expr))
+  ([env expr]
+   (walk/postwalk (partial interpret env) expr)))
+
+(defn- prod=iterate-unless-eq [interpret-fn]
+  (fn f*
+    ([expr] (f* {} expr))
+    ([env expr]
+     (loop [expr expr
+            i    0]
+       (let [expr' (interpret-fn env expr)]
+         (cond
+           (= expr' expr) expr'
+           (> i 400)      (throw (ex-info "Too many interpretation attempts! Possibly caused by co-dependent interpretations or mutually recursive associations in the env."
+                                          {:type :infinite-substitution}))
+           :else (recur expr' (inc i))))))))
+
+(def interpret*
+  "Like `interpret`, but repeats substitution on interpreted expressions until they cannot be interpreted any further."
+  (prod=iterate-unless-eq interpret))
+
+(def interpret-walk*
+  "Like `interpret-walk`, but repeats substitution on interpreted (sub-)expressions until they cannot be interpreted any further."
+  (prod=iterate-unless-eq interpret-walk))
+
 
 ;; ? be more specific than `sequential?`
 (defn find-subexprs
@@ -374,22 +399,22 @@
 ;; Observations are accumulated contents in reduction
 
 (defn- observed-put [env x]
-  (update env :observed #(if (nil? %) #{x} (conj % x))))
+  (update env :--observed #(if (nil? %) #{x} (conj % x))))
 
 (defn- observed-disj [env x]
-  (update env :observed #(if (nil? %) % (disj % x))))
+  (update env :--observed #(if (nil? %) % (disj % x))))
 
 (defn- observed-merge [env xs]
-  (update env :observed #(if (nil? %) (set xs) (set/union % (set xs)))))
+  (update env :--observed #(if (nil? %) (set xs) (set/union % (set xs)))))
 
 (defn- observed-get [env]
-  (get env :observed))
+  (get env :--observed))
 
 (defn- observed-removeall [env]
-  (dissoc env :observed))
+  (dissoc env :--observed))
 
 (defn- observed-has? [env x]
-  (not= (get-in env [:observed x] :not-found) :not-found))
+  (not= (get-in env [:--observed x] :not-found) :not-found))
 
 (defn- ctx->cnt [{:keys [+meta?] :or {+meta? false}} ctx]
   (let [expr (condp == (count ctx)
@@ -449,9 +474,7 @@
     (if (not= :failed res)
       res
       (cond
-        (operator? x)    (if ((op-symbol x) (methods simplify-op))
-                           (simplify-op x env)
-                           (simplify-content (interpret x env) env))
+        (operator? x)    (simplify-op x env)
         (form? x)        (simplify-form x env)
         (expr-symbol? x) (interpret-sym x)
         :else (substitute-expr env x)))))
@@ -1251,7 +1274,15 @@
   (op-get [:seq-re 'a] :sign)
   (op-data [:seq-re 'a])
 
+  ;; ? should env be always first arg
+  ;; ! test more interpret function
+  ;; ? should registered keywords be substitutable by env
+
+  ;; simplify-op -> interpret-op or interpret or something else?
+  ;; simplify-content
+
   )
+
 
   
 
