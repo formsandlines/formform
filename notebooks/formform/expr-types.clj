@@ -1,7 +1,8 @@
 ^{::clerk/visibility {:code :hide :result :hide}}
 (ns formform.expr-types
   (:require [nextjournal.clerk :as clerk]
-            [formform.expr :as expr :refer :all]))
+            [formform.expr :as expr :refer :all]
+            [formform.calc :as calc]))
 
 ^{::clerk/visibility {:code :hide :result :hide}}
 (defn table-hz [header row-fn col-fn xs]
@@ -46,7 +47,7 @@
 
 ^{::clerk/visibility {:code :fold :result :show}}
 (op-table-hz (fn [op-sym] [op-sym 'a 'b 'c])
-             [:- :* :|])
+             [:+ :- :* :|])
 
 ;; ### Sequences
 
@@ -137,7 +138,9 @@
 
 ;; Re-entry can be cut off in some cases:
 
-(=>* (seq-re :<r 'a 'b []))
+(-> (=>* (seq-re :<r 'a 'b []))
+    (op-get :dna)
+    (calc/reduce-dna-seq))
 
 ;; Some configurations are equivalent:
 
@@ -175,7 +178,8 @@
 
 ;; Interpretation to isolator terms:
 
-(take 4 (iterate interpret (make :fdna ['a] [:N :U :I :M])))
+(take 3 (iterate (partial interpret-walk {:--defocus #{:U}})
+                 (make :fdna ['a] [:N :U :I :M])))
 
 ;; Evaluates back to itself:
 

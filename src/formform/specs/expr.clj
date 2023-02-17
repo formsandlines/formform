@@ -12,6 +12,11 @@
 (s/def :opts/rtl? boolean?)
 (s/def :opts/ltr? boolean?)
 
+(s/def ::vars (s/coll-of :formform.specs.expr/variable
+                         :kind (complement map?)))
+
+(s/def ::varseq ::varorder)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Multimethod specs - just for documentation
 ;; -> do not work with instrumentation
@@ -106,11 +111,11 @@
 (s/fdef formform.expr/find-vars
   :args (s/cat :expr ::expression
                :opts (s/keys :opt-un [:opts/ordered? ::vars]))
-  :ret  ::vars)
+  :ret  ::varseq)
 
 (s/fdef formform.expr/gen-vars
   :args (s/cat :n nat-int?)
-  :ret  ::vars)
+  :ret  ::varseq)
 
 ;; ? spec observe-[…]
 
@@ -179,24 +184,46 @@
   :ret  ::context)
 
 
-(s/fdef formform.expr/eval-expr
+(s/fdef formform.expr/=>
   :args (s/alt :ar1 (s/cat :expr ::expression)
                :ar2 (s/cat :expr ::expression
                            :env  ::environment))
-  :ret  (s/or :dna     :formform.specs.calc/dna
-              :var-dna (s/tuple :formform.specs.calc/var-const)))
+  :ret  :formform.specs.calc/const?)
 
-(s/def :opts.eval-all/to-fdna? boolean?)
+(s/fdef formform.expr/=>*
+  :args (s/alt :ar1 (s/cat :expr ::expression)
+               :ar2 (s/cat :expr ::expression
+                           :env  ::environment)
+               :ar3 (s/cat :opts (s/keys :opt-un [::varorder])
+                           :expr ::expression
+                           :env  ::environment))
+  :ret  ::formDNA)
+
+(s/def :evaluate/result (s/or :const :formform.specs.calc/const
+                              :expr  ::expression))
+
+(s/fdef formform.expr/evaluate
+  :args (s/alt :ar1 (s/cat :expr ::expression)
+               :ar2 (s/cat :expr ::expression
+                           :env  ::environment))
+  :ret  (s/keys :req-un [:evaluate/result]))
+
+(s/def :eval-all/results
+  (s/and (s/coll-of
+          (s/cat :interpretation (s/coll-of :formform.specs.calc/const
+                                            :kind sequential?)
+                 :result         :formform.specs.calc/const)
+          :kind sequential?)
+         :formform.specs.calc/dna-count))
 
 (s/fdef formform.expr/eval-all
   :args (s/alt :ar1 (s/cat :expr ::expression)
                :ar2 (s/cat :expr ::expression
-                           :opts (s/keys :opt-un [:opts.eval-all/to-fdna?
-                                                  ::vars])))
-  :ret  (s/or :formDNA ::formDNA
-              :results (s/and (s/coll-of (s/tuple :formform.specs.calc/const)
-                                         :kind sequential?)
-                              :formform.specs.calc/dna-count)))
+                           :env  ::environment)
+               :ar3 (s/cat :opts (s/keys :opt-un [::varorder])
+                           :expr ::expression
+                           :env  ::environment))
+  :ret  (s/keys :req-un [::varorder :eval-all/results]))
 
 (s/fdef formform.expr/equal
   :args (s/cat :exprs (s/* ::expression))
@@ -334,9 +361,9 @@
   :args (s/alt :ar1 (s/cat :op-k ::op-symbol)
                :ar2 (s/cat :op-k ::op-symbol
                            :dna  :formform.specs.calc/dna)
-               :ar3 (s/cat :op-k ::op-symbol
-                           :vars ::vars
-                           :dna  :formform.specs.calc/dna))
+               :ar3 (s/cat :op-k     ::op-symbol
+                           :varorder ::varseq
+                           :dna      :formform.specs.calc/dna))
   :ret  ::formDNA)
 
 

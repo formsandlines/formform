@@ -124,14 +124,10 @@
 ;; ---
 
 ;; interpretation is 1:1 substitution of variables, expression symbols and operators with other expressions that have been previously defined as their corresponding interpretation
-(= [[]]
-   (interpret (make :-))
-   (interpret [:-])
-   (interpret* [:- :N]))
 
-(= [[[]]]
-   (interpret (make :- '()))
-   (interpret* (make :- :M)))
+(interpret (make))
+
+(= [] (form) (interpret (form)))
 
 (interpret :N)
 (interpret :M)
@@ -139,11 +135,9 @@
 (interpret :I)
 
 ;; through an env, variables can be interpreted
-(interpret (make 'a 'b))
+(interpret-walk {'a :N, 'b :U} (make 'a 'b)) ;=> [[:N :U]]
 
-(interpret (interpret (make 'a 'b)) {'a :N, 'b :U}) ;=> [[:N :U]]
-
-(take 3 (iterate interpret [:- :N :U]))
+(take 4 (iterate interpret-walk [:- :N :U]))
 
 ;; simplification is recursive substitution
 (= []

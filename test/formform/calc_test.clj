@@ -12,8 +12,8 @@
 
 (stest/instrument 'formform.calc/dna-dimension)
 (stest/instrument 'formform.calc/rand-dna)
-(stest/instrument 'formform.calc/dna->quaternary)
-(stest/instrument 'formform.calc/make-compare-dna)
+(stest/instrument 'formform.calc/consts->quaternary)
+(stest/instrument 'formform.calc/make-compare-consts)
 (stest/instrument 'formform.calc/reorder-dna-seq)
 
 (stest/instrument 'formform.calc/prod=dna-seq->dna)
@@ -171,14 +171,20 @@
            [:M :M :M :M :I :I :I :I :U :U :U :U :N :N :N :N]))))
 
 
-(deftest compare-dna-test
+(deftest compare-consts-test
   (testing "Correctness of sorted order"
-    (is (= (sort compare-dna [[:N :M :U :I] [:N :U :I :M] [:M]])
-           [[:M] [:N :U :I :M] [:N :M :U :I]]))
-    ;; ? sort collections of formDNA as well
-    ; (is (= (sort compare-dna [[[:N :U :I :M] [:I :M]] [[:U :M :I] [:M :N :U]]])
-    ;        [[[:U :M :I] [:M :N :U]] [[:N :U :I :M] [:I :M]]]))
-    ))
+    (is (= [] (sort compare-consts [])))
+    (is (= [:N] (sort compare-consts [:N])))
+    (is (= [:N :M] (sort compare-consts [:M :N])))
+    (is (= [:N :U :I :M :M] (sort compare-consts [:U :M :N :I :M]))))
+  (testing "Correct order of compared sequences"
+    (is (= [[:M] [:N :U :I :M] [:N :M :U :I]]
+           (sort compare-consts
+                 [[:N :M :U :I] [:N :U :I :M] [:M]])))
+    (is (= [[:I :M] [:N :U :I :M] [:U :M :I] [:M :N :U]]
+           (sort compare-consts
+                 [[:N :U :I :M] [:I :M] [:U :M :I] [:M :N :U]]))))
+  )
 
 (deftest expand-dna-seq-test
   (testing "Correctness of expansion"
@@ -523,19 +529,21 @@
                                     :I :I :M :I]))))
 
 
-(deftest dna->quaternary-test
+(deftest consts->quaternary-test
   (testing "Correctness of conversion"
-    (is (= "4r0123" (dna->quaternary [:N :U :I :M])))
-    (is (= "4r1232232232232232" (dna->quaternary [:U :I :M :I
-                                                  :I :M :I :I
-                                                  :M :I :I :M
-                                                  :I :I :M :I])))
-    (is (= "4r0312" (dna->quaternary [:N :M :U :I])))
+    (is (= "4r0123" (consts->quaternary [:N :U :I :M])))
+    (is (= "4r1232232232232232" (consts->quaternary [:U :I :M :I
+                                                     :I :M :I :I
+                                                     :M :I :I :M
+                                                     :I :I :M :I])))
+    (is (= "4r0312" (consts->quaternary [:N :M :U :I])))
     ;; should this return nil?
+    (is (= "4r23" (consts->quaternary [:I :M])))
+    (is (= "4r0" (consts->quaternary [:N])))
     (is (thrown? clojure.lang.ExceptionInfo
-                 (dna->quaternary [:I :M])))
+                 (consts->quaternary [:_])))
     (is (thrown? clojure.lang.ExceptionInfo
-                 (dna->quaternary [])))))
+                 (consts->quaternary [])))))
 
 
 (deftest permute-dna-seq-test

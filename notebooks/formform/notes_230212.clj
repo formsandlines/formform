@@ -124,8 +124,7 @@
 ;; interpretation is 1:1 substitution
 (= [[]]
    (interpret (make :-))
-   (interpret [:-])
-   (interpret* [:- :N]))
+   (interpret [:-]))
 
 (= [[[]]]
    (interpret (make :- '()))

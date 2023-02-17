@@ -45,7 +45,9 @@
 (stest/instrument 'formform.expr/cnt>)
 (stest/instrument 'formform.expr/ctx>)
 
-(stest/instrument 'formform.expr/eval-expr)
+(stest/instrument 'formform.expr/=>)
+(stest/instrument 'formform.expr/=>*)
+(stest/instrument 'formform.expr/evaluate)
 (stest/instrument 'formform.expr/eval-all)
 (stest/instrument 'formform.expr/equal)
 (stest/instrument 'formform.expr/equiv)
@@ -789,150 +791,114 @@
   (testing "Reducable expressions"
     (testing "FORMs"
       (are [x y] (= x y)
-        (=> (make nil))   [ :N ]
-        (=> (make '()))   [ :M ]
-        (=> (make :U))    [ :U ]
-        (=> (make '(:U))) [ :I ]))
+        :N (=> (make nil))
+        :M (=> (make '()))
+        :U (=> (make :U))
+        :I (=> (make '(:U)))))
 
     (testing "Constants"
       (are [x y] (= x y)
-        (=> (make :N)) [ :N ]
-        (=> (make :M)) [ :M ]
-        (=> (make :U)) [ :U ]
-        (=> (make :I)) [ :I ])))
+        :N (=> (make :N))
+        :M (=> (make :M))
+        :U (=> (make :U))
+        :I (=> (make :I)))))
 
   (testing "irreducable expressions"
-    (is (= (=> (make 'a))
-           [ :_ ]))
-    (is (= (=> (make '("x" ("y"))))
-           [ :_ ])))
-
-  (testing "metadata"
-    (is (expression? (=> (make 'a))))
-    (is (= (meta (=> (make 'a)))
-           {:expr 'a, :env {}}))
-    (is (= (meta (=> (make 'a) {'a :M}))
-           {:expr [], :env {'a :M}}))))
+    (is (= :_ (=> (make 'a))))
+    (is (= :_ (=> (make '("x" ("y"))))))))
 
 
 (defn ->nmui [fdna-expr]
-  (let [{:keys [vars dna]} (op-data fdna-expr)]
-    (apply str vars "::" (calc/dna->digits dna calc/nmui-code))))
+  (let [{:keys [varorder dna]} (op-data fdna-expr)]
+    (apply str varorder "::" (calc/dna->digits dna calc/nmui-code))))
 
 (deftest =>*-test
   (testing "Correctness of returned combinatorial space"
-    (is (= (=>* (make nil))
-           [:fdna '() [:N] ]))
+    (is (= [:fdna '() [:N] ]
+           (=>* (make nil))))
 
-    (is (= (=>* (make nil) {:to-fdna? false})
-           [[:N]]))
+    (is (= [:fdna '(a) [:M :I :U :N] ]
+           (=>* (make 'a))))
 
-    (is (= (=>* (make 'a))
-           [:fdna '(a) [:M :I :U :N] ]))
-
-    (is (= (=>* (make 'a) {:to-fdna? false})
-           [[:N] [:U] [:I] [:M]]))
-
-    (is (= (=>* (make 'a 'b))
-           [:fdna '(a b) [:M :M :M :M
+    (is (= [:fdna '(a b) [:M :M :M :M
                           :M :I :M :I
                           :M :M :U :U
-                          :M :I :U :N] ]))
+                          :M :I :U :N] ]
+           (=>* (make 'a 'b))))
 
-    (is (= (=>* (make 'a 'b) {:to-fdna? false})
-           [[:N] [:U] [:I] [:M]
-            [:U] [:U] [:M] [:M]
-            [:I] [:M] [:I] [:M]
-            [:M] [:M] [:M] [:M]]))
-
-    (is (= (=>* (make 'a 'b 'c))
-           [:fdna '(a b c)
+    (is (= [:fdna '(a b c)
             [:M :M :M :M  :M :M :M :M  :M :M :M :M  :M :M :M :M
              :M :M :M :M  :M :I :M :I  :M :M :M :M  :M :I :M :I
              :M :M :M :M  :M :M :M :M  :M :M :U :U  :M :M :U :U
-             :M :M :M :M  :M :I :M :I  :M :M :U :U  :M :I :U :N] ]))
-
-    (is (= (=>* (make 'a 'b 'c) {:to-fdna? false})
-           [[:N] [:U] [:I] [:M]
-            [:U] [:U] [:M] [:M]
-            [:I] [:M] [:I] [:M]
-            [:M] [:M] [:M] [:M]
-
-            [:U] [:U] [:M] [:M]
-            [:U] [:U] [:M] [:M]
-            [:M] [:M] [:M] [:M]
-            [:M] [:M] [:M] [:M]
-
-            [:I] [:M] [:I] [:M]
-            [:M] [:M] [:M] [:M]
-            [:I] [:M] [:I] [:M]
-            [:M] [:M] [:M] [:M]
-
-            [:M] [:M] [:M] [:M]
-            [:M] [:M] [:M] [:M]
-            [:M] [:M] [:M] [:M]
-            [:M] [:M] [:M] [:M]])))
+             :M :M :M :M  :M :I :M :I  :M :M :U :U  :M :I :U :N] ]
+           (=>* (make 'a 'b 'c)))))
 
   (testing "Correctness of evaluation for simple seq-re FORMs"
-    (is (= (=>* (seq-re :<r 'a)) (=>* (seq-re :<..r. 'a))
-           '[:fdna [a] [:N :I :I :I]]))
-    (is (= (=>* (seq-re :<..r 'a))
-           '[:fdna [a] [:N :U :U :U]]))
+    (is (= '[:fdna [a] [:N :I :I :I]]
+           (=>* (seq-re :<r 'a)) (=>* (seq-re :<..r. 'a))))
+    (is (= '[:fdna [a] [:N :U :U :U]]
+           (=>* (seq-re :<..r 'a))))
 
-    (is (= (=>* (seq-re :<r_ 'a)) (=>* (seq-re :<..r._ 'a))
-           '[:fdna [a] [:M :U :U :I]]))
-    (is (= (=>* (seq-re :<..r_ 'a))
-           '[:fdna [a] [:M :I :I :U]]))
+    (is (= '[:fdna [a] [:M :U :U :I]]
+           (=>* (seq-re :<r_ 'a)) (=>* (seq-re :<..r._ 'a))))
+    (is (= '[:fdna [a] [:M :I :I :U]]
+           (=>* (seq-re :<..r_ 'a))))
 
-    (is (= (=>* (seq-re :<r' 'a)) (=>* (seq-re :<..r'. 'a))
-           '[:fdna [a] [:N :I :I :I]]))
-    (is (= (=>* (seq-re :<..r' 'a))
-           '[:fdna [a] [:N :U :U :U]]))
+    (is (= '[:fdna [a] [:N :I :I :I]]
+           (=>* (seq-re :<r' 'a)) (=>* (seq-re :<..r'. 'a))))
+    (is (= '[:fdna [a] [:N :U :U :U]]
+           (=>* (seq-re :<..r' 'a))))
 
-    (is (= (=>* (seq-re :<r'_ 'a)) (=>* (seq-re :<..r'._ 'a))
-           '[:fdna [a] [:M :I :M :I]]))
-    (is (= (=>* (seq-re :<..r'_ 'a))
-           '[:fdna [a] [:M :M :U :U]])))
+    (is (= '[:fdna [a] [:M :I :M :I]]
+           (=>* (seq-re :<r'_ 'a)) (=>* (seq-re :<..r'._ 'a))))
+    (is (= '[:fdna [a] [:M :M :U :U]]
+           (=>* (seq-re :<..r'_ 'a)))))
 
   (testing "Correctness of evaluation in complex seq-re FORMs"
-    (is (= (=>* (seq-re :<r 'b [:- :I 'a] 'a))
-           '[:fdna [a b] [:N :N :N :N
+    (is (= '[:fdna [a b] [:N :N :N :N
                           :N :I :N :I
                           :I :I :I :I
-                          :I :U :I :U]])))
+                          :I :U :I :U]]
+           (=>* (seq-re :<r 'b [:- :I 'a] 'a)))))
 
   (testing "Congruence of evaluated formDNA with formform 1 results"
     ;; SelFi Collection (see https://observablehq.com/@formsandlines/1d-ca-for-4-valued-form-logic-selfis)
 
     ;; Mark1
-    (is (= (->nmui (=>* (make (seq-re :<r 'l 'e 'r)
-                              (seq-re :<r 'l 'r 'e)) {:vars ['l 'e 'r]}))
+    (is (= (->nmui (=>* {:varorder ['l 'e 'r]}
+                        (make (seq-re :<r 'l 'e 'r)
+                              (seq-re :<r 'l 'r 'e)) {}))
            "[l e r]::3121103223011213012313312301311301231032230132103121133123011113"))
 
     ;; StripesD100000
-    (is (= (->nmui (=>* (make (seq-re :<r 'l 'e 'r)) {:vars ['l 'e 'r]}))
+    (is (= (->nmui (=>* {:varorder ['l 'e 'r]}
+                        (make (seq-re :<r 'l 'e 'r)) {}))
            "[l e r]::3302200223013003030323022301030303032002230100003302230223013303"))
 
     ;; StripesL000100
-    (is (= (->nmui (=>* (make (seq-re :<r 'l 'r 'e)) {:vars ['l 'e 'r]}))
+    (is (= (->nmui (=>* {:varorder ['l 'e 'r]}
+                        (make (seq-re :<r 'l 'r 'e)) {}))
            "[l e r]::3223303000002213022033330000321302203030000032103223333300002213"))
 
     ;; Mono000101
-    (is (= (->nmui (=>* (make (seq-re :<r 'l 'r 'e)
-                              (seq-re :<r 'e 'l 'r)) {:vars ['l 'e 'r]}))
+    (is (= (->nmui (=>* {:varorder ['l 'e 'r]}
+                        (make (seq-re :<r 'l 'r 'e)
+                              (seq-re :<r 'e 'l 'r)) {}))
            "[l e r]::3121333303031111222213312002111121211331230111113223333300001113"))
 
     ;; Rhythm101101
-    (is (= (->nmui (=>* (make (seq-re :<r 'l 'e 'r)
+    (is (= (->nmui (=>* {:varorder ['l 'e 'r]}
+                        (make (seq-re :<r 'l 'e 'r)
                               (seq-re :<r 'e 'r 'l)
                               (seq-re :<r 'l 'r 'e)
-                              (seq-re :<r 'e 'l 'r)) {:vars ['l 'e 'r]}))
+                              (seq-re :<r 'e 'l 'r)) {}))
            "[l e r]::3121111121211111111113311331111121211331230111111111111111111113"))
 
     ;; NewSense
-    (is (= (->nmui (=>* (make (seq-re :<r 'l 'e 'r)
+    (is (= (->nmui (=>* {:varorder ['l 'e 'r]}
+                        (make (seq-re :<r 'l 'e 'r)
                               (seq-re :<r 'r 'e 'l)
-                              (seq-re :<r 'l 'r 'e)) {:vars ['l 'e 'r]}))
+                              (seq-re :<r 'l 'r 'e)) {}))
            "[l e r]::3121121221211213311313311331311301231032230132101111111111111113"))
 
     ;; Slit / xor4vRnd
@@ -948,39 +914,101 @@
            "[l r]::2121123223011212"))
 
     ;; Rule4v30
-    (is (= (->nmui (=>* (make '((l) e r)
-                              '((e) l) '((r) l)) {:vars ['l 'e 'r]}))
+    (is (= (->nmui (=>* {:varorder ['l 'e 'r]}
+                        (make '((l) e r)
+                              '((e) l) '((r) l)) {}))
            "[l e r]::0220212122220123133130303333103220020303000023013113121211113210"))
 
     ;; Rule4v111
-    (is (= (->nmui (=>* (make '(((l) e) r)
+    (is (= (->nmui (=>* {:varorder ['l 'e 'r]}
+                        (make '(((l) e) r)
                               '(((l) r) e)
-                              '(((e) r) l)) {:vars ['l 'e 'r]}))
+                              '(((e) r) l)) {}))
            "[l e r]::2121121221211212311313311331311301231032230132101111111111111111"))
 
     ;; Structure111Re / Co(mprehend)OneAnother (identical to “NewSense”)
-    (is (= (->nmui (=>* (make (seq-re :<r 'l 'e 'r)
+    (is (= (->nmui (=>* {:varorder ['l 'e 'r]}
+                        (make (seq-re :<r 'l 'e 'r)
                               (seq-re :<r 'e 'r 'l)
-                              (seq-re :<r 'l 'r 'e)) {:vars ['l 'e 'r]}))
+                              (seq-re :<r 'l 'r 'e)) {}))
            "[l e r]::3121121221211213311313311331311301231032230132101111111111111113"))
 
     ;; Rule4v110
-    (is (= (->nmui (=>* (make '((e) r)
+    (is (= (->nmui (=>* {:varorder ['l 'e 'r]}
+                        (make '((e) r)
                               '((r) e)
-                              '((r) l)) {:vars ['l 'e 'r]}))
+                              '((r) l)) {}))
            "[l e r]::0123121221213210311310321331321001231032230132103113121211113210"))
 
     ;; uniTuringReRnd
-    (is (= (->nmui (=>* (form (form (seq-re :<r 'l 'e 'r)
+    (is (= (->nmui (=>* {:varorder ['l 'e 'r]}
+                        (form (form (seq-re :<r 'l 'e 'r)
                                     (seq-re :<r 'e 'r 'l)
                                     (seq-re :<r 'l 'r 'e))
-                              (form 'l 'e 'r)) {:vars ['l 'e 'r]}))
+                              (form 'l 'e 'r)) {}))
            "[l e r]::3123121221213213311310321331321001231032230132103113121211113210"))
 
     ))
 
+(deftest evaluate-test
+  (testing "Correct output format"
+    (is (= '{:result :N}
+           (evaluate [['x] [:N]])
+           (evaluate [['x] ['a]] {'a :N})))
+    (is (= '{:result x}
+           (evaluate [['x] [:M]])
+           (evaluate [['x] ['a]] {'a :M})))
+    (is (= '{:result ((x) (a))}
+           (evaluate [['x] ['a]])
+           (evaluate [:- [['x] ['a]] [[:seq-re :<r nil nil] 'a [:U]]]))))) 
+
+(deftest eval-all-test
+  (testing "Correct output format"
+    (is (= '{:varorder [], :results ([[] :N])}
+           (eval-all [[:U] :U])))
+    (is (= '{:varorder ["apple"],
+             :results ([[:N] :N] [[:U] :N] [[:I] :I] [[:M] :I])}
+           (eval-all [["apple"] :U])))
+    (is (= '{:varorder [a x],
+             :results ;; verified in FORM tricorder v1
+             ([[:N :N] :I]
+              [[:N :U] :I]
+              [[:N :I] :I]
+              [[:N :M] :I]
+              [[:U :N] :I]
+              [[:U :U] :M]
+              [[:U :I] :I]
+              [[:U :M] :M]
+              [[:I :N] :N]
+              [[:I :U] :N]
+              [[:I :I] :I]
+              [[:I :M] :I]
+              [[:M :N] :N]
+              [[:M :U] :U]
+              [[:M :I] :I]
+              [[:M :M] :M])}
+           (eval-all [:- [['x] ['a]] [:U 'a]])))))
+
 
 (deftest interpret-test
+  (testing "Equality of alternative operations"
+    (is (= '[[:- "a"] [[]] :U]
+           (form {:splice? false} [:- "a"] [[]] :U)
+           (make {:mark? true :splice? false} [:- "a"] [[]] :U)
+           (interpret (make :+ [:- "a"] [[]] :U))))
+    (is (= '[[[:- "a"] [[]] :U]]
+           (interpret-walk {:--focus #{:+}} (form :+ [:- "a"] [[]] :U))
+           (interpret (make {:splice? false} [:- "a"] [[]] :U))
+           (interpret (make :- [:- "a"] [[]] :U))))
+    (is (= '[[["a"] [[[]]] [:U]]]
+           (interpret-walk {:--focus #{:|}} (form :| [:- "a"] [[]] :U))
+           (interpret
+            (interpret (make :* [:- "a"] [[]] :U)))))
+    (is (= '[["a"] [[[]]] [:U]]
+           (splice-ctx
+            (interpret-walk {:--focus #{:*}} (form :* [:- "a"] [[]] :U)))
+           (interpret (make :| [:- "a"] [[]] :U)))))
+
   (testing "Correctness of transformation"
     (is (= (interpret [:- 'x 'y])
            '((x y))))
@@ -1150,13 +1178,46 @@
              '[:- (x) :U])))))
 
 
+(deftest interpret-sym-test
+  (testing "Unknown symbols"
+    (is (= :x (interpret :x))))
+  (testing "Value symbols"
+    (are [x y] (= y (interpret x))
+      :N nil
+      :M '()
+      :U (seq-re :<r nil nil)
+      :I '(:U))))
+
 (def seqre-opts
   (vec (for [interpr [:rec-instr :rec-ident]
              open?   [false true]
              parity  [:any :even :odd]]
-         {:parity parity, :open? open?, :interpr interpr})))
+         {:parity parity, :open? open?, :interpr interpr}))) 
 
 (deftest interpret-op-test
+  (testing "Syntactic operators"
+    (testing "Relations"
+      (is (= '[a b c]
+             (interpret-op (make :+ 'a 'b 'c))))
+      (is (= '[[a b c]]
+             (interpret-op (make :- 'a 'b 'c))))
+      (is (= '[:- [a] [b] [c]]
+             (interpret-op (make :* 'a 'b 'c))
+             (interpret-op (make :<> 'a 'b 'c))))
+      (is (= '[[a] [b] [c]]
+             (interpret-op (make :| 'a 'b 'c))
+             (interpret-op (make :<-> 'a 'b 'c)))))
+
+    (testing "Nestings"
+      (is (= '[[[a] b] c]
+             (interpret-op (make :<- 'a 'b 'c))))
+      (is (= '[a [b [c]]]
+             (interpret-op (make :-> 'a 'b 'c))))
+      (is (= '[:- [[a] b] c]
+             (interpret-op (make :< 'a 'b 'c))))
+      (is (= '[:- a [b [c]]]
+             (interpret-op (make :> 'a 'b 'c))))))
+
   (testing "formDNA"
     (testing "Correctness of transformation"
       (is (= (interpret-op (make :fdna)) :N))

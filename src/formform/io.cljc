@@ -7,6 +7,7 @@
   (:require [formform.calc :as calc]
             [formform.expr :as expr]
             [formform.grammar.formula :refer [parser]]
+            [clojure.edn :as edn]
             [clojure.string :as str]
             #?(:clj  [instaparse.core :as insta]
                :cljs [instaparse.core :as insta])))
@@ -20,6 +21,7 @@
         s (if (and (not= sort-code calc/nuim-code)
                    (some? (#{"0" "1" "2" "3"} s)))
             (-> s
+                clojure.edn/read-string
                 (calc/digit->const sort-code)
                 (calc/const->digit)
                 str)
@@ -38,7 +40,7 @@
         digits? (case (first s) (\N \U \I \M) false true)]
     (if digits?
       ;; ? allow numeric formDNA
-      (calc/digits->dna s sort-code)
+      (calc/digits->dna (mapv (comp clojure.edn/read-string str) s) sort-code)
       (let [dna (apply calc/make-dna s)]
         (if (= sort-code calc/nuim-code)
           dna
@@ -159,8 +161,8 @@
        (ctx-seq->formula nested-exprs) "}"))
 
 (defn formDNA->formula
-  [[op-k vars dna]]
-  (str "[" op-k " [" (str/join ", " (map variable->formula vars)) "] "
+  [[op-k varorder dna]]
+  (str "[" op-k " [" (str/join ", " (map variable->formula varorder)) "] "
       (str "::" (str/join "" (map name dna))) "]"))
 
 (defn memory->formula

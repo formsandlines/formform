@@ -37,7 +37,7 @@
   "Generate the necessary padding to fill s upto width."
   [s padding width]
   (let [missing (- width (count s))
-        full-lengths (math/floor (/ missing (count padding)))
+        full-lengths (int (math/floor (/ missing (count padding))))
         remaining (if (zero? full-lengths) (- width (count s))
                       (rem missing (* full-lengths (count padding))))]
     (str (apply str (repeat full-lengths padding))

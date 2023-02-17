@@ -206,8 +206,8 @@
 
 (s/def :formform.specs.expr/variable (s/or :str string? :sym symbol?))
 
-(s/def :formform.specs.expr/vars (s/coll-of :formform.specs.expr/variable
-                                            :kind (complement map?)))
+(s/def :formform.specs.expr/varorder (s/coll-of :formform.specs.expr/variable
+                                                :kind sequential?))
 
 ;; ! check for predicates in input validation -> performance
 (s/def :formform.specs.expr/expression
@@ -255,7 +255,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Core Operations
 
-(defn- splice-ctx
+(defn splice-ctx
   "Dissolves arrangements in given context such that their elements become direct children of the context itself."
   [ctx]
   (reduce (fn [acc x] (cond
@@ -312,14 +312,20 @@
   "Interprets an expression of any kind. Returns the original expression if it cannot be interpreted.
 
   Can be given an `env` map to interpret variables (as keys).
-  This map can have an optional `--defocus` entry whose value is a set of items that should not be interpreted.
-  - the keywords `:ops` / `:syms` / `:vars` exclude all operations / expression symbols / variables
-  - an operator symbol can provided to exclude a specific operator
-  - any other expression (like a variable) can be excluded as well"
+  This map can have an optional `--defocus` entry whose value is a set of items that should not be interpreted and a complementary `--focus` entry to only interpret the items specified in its set and nothing else.
+  - the keywords `:ops` / `:syms` / `:vars` designate _all_ operations / expression symbols / variables
+  - an operator symbol can provided to designate a specific operator
+  - any other expression (like a variable) can be designated as itself
+  - `--focus` and `--defocus` can cancel each other out if they contain the same item so you usually pick one or the other"
   ([expr] (interpret {} expr))
-  ([{:keys [--defocus] :or {--defocus #{}} :as env} expr]
+  ([{:keys [--defocus --focus] :or {--defocus #{}
+                                    --focus #{}} :as env} expr]
    (cond
-     (--defocus expr) expr
+     (--defocus expr)                          expr
+     (and (seq --focus)
+          (if (operator? expr)
+            (nil? (--focus (op-symbol expr)))
+            (nil? (--focus expr))))            expr
      (and (nil? (--defocus :ops))
           (operator? expr)
           (nil? (--defocus (op-symbol expr)))) (interpret-op expr)
@@ -335,6 +341,7 @@
   ([env expr]
    (walk/postwalk (partial interpret env) expr)))
 
+;; ? return a lazy seq of iterations instead
 (defn- prod=iterate-unless-eq [interpret-fn]
   (fn f*
     ([expr] (f* {} expr))
@@ -368,11 +375,12 @@
               (tree-seq sequential? seq (seq expr)))
       '())))
 
+;; ! type order not recognized
 (defn find-vars
   "Finds all variables in an expresson or returns the expression itself if it is a variable.
   
   Options:
-  - {:ordered true} to return variables in type order > alphanumeric order
+  - {:ordered true} to return variables in: type order -> alphanumeric order
   - {:vars #{…}} can be given a set of specific variables to find"
   [expr {:keys [ordered? vars] :or {ordered? false}}]
   (if (sequential? expr)
@@ -591,74 +599,84 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Evaluation
 
-(defn eval-expr
+(defn- eval-simplified
+  [expr env]
+  (let [simpl-expr (cnt> expr env)
+        result     (case simpl-expr
+                     []   :M
+                     nil  :N
+                     :U   :U
+                     [:U] :I
+                     calc/var-const)]
+    {:expr simpl-expr
+     :env env
+     :val result}))
+
+;; ? check for validity of varorder
+(defn- eval-simplified*
+  [{:keys [varorder only-vals?]} expr global-env]
+  (let [vars (if (nil? varorder) (find-vars expr {:ordered? true}) varorder)
+        vspc (calc/vspace (count vars))
+        envs (mapv (comp (partial merge global-env)
+                         (partial apply hash-map)
+                         (partial interleave vars)) vspc)
+        results (mapv (if only-vals?
+                        (comp :val (partial eval-simplified expr))
+                        (partial eval-simplified expr)) envs)]
+    {:varorder (vec vars)
+     :vspace vspc
+     :results results}))
+
+; (defn calc*
+;   [expr])
+
+(defn =>
   "Evaluates a FORM expression with an optional `env` and returns a Constant expression with attached metadata including the maximally reduced expression in `:expr` and the environment in `:env`.
   - `env` must be a map with a content/variable in `expr` as a key"
-  ([expr] (eval-expr expr {}))
+  ([expr] (=> expr {}))
   ([expr env]
-   (let [res (cnt> expr env)
-         v (case res
-             []   :M
-             nil  :N
-             :U   :U
-             [:U] :I
-             nil)
-         m {:expr res :env env}]
-     (if (some? v)
-       ;; ? maybe a map instead
-       (with-meta [ v ] m)
-       (with-meta [ calc/var-const ] m)))))
-;; alias
-(def => eval-expr)
+   (:val (eval-simplified expr env))))
 
-(defn eval-all
+(defn =>*
   "Evaluates a FORM expression for all possible interpretations of any occurring variable in the expression. Returns a formDNA expression by default.
   - if `to-fdna?` is false, returns a seq of results as returned by `=>` in the order of the corresponding `vspace` ordering"
+  ([expr] (=>* expr {}))
+  ([expr env] (=>* {} expr {}))
+  ([opts expr env]
+   (let [{:keys [varorder results]}
+         (eval-simplified* (merge opts {:only-vals? true}) expr env)]
+     (make tag_formDNA varorder (rseq results)))))
+
+(defn evaluate
+  ([expr] (evaluate expr {}))
+  ([expr env]
+   (let [res (eval-simplified expr env)
+         v   (let [v (:val res)]
+               (if (= :_ v)
+                 (:expr res)
+                 v))]
+     (with-meta {:result v} res))))
+
+(defn eval-all
   ([expr] (eval-all expr {}))
-  ([expr {:keys [to-fdna? vars] :or {to-fdna? true}}]
-   (let [vars (if (nil? vars) (find-vars expr {:ordered? true}) vars)
-         vspc (calc/vspace (count vars))
-         all-envs (fn [vars]
-                    (map (comp (partial apply hash-map)
-                               (partial interleave vars)) vspc))
-         envs (all-envs vars)]
-     (if to-fdna?
-       (let [consts (mapv (comp first (partial eval-expr expr)) envs)]
-         (make tag_formDNA (vec vars) (rseq consts)))
-       (let [results (map (partial eval-expr expr) envs)]
-         (with-meta results {:vars vars :vspc vspc}))))))
-;; alias
-(def =>* eval-all)
+  ([expr env] (eval-all {} expr {}))
+  ([opts expr env]
+   (let [{:keys [varorder results] :as res}
+         (eval-simplified* (merge opts {:only-vals? false}) expr env)
+         vdict (map #(vector (mapv (:env %) varorder)
+                             (:val %))
+                    results)]
+     (with-meta {:varorder varorder :results vdict} res))))
 
-#_(defn eval-expr
-      "Calls `=>` but instead of an expression returns the `const` value or nil."
-      ([expr]     (eval-expr expr {}))
-      ([expr env] (let [[x] (=> expr env)]
-                    (if (calc/const? x)
-                      x
-                      calc/var-const)))) ; nil?
-
-;; ? return a map of map-keys var->interpr. instead
-#_(defn eval-all
-      "Calls `=>*` but instead of an expression returns a `vdict`"
-      [expr {:keys [sorted?] :or {sorted? true}}]
-      (let [rs (=>* expr {:to-fdna? false})
-            {:keys [vars vspc]} (meta rs)]
-        (with-meta
-          (->> rs
-               (map first)
-               (map vector vspc)
-               (into (if sorted? (sorted-map-by calc/compare-dna) (hash-map))))
-          {:vars vars})))
 
 (defn equal
   "Equality check for expressions. Two expressions are considered equal, if their formDNAs are equal. Compares formDNAs from evaluation results of each expression by calling `calc/equal-dna`.
   - ordering of variable names in formDNA matters, see `find-vars`
   - stricter than `equiv`, which compares by `calc/equiv-dna`"
   [& exprs]
-  (let [data     (map (comp op-data eval-all) exprs)
+  (let [data     (map (comp op-data =>*) exprs)
         dnas     (map :dna data)
-        varlists (map :vars data)]
+        varlists (map :varorder data)]
     (and (apply = varlists)
          (apply calc/equal-dna dnas))))
 
@@ -668,7 +686,7 @@
   - looser than `equal`, which compares by `calc/equal-dna`
   - can be slow on expressions with 6+ variables"
   [& exprs]
-  (apply calc/equiv-dna (map (comp #(op-get % :dna) eval-all) exprs)))
+  (apply calc/equiv-dna (map (comp #(op-get % :dna) =>*) exprs)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -812,6 +830,7 @@
 (defn arr-prepend [x rel-expr]
   (apply vector tag_arrangement x (rest rel-expr)))
 
+(defoperator :+ [& exprs] (into [] exprs))
 (defoperator :* [& exprs] (apply vector tag_arrangement (map form exprs)))
 (defoperator :| [& exprs] (mapv form exprs))
 
@@ -1192,9 +1211,9 @@
 
 (s/def :formform.specs.expr/formDNA
   (s/and (s/nonconforming
-          (s/cat :tag  (partial = tag_formDNA)
-                 :vars :formform.specs.expr/vars
-                 :dna  :formform.specs.calc/dna))
+          (s/cat :tag      (partial = tag_formDNA)
+                 :varorder :formform.specs.expr/varorder
+                 :dna      :formform.specs.calc/dna))
          #(== (count (second %)) (calc/dna-dimension (nth % 2)))))
 
 (def formDNA? (partial s/valid? :formform.specs.expr/formDNA))
@@ -1206,13 +1225,13 @@
   [fdna env]
   (let [;; assumes only constant values
         ;; ? what about unevaluated FORMs and formDNA?
-        {:keys [vars dna]} (op-data fdna)
+        {:keys [varorder dna]} (op-data fdna)
         matches (map #(let [v (get env % calc/var-const)
                             v (if (or (= calc/var-const v) (calc/const? v))
                                 v
                                 (expr->const v))]
                         (vector % v))
-                     vars)
+                     varorder)
         vpoint (map second matches)]
     (make tag_formDNA
           (mapv first (filter #(= (second %) calc/var-const) matches))
@@ -1221,23 +1240,23 @@
 (defn- simplify-formDNA
   [operator env]
   (let [filtered-fdna (filter-formDNA operator env)]
-    (if (empty? (op-get filtered-fdna :vars))
+    (if (empty? (op-get filtered-fdna :varorder))
       (first (op-get filtered-fdna :dna))
       filtered-fdna)))
 
 (defn- construct-formDNA
   ([op-k] (construct-formDNA op-k [] [:N]))
-  ([op-k dna] (let [vars (vec (gen-vars (calc/dna-dimension dna)))]
-                (construct-formDNA op-k vars dna)))
-  ([op-k vars dna]
-   (let [op (vector op-k vars dna)]
+  ([op-k dna] (let [varorder (vec (gen-vars (calc/dna-dimension dna)))]
+                (construct-formDNA op-k varorder dna)))
+  ([op-k varorder dna]
+   (let [op (vector op-k varorder dna)]
      (if (formDNA? op)
        op
        (throw (ex-info (str "Invalid operator arguments" op-k)
-                       {:op op-k :vars vars :dna dna}))))))
+                       {:op op-k :varorder varorder :dna dna}))))))
 
-(defoperator tag_formDNA [vars dna]
-  (if (empty? vars)
+(defoperator tag_formDNA [varorder dna]
+  (if (empty? varorder)
     (make (first dna))
     (let [vdict (calc/dna->vdict dna {})]
       (apply make
@@ -1245,7 +1264,7 @@
                     (apply form
                            (form res)
                            (map #(form ((const->isolator %1) %2))
-                                vpoint vars)))
+                                vpoint varorder)))
                   vdict))))
   :constructor construct-formDNA
   :predicate formDNA?
@@ -1280,6 +1299,51 @@
 
   ;; simplify-op -> interpret-op or interpret or something else?
   ;; simplify-content
+
+  (interpret-walk {:--focus #{[:- 'x]}} [:- 'a ['b [ [:- 'x] ]] :M])
+  (interpret-walk {:--defocus #{[:- 'x]}} [:- 'a ['b [ [:- 'x] ]] :M])
+
+
+
+
+  (simplify [:fdna ['a] [:N :U :I :M]]
+            {'a :U})
+
+  (simplify ['a [:fdna ['b] [:N :U :I :M]]]
+            {'a :U})
+  ;=> (:U [:fdna [b] [:N :U :I :M]])
+  '[[:fdna [b] [:U :U :M :M]]]
+
+  (simplify ['a [:fdna ['b] [:N :U :I :M]]])
+  ;=> (a [:fdna [b] [:N :U :I :M]])
+  '[[:fdna [a b] [:M :M :M :M
+                  :I :M :I :M
+                  :U :U :M :M
+                  :N :U :I :M]]]
+
+  (simplify ['a 'b [:fdna ['c] [:N :U :I :M]]])
+  ;=> (a b [:fdna [c] [:N :U :I :M]])
+  '[[:fdna [a b c]
+     [:M :M :M :M  :M :M :M :M  :M :M :M :M  :M :M :M :M
+      :M :M :M :M  :I :M :I :M  :M :M :M :M  :I :M :I :M
+      :M :M :M :M  :M :M :M :M  :U :U :M :M  :U :U :M :M
+      :M :M :M :M  :I :M :I :M  :U :U :M :M  :N :U :I :M]]]
+
+  (meta (evaluate ['a 'b] {'b :U}))
+  (evaluate ['a 'b] {'a :M})
+  (eval-all ['a 'b] {'a :M})
+  (=> ['a 'b])
+  (=>* ['a 'b])
+  (=>* ['a 'b [:fdna ['c] [:N :U :I :M]]])
+
+  (=>* {:varorder ['l 'e 'r]}
+       (make (seq-re :<r 'l 'e 'r)
+             (seq-re :<r 'l 'r 'e)) {})
+
+  (find-vars [['x] 'z 'a] {})
+  (find-vars [['x] 'z 'a] {:ordered? true})
+  (find-vars [['x] "a" 'z "x" 'a] {})
+  (find-vars [['x] "a" 'z "x" 'a] {:ordered? true})
 
   )
 

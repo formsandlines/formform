@@ -78,6 +78,40 @@
      -1 ;; “hole” or variable value
      ((zipmap sort-code (range)) c))))
 
+(defn consts->quaternary
+  "Converts a sequence of constants to a corresponding quaternary number (as a string, prefixed by '4r').
+  - use `read-string` to obtain the decimal value as a BigInt"
+  [consts]
+  (if (seq consts)
+    (let [digits (map const->digit consts)]
+      (apply str "4r" digits))
+    (throw (ex-info "Must contain at least one element." {:arg consts}))))
+
+(defn make-compare-consts
+  "Given a `sort-code` (try `calc.nuim-code` or `calc.nmui-code`), returns a comparator function to sort single constants, formDNA or arbitrary sequences of constants (can be mixed).
+  - can also compare map-entries by keys of comparable types"
+  [sort-code]
+  (fn [a b]
+    (let [sort-map  (zipmap sort-code (range))
+          convert   (fn convert [x]
+                      (cond
+                        ;; ! not interoperable for cljs will not
+                        ;;   parse BigInt here
+                        ;;   -> maybe use interop with js/BigInt
+                        ;;   or a different approach
+                        ; (dna? x)   (edn/read-string (consts->quaternary x))
+                        (sequential? x) (edn/read-string
+                                          (consts->quaternary x))
+                        (const? x) (sort-map x)
+                        ; (coll? x)  (mapv convert x)
+                        :else (throw (ex-info "Incompatible type: " {:x x}))))]
+      (if (and (map-entry? a) (map-entry? b))
+        (compare (convert (first a)) (convert (first b)))
+        (compare (convert a) (convert b))))))
+
+;; convenience function
+(def compare-consts (make-compare-consts nuim-code))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; formDNA
@@ -154,43 +188,13 @@
                              nuim-code))]
      (vec (repeatedly len gen-fn)))))
 
-(declare dna->digits)
 
-(defn dna->quaternary
-  "Converts formDNA to its corresponding quaternary number (as a string, prefixed by '4r').
-  - use `read-string` to obtain the decimal value as a BigInt"
-  [dna]
-  (let [digits (dna->digits dna)]
-    (apply str "4r" digits)))
+(declare dna->digits)
 
 (def reverse-dna
   "Reverses a formDNA (returns an rseq)
   - make sure the input is a vector for constant-time reverse"
   (comp rseq vec))
-
-;; ! does not distinguish between formDNA and arbitrary const/dna collections
-(defn make-compare-dna
-  "Given a `sort-code` (try `calc.nuim-code` or `calc.nmui-code`), returns a comparator function to sort formDNA and single constants (can be mixed).
-  - can also compare map-entries by their constant or formDNA keys"
-  [sort-code]
-  (fn [a b]
-    (let [sort-map  (zipmap sort-code (range))
-          convert   (fn convert [x]
-                      (cond
-                        ;; ! not interoperable for cljs will not
-                        ;;   parse BigInt here
-                        ;;   -> maybe use interop with js/BigInt
-                        ;;   or a different approach
-                        (dna? x)   (edn/read-string (dna->quaternary x))
-                        (const? x) (sort-map x)
-                        ; (coll? x)  (mapv convert x)
-                        :else (throw (ex-info "Incompatible type: " {:x x}))))]
-      (if (and (map-entry? a) (map-entry? b))
-        (compare (convert (first a)) (convert (first b)))
-        (compare (convert a) (convert b))))))
-
-;; convenience function
-(def compare-dna (make-compare-dna nuim-code))
 
 (defn reorder-dna-seq
   "Reorders given formDNA/`dna-seq` from `sort-code-from` to `sort-code-to`.
@@ -203,7 +207,7 @@
     dna-seq
     (let [sort-idxs (->> (range 3 -1 -1)
                          (zipmap sort-code-from)
-                         (sort (make-compare-dna sort-code-to))
+                         (sort (make-compare-consts sort-code-to))
                          reverse
                          (map second))
           ;; ! recursion can cause OutOfMemoryError with dim > 12
@@ -519,7 +523,7 @@
                  (if (const? r)
                    [% r]
                    [% def-r])) vspc)
-         (into (if sorted? (sorted-map-by compare-dna) (hash-map))))))
+         (into (if sorted? (sorted-map-by compare-consts) (hash-map))))))
 
 (defn dna->vdict
   "Generates a vdict from a given dna.
@@ -530,7 +534,7 @@
                   (throw (ex-info "Aborted: operation may freeze for formDNA dimensions above 11. Set option `unsafe?` to true if you still want to proceed." {:dimension dim})))
         dna-rev (reverse-dna dna)
         vspc    (vspace dim)]
-    (into (if sorted? (sorted-map-by compare-dna) (hash-map))
+    (into (if sorted? (sorted-map-by compare-consts) (hash-map))
           (map vector vspc dna-rev))))
 
 ;;-------------------------------------------------------------------------
@@ -625,6 +629,9 @@
 (comment
   ; (set! *print-length* 50)
   ; (require '[criterium.core :as crt])
+
+  (sort compare-consts [[:N :U] [:I :M]])
+
 
   )
 

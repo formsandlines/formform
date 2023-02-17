@@ -34,7 +34,7 @@
              :kind (complement map?)))
 
 
-(let [digits (set (map (comp first str) (range 10)))]
+(let [digits (set (map (comp first str) (range 4)))]
   (s/def ::quaternary-str (s/and string?
                                  #(= "4r" (subs % 0 2))
                                  #(every? digits (subs % 2)))))
@@ -71,10 +71,14 @@
                                         :nil nil?)))
   :ret  ::dna-seq)
 
-(s/fdef formform.calc/dna->quaternary
-  :args (s/cat :dna ::dna)
-  :ret  ::quaternary-str)
 
+(s/def ::consts (s/every ::const
+                         :kind sequential?
+                         :min-count 1))
+
+(s/fdef formform.calc/consts->quaternary
+  :args (s/cat :consts ::consts)
+  :ret  ::quaternary-str)
 
 ;; for some reason, spec/orchestra needs a custom generator for `map-entry?`
 
@@ -84,24 +88,24 @@
            #(s/valid? ::const (first %)))
     #(gen/fmap first (gen/map (s/gen ::const) (gen/simple-type)))))
 
-(s/def ::dna-map-entry
+(s/def ::consts-map-entry
   (s/with-gen
     (s/and map-entry?
-           #(s/valid? ::dna (first %)))
-    #(gen/fmap first (gen/map (s/gen ::dna) (gen/simple-type)))))
+           #(s/valid? ::consts (first %)))
+    #(gen/fmap first (gen/map (s/gen ::consts) (gen/simple-type)))))
 
-(s/fdef formform.calc/make-compare-dna
+(s/fdef formform.calc/make-compare-consts
   :args (s/cat :sort-code ::sort-code)
-  :ret  (s/fspec :args (s/or :const-or-dna
-                             (s/tuple (s/or :const ::const
-                                            :dna   ::dna)
-                                      (s/or :const ::const
-                                            :dna   ::dna))
+  :ret  (s/fspec :args (s/or :const-or-consts
+                             (s/tuple (s/or :const  ::const
+                                            :consts ::consts)
+                                      (s/or :const  ::const
+                                            :consts ::consts))
                              :map-entries
-                             (s/tuple (s/or :const ::const-map-entry
-                                            :dna   ::dna-map-entry)
-                                      (s/or :const ::const-map-entry
-                                            :dna   ::dna-map-entry)))
+                             (s/tuple (s/or :const  ::const-map-entry
+                                            :consts ::consts-map-entry)
+                                      (s/or :const  ::const-map-entry
+                                            :consts ::consts-map-entry)))
                  :ret  #(#{-1 0 1} %))
   ;; ! doesn’t work yet:
   ; :fn   (fn [{:keys [args ret]}]
