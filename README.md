@@ -2,7 +2,13 @@
 
 <br/>
 
-**formform** is a modular Clojure/ClojureScript/JavaScript library all about the 4-valued logic of cognition first introduced 2017 by Ralf Peyn in [uFORM iFORM](https://uformiform.info). In its core, the purpose of the library is to enable the representation, evaluation and algebraic simplification of all (undetermined, imaginary, unclear, …) FORMs that have been introduced in the book. 
+**formform** is a modular Clojure/ClojureScript library all about the 4-valued logic of cognition first introduced 2017 by Ralf Peyn in [uFORM iFORM](https://uformiform.info). In its core, the purpose of the library is to enable the representation, evaluation and algebraic simplification of all (undetermined, imaginary, unclear, …) FORMs that have been introduced in the book. 
+
+---
+
+*Please note that this library is still in an alpha state and things are changing all the time, so do not rely on it for your projects yet. It is a complete rewrite of my previous (stable-ish) JavaScript version, which is still available [here](https://github.com/formsandlines/formform-js). Prior to this (final) one, I have attempted a rewrite in ReScript, which is also still [available](https://github.com/formsandlines/formform-rescript), for historical reasons.*
+
+---
 
 The main goals of formform are:
 
@@ -20,12 +26,6 @@ The library is divided into 3 core modules:
 * `alg`: *(work in progress)* define substitution rules using a pattern language to represent and perform stepwise algebraic deductions
 
 It is extendable with more specialized modules for different tasks such as visualization or simulation/analysis with cellular automata.
-
----
-
-*Please note that my library as well as my apps are still work in progress. The library is currently in the process of a complete rewrite in Clojure and you may want to check out the stable-ish previous JavaScript version on the master branch or wait for a stable release if you intent to use it in your projects. Although I am very passionate about this, I am not a formally trained developer and cannot yet afford to do this full-time.*
-
----
 
 As a helpful tool for researchers and enthusiasts and as a demonstration of the library's capabilities I have also created the [**FORM tricorder**](https://github.com/formsandlines/form-tricorder) (it still uses an old, but stable version of formform). It can calculate, represent and visualize FORMs using my own `formula` syntax, which is explained in the app (click on `Show explanations`). Further applications (like a cellular automaton) are listed on the [formform website](https://formform.dev).
 
