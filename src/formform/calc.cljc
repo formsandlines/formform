@@ -541,10 +541,10 @@
 ;; `vmap` -> value map -> mapping from `vspace` topology to `dna`
 
 (s/def :formform.specs.calc/vmap
-  (s/map-of :formform.specs.calc/const
-            (s/or :vmap :formform.specs.calc/vmap
-                  :res  :formform.specs.calc/const)
-            :count 4))
+  (s/or :vmap (s/map-of :formform.specs.calc/const
+                        :formform.specs.calc/vmap
+                        :count 4)
+        :res :formform.specs.calc/const))
 
 (def vmap? (partial s/valid? :formform.specs.calc/vmap))
 
@@ -553,17 +553,19 @@
   "Generates a vmap from a given vdict."
   ([vdict] (vdict->vmap nil vdict))
   ([fmap vdict]
-   (let [vspc (keys vdict)
-         dim  (count (first vspc))
-         aux  (fn f [depth vspc]
-                (if (< depth dim)
-                  (let [group (group-by #(nth % depth) vspc)
-                        vmap  (update-vals group #(f (inc depth) %))]
-                    (if (nil? fmap)
-                      vmap
-                      (fmap vmap vspc depth dim)))
-                  (vdict (first vspc))))]
-     (with-meta (aux 0 vspc) {:dim dim}))))
+   (if (== 1 (count vdict))
+     (vdict '())
+     (let [vspc (keys vdict)
+           dim  (count (first vspc))
+           aux  (fn f [depth vspc]
+                  (if (< depth dim)
+                    (let [group (group-by #(nth % depth) vspc)
+                          vmap  (update-vals group #(f (inc depth) %))]
+                      (if (nil? fmap)
+                        vmap
+                        (fmap vmap vspc depth dim)))
+                    (vdict (first vspc))))]
+       (with-meta (aux 0 vspc) {:dim dim})))))
 
 ;; ? can a custom algo directly from formDNA be more efficient here
 (defn dna->vmap
@@ -629,9 +631,6 @@
 (comment
   ; (set! *print-length* 50)
   ; (require '[criterium.core :as crt])
-
-  (sort compare-consts [[:N :U] [:I :M]])
-
 
   )
 

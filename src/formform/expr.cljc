@@ -81,7 +81,10 @@
 (defmethod simplify-op :default simplify-op->unknown
   [[op-k & _ :as expr] env]
   (if (op-symbol? op-k)
-    (simplify-content (interpret-op expr) env) ;; defaults to interpretation
+    ;; ? applicative order (eval args first) would be more efficient
+    ;;   but how to know if all args are expressions?
+    ;;   -> should leave that to dedicated simplifier
+    (simplify-content (interpret-op expr) env)
     (throw (ex-info (str "Don’t know how to simplify " op-k)
                     {:op op-k :expr expr :env env}))))
 
@@ -1344,6 +1347,32 @@
   (find-vars [['x] 'z 'a] {:ordered? true})
   (find-vars [['x] "a" 'z "x" 'a] {})
   (find-vars [['x] "a" 'z "x" 'a] {:ordered? true})
+
+  (defoperator :x5 [x] (repeat 5 x))
+  (defoperator :xn [n x] (repeat n x))
+  (defoperator :inv [x] (case x
+                          :N :M
+                          :U :I
+                          :I :U
+                          :M :N nil))
+
+  ;; ? how to deal with uninterpretable operators
+  (defoperator :if [pred x t f] [:if pred x t f]
+    :reducer (fn [[_ pred x t f] env]
+               (if (pred (simplify x env)) t f)))
+
+  (interpret [:x5 [:U]])
+  (interpret [:xn 6 :U])
+  (simplify [:inv :U])
+
+  (simplify [:mem [[:x []]] [:if #(= % []) :x :M :U]])
+
+  ;; form </> data in this case
+  (interpret [:if #(= % []) :x :M :U])
+
+  (str (calc/vdict->vmap 
+         (calc/dna->vdict 
+           (op-get (=>* nil) :dna) {})))
 
   )
 

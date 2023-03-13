@@ -610,7 +610,24 @@
 
 (deftest vdict->vmap-test
   (testing "Validity of vmap"
-    (is (vmap? (vdict->vmap (dna->vdict (rand-dna 3) {}))))))
+    (is (vmap? (vdict->vmap (dna->vdict [:N] {}))))
+    (is (vmap? (vdict->vmap (dna->vdict [:U] {}))))
+    (is (vmap? (vdict->vmap (dna->vdict [:I] {}))))
+    (is (vmap? (vdict->vmap (dna->vdict [:M] {}))))
+    (is (vmap? (vdict->vmap (dna->vdict (rand-dna 3) {})))))
+  (testing "Correctness of transformation"
+    (is (= :N
+           (vdict->vmap {[] :N})))
+    (is (= '{:N :M, :U :I, :I :U, :M :N}
+           (vdict->vmap {[:N] :M, [:U] :I, [:I] :U, [:M] :N})))
+    (is (= '{:N {:N :N, :U :M, :I :U, :M :U},
+             :U {:N :I, :U :I, :I :I, :M :M},
+             :I {:N :M, :U :N, :I :U, :M :I},
+             :M {:N :I, :U :U, :I :M, :M :N}}
+           (vdict->vmap {[:N :N] :N, [:N :U] :M, [:N :I] :U, [:N :M] :U,
+                         [:U :N] :I, [:U :U] :I, [:U :I] :I, [:U :M] :M,
+                         [:I :N] :M, [:I :U] :N, [:I :I] :U, [:I :M] :I,
+                         [:M :N] :I, [:M :U] :U, [:M :I] :M, [:M :M] :N})))))
 
 (deftest rel-test
   (testing "Correctness of relation"
