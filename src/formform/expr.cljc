@@ -712,29 +712,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Nested expressions
 
-;; ? get rid of `nil`
-(defn nest-left [exprs]
-  (if (empty? exprs)
-    nil
-    (loop [r      (rest exprs)
-           nested (splice-ctx [(first exprs)])]
-      (if (empty? r)
-        nested
-        (let [[expr & r] r
-              nested     (splice-ctx (concat [nested] [expr]))]
-          (if (empty? r)
-            nested
-            (recur r nested)))))))
-
-;; ? get rid of `nil`
-(defn nest-right [exprs]
-  (if (empty? exprs)
-    nil
-    (let [[expr & r] exprs]
-      (if (empty? r)
-        (splice-ctx [expr])
-        (splice-ctx (concat [expr] [(nest-right r)]))))))
-
 (defn nest-exprs
   "Nests expressions leftwards `(((…)a)b)` or rightwards `(a(b(…)))` if `{:ltr? true}`
   - use `nil` for empty expressions
@@ -743,7 +720,9 @@
     :or {unmarked? false ltr? false} :as opts} expr & exprs]
   {:pre [(map? opts)]}
   (let [exprs  (cons expr exprs)
-        nested (if ltr? (nest-right exprs) (nest-left exprs))]
+        nested (if ltr?
+                 (utils/nest-right splice-ctx exprs)
+                 (utils/nest-left splice-ctx exprs))]
     (apply (if unmarked? make form) nested)))
 
 (s/def :formform.specs.expr/expr-chain

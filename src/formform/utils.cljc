@@ -52,7 +52,6 @@
     (str (gen-padding s padding width) s)))
 ;;-------------------------------------------------------------------------
 
-
 (defn compare-names [a b]
   (let [to-str (fn [x] (cond
                          (symbol? x)  (str x)
@@ -66,7 +65,34 @@
 ; (defn extend-meta [x metadata]
 ;   (with-meta x (merge (meta x) metadata)))
 
-(comment
-  
-  )
+;; ? get rid of `nil`
+(defn nest-left
+  ([xs] (nest-left identity identity xs))
+  ([fnode xs] (nest-left fnode identity xs))
+  ([fnode fx xs]
+   (if (empty? xs)
+     nil
+     (loop [r      (rest xs)
+            nested (fnode [(fx (first xs))])]
+       (if (empty? r)
+         nested
+         (let [[x & r] r
+               nested  (fnode (concat [nested] [(fx x)]))]
+           (if (empty? r)
+             nested
+             (recur r nested))))))))
+
+;; ? get rid of `nil`
+(defn nest-right
+  ([xs] (nest-right identity identity xs))
+  ([fnode xs] (nest-right fnode identity xs))
+  ([fnode fx xs]
+   (if (empty? xs)
+     nil
+     (let [[x & r] xs
+           x       (fx x)]
+       (if (empty? r)
+         (fnode [x])
+         (fnode (concat [x] [(nest-right fnode fx r)])))))))
+
 

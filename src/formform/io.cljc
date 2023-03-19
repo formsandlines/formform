@@ -10,7 +10,8 @@
             [clojure.edn :as edn]
             [clojure.string :as str]
             #?(:clj  [instaparse.core :as insta]
-               :cljs [instaparse.core :as insta])))
+               :cljs [instaparse.core :as insta])
+            [formform.utils :as utils]))
 
 ;;-------------------------------------------------------------------------
 ;; read formula notation
@@ -98,7 +99,7 @@
      :FDNA      (partial parse-fdna sort-code)
      :FDNA_SYM  (partial parse-symbol sort-code)
      :VARLIST   vector
-     
+
      :MEMORY_SYM (partial parse-symbol sort-code)
      :REMLIST   vector
      :REM       vector}
@@ -210,39 +211,40 @@
 
 (declare expr->uniform)
 
-(defn ctx->uniform
+(defn- ctx->uniform
   [opts ctx]
   (mapv (partial expr->uniform opts) ctx))
 
-#_(cons (let [x (first nested-exprs)
-            re-point {:type :reEntryPoint}]
-        (cons re-point (if (sequential? x)
-                         x (list x))))
-      (rest nested-exprs))
-
-(defn expand-seq-reentry
+(defn- legacy_expand-seq-reentry
   [{:keys [branchname] :as opts} {:keys [nested-exprs sign]}]
-  (let [{:keys [open?]} (expr/seq-reentry-sign->opts sign)
+  (let [{:keys [open? parity interpr]} (expr/seq-reentry-sign->opts sign)
         insert-re-point #(cons (expr/make :f* (first %))
-                               (rest %))]
-    {:type :reEntry
+                               (rest %))
+        uniform-reChild (fn [xs]
+                          {:type :form
+                           :reChild true
+                           branchname (mapcat
+                                       #(if (and (= :form (:type %))
+                                                 (:unmarked %))
+                                          (branchname %)
+                                          [%])
+                                       xs)})]
+    {:type     :reEntry
+     :reEven   (if (= :any parity)
+                 "undefined"
+                 (= :even parity))
+     :lastOpen open?
+     :altInterpretation (= :rec-ident interpr)
      branchname (->> nested-exprs
                      insert-re-point
-                     (apply expr/nest-exprs {:unmarked? open?
-                                             :ltr? false})
-                     (expr->uniform opts))}))
+                     (utils/nest-left uniform-reChild
+                                      (partial expr->uniform opts))
+                     branchname)}))
 
-;; TODO:
-;; - make `nest-left`/`nest-right` utils
-;; - abstract away the `splice-ctx` function
-;; - assoc `reChild` key to all uniform seq-re exprs
-;;   (wrap in form if not already)
-;; - use `nest-left` to nest uniforms
 
-; (expr/nest-left [{:type :x} {:type :y} {:type :z}])
 
 ;; ? what about inner expressions
-(defn operator->uniform
+(defn- operator->uniform
   [{:keys [branchname use-unmarked? expand-reentry?] :as opts}
    op]
   (let [op-sym (expr/op-symbol op)
@@ -254,13 +256,13 @@
            branchname (ctx->uniform opts (:exprs data))}
           (and expand-reentry?
                (= expr/tag_seq-reentry op-sym))
-          (expand-seq-reentry opts data)
+          (legacy_expand-seq-reentry opts data)
           :else (merge
                  {:type :operator
                   :label (str op-sym)}
                  data))))
 
-(defn symbol->uniform
+(defn- symbol->uniform
   [{:keys [use-const? expand-reentry?] :as opts}
    sym]
   (cond (and use-const? (calc/consts sym))
@@ -275,7 +277,7 @@
         :else {:type :symbol
                :label (str sym)}))
 
-(defn expr->uniform
+(defn- expr->uniform
   [{:keys [branchname use-unmarked? use-const?] :as opts}
    expr]
   (condp #(%1 %2) expr
@@ -289,14 +291,14 @@
                      (if use-unmarked?
                        (assoc m :unmarked false)
                        m))
-    (throw (ex-info "Unknown expression type." {}))))
+    (throw (ex-info "Unknown expression type." {:expr expr}))))
 
 (defn uniform-expr
-  [opts expr]
-  (expr->uniform (merge {:branchname :children
-                         :use-unmarked? false
-                         :use-const? false
-                         :expand-reentry? false}
+  [{:keys [legacy?] :as opts} expr]
+  (expr->uniform (merge {:branchname (if legacy? :space :children)
+                         :use-unmarked? legacy?
+                         :use-const? legacy?
+                         :expand-reentry? legacy?}
                         opts)
                  expr))
 
@@ -304,7 +306,8 @@
 (comment
   (uniform-expr {:branchname :space} [[:M] 'a])
 
-  (uniform-expr {:expand-reentry? true} (expr/seq-re :<r 'a 'b '(c d)))
+  (uniform-expr {:use-unmarked? true
+                 :expand-reentry? true} (expr/seq-re :<r 'a 'b '(c d)))
 
   (uniform-expr {:use-unmarked? true} [:- 'a 'b])
 
@@ -320,4 +323,22 @@
   (let [{:keys [x y] :or {x "a" y "bar"} :as m} {:y "foo"}]
     [[x (:x m)]
      [y (:y m)]])
+  )
+
+(comment
+  (utils/nest-right #(map (partial expr->uniform {}) %) ['a 'b])
+  (utils/nest-right ['a 'b 'c 'd])
+
+  (utils/nest-right (fn [xs] {:type :seq
+                              :space xs})
+                    (fn [x] {:val x}) ['a 'b 'c])
+
+  (utils/nest-left (fn [xs] {:type :seq
+                             :space xs})
+                   (fn [x] {:val x}) ['a 'b 'c])
+
+  (uniform-expr {:use-unmarked? true
+                 :expand-reentry? true} (expr/seq-re :<r 'a 'b 'c))
+
+  (uniform-expr {:legacy? true} (expr/seq-re :<r 'a 'b '[:- c d]))
   )

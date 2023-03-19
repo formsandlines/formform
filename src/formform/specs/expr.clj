@@ -244,15 +244,15 @@
                :exprs (s/* ::expression))
   :ret  ::expression)
 
-(s/fdef formform.expr/nest-left
-  :args (s/cat :exprs (s/coll-of ::expression :kind sequential?))
-  :ret  (s/or :nil  nil? ;; if :exprs = []
-              :expr ::expression))
+(s/fdef formform.utils/nest-left
+  :args (s/cat :items sequential?)
+  :ret  (s/or :nil nil?
+              :seq sequential?))
 
-(s/fdef formform.expr/nest-right
-  :args (s/cat :exprs (s/coll-of ::expression :kind sequential?))
-  :ret  (s/or :nil  nil? ;; if :exprs = []
-              :expr ::expression))
+(s/fdef formform.utils/nest-right
+  :args (s/cat :items sequential?)
+  :ret  (s/or :nil nil?
+              :seq sequential?))
 
 (s/fdef formform.expr/nest-exprs
   :args (s/cat :opts  (s/keys :opt-un [:opts/unmarked? :opts/ltr?])
