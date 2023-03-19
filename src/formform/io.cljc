@@ -245,7 +245,7 @@
 
 ;; ? what about inner expressions
 (defn- operator->uniform
-  [{:keys [branchname use-unmarked? expand-reentry?] :as opts}
+  [{:keys [branchname use-unmarked? use-seq-reentry? use-unclear?] :as opts}
    op]
   (let [op-sym (expr/op-symbol op)
         data   (expr/op-data op)]
@@ -254,7 +254,12 @@
           {:type :form
            :unmarked true
            branchname (ctx->uniform opts (:exprs data))}
-          (and expand-reentry?
+          (and use-unclear?
+               (= expr/tag_unclear op-sym))
+          {:type :unclear
+           :value :U
+           :label (:label data)}
+          (and use-seq-reentry?
                (= expr/tag_seq-reentry op-sym))
           (legacy_expand-seq-reentry opts data)
           :else (merge
@@ -263,14 +268,14 @@
                  data))))
 
 (defn- symbol->uniform
-  [{:keys [use-const? expand-reentry?] :as opts}
+  [{:keys [use-const? use-seq-reentry?] :as opts}
    sym]
   (cond (and use-const? (calc/consts sym))
         {:type :constant
          ; :value (calc/const->digit expr)
          ; :label (str expr)
          :value (name sym)}
-        (and expand-reentry?
+        (and use-seq-reentry?
              (= :f* sym))
         {:type  :reEntryPoint
          :label (name sym)}
@@ -297,8 +302,9 @@
   [{:keys [legacy?] :as opts} expr]
   (expr->uniform (merge {:branchname (if legacy? :space :children)
                          :use-unmarked? legacy?
+                         :use-unclear? legacy?
                          :use-const? legacy?
-                         :expand-reentry? legacy?}
+                         :use-seq-reentry? legacy?}
                         opts)
                  expr))
 
@@ -307,7 +313,7 @@
   (uniform-expr {:branchname :space} [[:M] 'a])
 
   (uniform-expr {:use-unmarked? true
-                 :expand-reentry? true} (expr/seq-re :<r 'a 'b '(c d)))
+                 :use-seq-reentry? true} (expr/seq-re :<r 'a 'b '(c d)))
 
   (uniform-expr {:use-unmarked? true} [:- 'a 'b])
 
@@ -338,7 +344,7 @@
                    (fn [x] {:val x}) ['a 'b 'c])
 
   (uniform-expr {:use-unmarked? true
-                 :expand-reentry? true} (expr/seq-re :<r 'a 'b 'c))
+                 :use-seq-reentry? true} (expr/seq-re :<r 'a 'b 'c))
 
   (uniform-expr {:legacy? true} (expr/seq-re :<r 'a 'b '[:- c d]))
   )
