@@ -311,6 +311,8 @@
   (let [x (get env expr :not-found)]
     (if (= x :not-found) expr x)))
 
+;; ! check if defaults from `env` destructuring must be propagated in 
+;;   `substitute-expr`
 (defn interpret
   "Interprets an expression of any kind. Returns the original expression if it cannot be interpreted.
 
@@ -711,7 +713,7 @@
 ;; Nested expressions
 
 ;; ? get rid of `nil`
-(defn- nest-left [exprs]
+(defn nest-left [exprs]
   (if (empty? exprs)
     nil
     (loop [r      (rest exprs)
@@ -725,7 +727,7 @@
             (recur r nested)))))))
 
 ;; ? get rid of `nil`
-(defn- nest-right [exprs]
+(defn nest-right [exprs]
   (if (empty? exprs)
     nil
     (let [[expr & r] exprs]

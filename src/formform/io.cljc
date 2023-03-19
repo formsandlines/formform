@@ -202,5 +202,122 @@
 (def print-expr expr->formula)
 
 
+;;-------------------------------------------------------------------------
+;; uniform expressions
+
+;; ? too many options
+;; ? needs more conceptual clarity
+
+(declare expr->uniform)
+
+(defn ctx->uniform
+  [opts ctx]
+  (mapv (partial expr->uniform opts) ctx))
+
+#_(cons (let [x (first nested-exprs)
+            re-point {:type :reEntryPoint}]
+        (cons re-point (if (sequential? x)
+                         x (list x))))
+      (rest nested-exprs))
+
+(defn expand-seq-reentry
+  [{:keys [branchname] :as opts} {:keys [nested-exprs sign]}]
+  (let [{:keys [open?]} (expr/seq-reentry-sign->opts sign)
+        insert-re-point #(cons (expr/make :f* (first %))
+                               (rest %))]
+    {:type :reEntry
+     branchname (->> nested-exprs
+                     insert-re-point
+                     (apply expr/nest-exprs {:unmarked? open?
+                                             :ltr? false})
+                     (expr->uniform opts))}))
+
+;; TODO:
+;; - make `nest-left`/`nest-right` utils
+;; - abstract away the `splice-ctx` function
+;; - assoc `reChild` key to all uniform seq-re exprs
+;;   (wrap in form if not already)
+;; - use `nest-left` to nest uniforms
+
+; (expr/nest-left [{:type :x} {:type :y} {:type :z}])
+
+;; ? what about inner expressions
+(defn operator->uniform
+  [{:keys [branchname use-unmarked? expand-reentry?] :as opts}
+   op]
+  (let [op-sym (expr/op-symbol op)
+        data   (expr/op-data op)]
+    (cond (and use-unmarked?
+               (= expr/tag_arrangement op-sym))
+          {:type :form
+           :unmarked true
+           branchname (ctx->uniform opts (:exprs data))}
+          (and expand-reentry?
+               (= expr/tag_seq-reentry op-sym))
+          (expand-seq-reentry opts data)
+          :else (merge
+                 {:type :operator
+                  :label (str op-sym)}
+                 data))))
+
+(defn symbol->uniform
+  [{:keys [use-const? expand-reentry?] :as opts}
+   sym]
+  (cond (and use-const? (calc/consts sym))
+        {:type :constant
+         ; :value (calc/const->digit expr)
+         ; :label (str expr)
+         :value (name sym)}
+        (and expand-reentry?
+             (= :f* sym))
+        {:type  :reEntryPoint
+         :label (name sym)}
+        :else {:type :symbol
+               :label (str sym)}))
+
+(defn expr->uniform
+  [{:keys [branchname use-unmarked? use-const?] :as opts}
+   expr]
+  (condp #(%1 %2) expr
+    nil?           {:type :empty}
+    expr/variable? {:type :variable
+                    :label (str expr)}
+    keyword?       (symbol->uniform opts expr)
+    expr/operator? (operator->uniform opts expr)
+    expr/form?     (let [m {:type :form
+                            branchname (ctx->uniform opts expr)}]
+                     (if use-unmarked?
+                       (assoc m :unmarked false)
+                       m))
+    (throw (ex-info "Unknown expression type." {}))))
+
+(defn uniform-expr
+  [opts expr]
+  (expr->uniform (merge {:branchname :children
+                         :use-unmarked? false
+                         :use-const? false
+                         :expand-reentry? false}
+                        opts)
+                 expr))
+
+
 (comment
+  (uniform-expr {:branchname :space} [[:M] 'a])
+
+  (uniform-expr {:expand-reentry? true} (expr/seq-re :<r 'a 'b '(c d)))
+
+  (uniform-expr {:use-unmarked? true} [:- 'a 'b])
+
+  (uniform-expr {:use-const? true} [:M :_])
+
+
+  (let [g (fn [arg m]
+            [arg (m :x)])
+        f (fn [{:keys [x] :or {x "a"} :as opts}]
+            (g x opts))]
+    (f {}))
+
+  (let [{:keys [x y] :or {x "a" y "bar"} :as m} {:y "foo"}]
+    [[x (:x m)]
+     [y (:y m)]])
   )
