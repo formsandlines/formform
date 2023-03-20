@@ -8,204 +8,19 @@
    [clojure.set :as set]
    [clojure.walk :as walk]
    [formform.calc :as calc]
+   [formform.symexpr.common :refer [tag_arrangement tag_formDNA]]
+   [formform.symexpr.core :as symx]
    [formform.utils :as utils]
-   #?(:clj  [clojure.core.match :refer [match]]
-      :cljs [cljs.core.match :refer-macros [match]])
-   [clojure.spec.alpha :as s])
-  #?(:cljs (:require-macros
-            [formform.expr :refer [defoperator defsymbol]])))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Utils
-
-(defn methodname [k common-name] (symbol (str common-name "->" (name k))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Operator methods
-
-(defmulti make-op
-  "Constructs a symbolic expression given a registered operator and parameters."
-  (fn [op-k & _] {:pre [(keyword? op-k)]} op-k))
-
-(defmulti valid-op?
-  "Validates the shape of a symbolic expression with a registered operator."
-  (fn [[op-k & _]] {:pre [(keyword? op-k)]} op-k))
-
-(defmulti interpret-op
-  "Interprets a symbolic expression with a registered operator."
-  (fn [[op-k & _]] {:pre [(keyword? op-k)]} op-k))
-
-(defmulti simplify-op
-  "Simplifies a symbolic expression with a registered operator given an optional environment."
-  (fn [[op-k & _] _] {:pre [(keyword? op-k)]} op-k))
-
-(defmulti op-get
-  "Gets a specified part from a symbolic expression with a registered operator."
-  (fn [[op-k & _] param] {:pre [(keyword? op-k)
-                                (keyword? param)]} [op-k param]))
-
-(defmulti op-data
-  "Gets all parameters from a symbolic expression with a registered operator as a map."
-  (fn [[op-k & _]] {:pre [(keyword? op-k)]} op-k))
-
-
-;; default methods
-
-(declare op-symbol?)
-(declare simplify-content)
-
-;; default constructor
-(defmethod make-op :default make-op->unknown
-  [op-k & args]
-  (if (op-symbol? op-k)
-    (let [op (apply vector op-k args)]
-      (if (op-k (methods valid-op?))
-        (if (valid-op? op)
-          op
-          (throw (ex-info (str "Invalid operator arguments" op-k)
-                          {:op op-k :args args})))
-        op))
-    (throw (ex-info (str "Unknown operator " op-k)
-                    {:op op-k :args args}))))
-
-(defmethod valid-op? :default valid-op?->unknown
-  [[op-k & _ :as expr]]
-  (throw (ex-info (str "Don’t know how to validate " op-k)
-                  {:op op-k :expr expr})))
-
-(defmethod interpret-op :default interpret-op->unknown
-  [[op-k & _ :as expr]]
-  (throw (ex-info (str "Don’t know how to interpret " op-k)
-                  {:op op-k :expr expr})))
-
-(defmethod simplify-op :default simplify-op->unknown
-  [[op-k & _ :as expr] env]
-  (if (op-symbol? op-k)
-    ;; ? applicative order (eval args first) would be more efficient
-    ;;   but how to know if all args are expressions?
-    ;;   -> should leave that to dedicated simplifier
-    (simplify-content (interpret-op expr) env)
-    (throw (ex-info (str "Don’t know how to simplify " op-k)
-                    {:op op-k :expr expr :env env}))))
-
-(defmethod op-get :default op-get->unknown
-  [[op-k & _ :as expr] param]
-  (throw (ex-info (str "Unknown operator " op-k)
-                  {:op op-k :expr expr :param param})))
-
-(defmethod op-data :default op-data->unknown
-  [[op-k & _ :as expr]]
-  (throw (ex-info (str "Unknown operator " op-k)
-                  {:op op-k :expr expr})))
-
-(def op-symbol first)
-
-
-(defmacro defoperator
-  [k args interpretation & {:keys [constructor predicate reducer]}]
-  (let [[params r] (if (= (get args (- (count args) 2)) '&)
-                     [(take (- (count args) 2) args) (last args)]
-                     [args nil])
-        varargs?   (some? r)
-        all-params (if varargs? (concat params [r]) params)
-        methodname (partial methodname k)
-        op-sym     (gensym "op")]
-    `(do (defmethod interpret-op ~k ~(methodname "interpret-op")
-           [[~'_ ~@args]] ~interpretation)
-         (defmethod valid-op? ~k ~(methodname "valid-op?")
-           [~op-sym] ~(if (some? predicate)
-                        (list predicate op-sym)
-                        ;; default predicate just checks arg count
-                        `(and (sequential? ~op-sym)
-                              (~(if varargs? '>= '==)
-                               (count ~op-sym)
-                               ~(inc (count params))))))
-         ;; if no constructor specified, default `make-op` case applies
-         ~(when (some? constructor)
-            `(defmethod make-op ~k ~(methodname "make-op")
-               [~op-sym & args#] (apply ~constructor ~op-sym args#)))
-         ;; if no reducer specified, defaults to interpretation
-         ~(when (some? reducer)
-            `(defmethod simplify-op ~k ~(methodname "simplify-op")
-               [~op-sym env#] (~reducer ~op-sym env#)))
-         ;; define method to get all parameters with names
-         (defmethod op-data ~k ~(methodname "op-data")
-           [~op-sym] (zipmap ~(mapv (comp keyword str) all-params)
-                             (if (> ~(count all-params) ~(count params))
-                               (conj (subvec ~op-sym 1 ~(inc (count params)))
-                                     (subvec ~op-sym ~(inc (count params))))
-                               (subvec ~op-sym 1))))
-         ;; define getter for each param by name
-         ;; ? necessary
-         (doseq [[i# param#] ~(vec (map-indexed
-                                    (fn [i x] [i ((comp keyword str) x)])
-                                    all-params))]
-           (defmethod op-get [~k param#] ~(methodname "op-get")
-             [~op-sym ~'_] (if (== i# ~(count params))
-                             (into [] (subvec ~op-sym (inc i#)))
-                             (~op-sym (inc i#))))))))
+   [clojure.spec.alpha :as s]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Symbol methods
-
-(defmulti interpret-sym
-  "Interprets a registered symbol."
-  (fn [sym] {:pre [(keyword? sym)]} sym))
-
-(defmulti simplify-sym
-  "Simplifies a registered symbol given an optional environment."
-  (fn [sym _] {:pre [(keyword? sym)]} sym))
-
-(defmacro defsymbol
-  [k interpretation & {:keys [reducer]}]
-  (let [methodname (partial methodname k)]
-    `(do (defmethod interpret-sym ~k ~(methodname "interpret-sym")
-           [~'_] ~interpretation)
-         ;; if no reducer specified, defaults to interpretation
-         ~(when (some? reducer)
-            `(defmethod simplify-sym ~k ~(methodname "simplify-sym")
-               [sym# env#] (~reducer sym# env#))))))
-
-;; default methods
-
-(declare expr-symbol?)
-
-(defmethod interpret-sym :default interpret-sym->unknown
-  [sym-k]
-  (throw (ex-info (str "Don’t know how to interpret " sym-k)
-                  {:sym sym-k})))
-
-(defmethod simplify-sym :default simplify-sym->unknown
-  [sym-k env]
-  (if (expr-symbol? sym-k)
-    (interpret-sym sym-k) ;; defaults to interpretation
-    (throw (ex-info (str "Don’t know how to simplify " sym-k)
-                    {:sym sym-k :env env}))))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Expression types
-
-(s/def :formform.specs.expr/expr-symbol
-  (s/and keyword? #(% (methods interpret-sym))))
-
-(s/def :formform.specs.expr/op-symbol
-  (s/and keyword? #(% (methods interpret-op))))
-
-(s/def :formform.specs.expr/generic-operator
-  (s/cat :tag            :formform.specs.expr/op-symbol
-         :args-unchecked (s/* any?)))
-
-(defmulti op-spec first)
-(defmethod op-spec :default [_] :formform.specs.expr/generic-operator)
-
-(s/def :formform.specs.expr/operator (s/multi-spec op-spec first))
+;; Definitions
 
 (s/def :formform.specs.expr/pure-form
   (s/and :formform.specs.expr/form
          (complement
-          (partial s/valid? :formform.specs.expr/generic-operator))))
+          (partial s/valid? :formform.specs.symexpr.core/generic-operator))))
 
 (s/def :formform.specs.expr/variable (s/or :str string? :sym symbol?))
 
@@ -215,9 +30,9 @@
 ;; ! check for predicates in input validation -> performance
 (s/def :formform.specs.expr/expression
   (s/or :empty nil?
-        :operator :formform.specs.expr/generic-operator
+        :operator :formform.specs.symexpr.core/generic-operator
         :form :formform.specs.expr/form
-        :expr-symbol :formform.specs.expr/expr-symbol
+        :expr-symbol :formform.specs.symexpr.core/expr-symbol
         :variable :formform.specs.expr/variable
         :unknown-symbol keyword?))
 
@@ -234,25 +49,12 @@
 (s/def :formform.specs.expr/environment map?)
 
 (def form? (partial s/valid? :formform.specs.expr/form))
-(def expr-symbol? (partial s/valid? :formform.specs.expr/expr-symbol))
-(def op-symbol? (partial s/valid? :formform.specs.expr/op-symbol))
-(def operator? (partial s/valid? :formform.specs.expr/generic-operator))
 (def pure-form? (partial s/valid? :formform.specs.expr/pure-form))
 (def variable? (partial s/valid? :formform.specs.expr/variable))
 (def expression? (partial s/valid? :formform.specs.expr/expression))
 
-(def struct-expr? #(or (form? %) (operator? %)))
-(def literal-expr? #(or (expr-symbol? %) (variable? %)))
-
-(def expr->const {nil :N, [] :M, [:U] :I})
-
-(declare arrangement?)
-
-(def tag_arrangement :-)
-(def tag_unclear :uncl)
-(def tag_memory :mem)
-(def tag_formDNA :fdna)
-(def tag_seq-reentry :seq-re)
+(def struct-expr? #(or (form? %) (symx/operator? %)))
+(def literal-expr? #(or (symx/expr-symbol? %) (variable? %)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -263,7 +65,7 @@
   [ctx]
   (reduce (fn [acc x] (cond
                         (nil? x) acc
-                        (arrangement? x) (into acc (rest x))
+                        (symx/arrangement? x) (into acc (rest x))
                         :else (conj acc x)))
           [] ctx))
 
@@ -278,8 +80,8 @@
          [x & r]] (if (map? (first args))
                     [(first args) (rest args)]
                     [{} args])]
-    (if (operator? [x])
-      (let [op (apply make-op x r)]
+    (if (symx/operator? [x])
+      (let [op (apply symx/make-op x r)]
         (if mark? [op] op))
       (let [exprs (if splice?
                     (splice-ctx (cons x r))
@@ -328,14 +130,14 @@
    (cond
      (--defocus expr)                          expr
      (and (seq --focus)
-          (if (operator? expr)
-            (nil? (--focus (op-symbol expr)))
+          (if (symx/operator? expr)
+            (nil? (--focus (symx/op-symbol expr)))
             (nil? (--focus expr))))            expr
      (and (nil? (--defocus :ops))
-          (operator? expr)
-          (nil? (--defocus (op-symbol expr)))) (interpret-op expr)
+          (symx/operator? expr)
+          (nil? (--defocus (symx/op-symbol expr)))) (symx/interpret-op expr)
      (and (nil? (--defocus :syms))
-          (expr-symbol? expr))                 (interpret-sym expr)
+          (symx/expr-symbol? expr))                 (symx/interpret-sym expr)
      (and (nil? (--defocus :vars))
           (variable? expr))                    (substitute-expr env expr)
      :else expr)))
@@ -411,25 +213,25 @@
 
 ;; Observations are accumulated contents in reduction
 
-(defn- observed-put [env x]
+(defn observed-put [env x]
   (update env :--observed #(if (nil? %) #{x} (conj % x))))
 
-(defn- observed-disj [env x]
+(defn observed-disj [env x]
   (update env :--observed #(if (nil? %) % (disj % x))))
 
-(defn- observed-merge [env xs]
+(defn observed-merge [env xs]
   (update env :--observed #(if (nil? %) (set xs) (set/union % (set xs)))))
 
-(defn- observed-get [env]
+(defn observed-get [env]
   (get env :--observed))
 
-(defn- observed-removeall [env]
+(defn observed-removeall [env]
   (dissoc env :--observed))
 
-(defn- observed-has? [env x]
+(defn observed-has? [env x]
   (not= (get-in env [:--observed x] :not-found) :not-found))
 
-(defn- ctx->cnt [{:keys [+meta?] :or {+meta? false}} ctx]
+(defn ctx->cnt [{:keys [+meta?] :or {+meta? false}} ctx]
   (let [expr (condp == (count ctx)
                0 nil
                1 (first ctx)
@@ -438,9 +240,9 @@
 
 ;; ! implicitly simplifies ((…)) -> […]
 ;; ? should this be ((…)) -> [((…))] instead
-(defn- cnt->ctx [cnt]
+(defn cnt->ctx [cnt]
   (cond
-    (arrangement? cnt) (rest cnt)
+    (symx/arrangement? cnt) (rest cnt)
     (and (form? cnt)
          (== 1 (count cnt))
          (form? (first cnt))) (vec (first cnt))
@@ -487,9 +289,9 @@
     (if (not= :failed res)
       res
       (cond
-        (operator? x)    (simplify-op x env)
-        (form? x)        (simplify-form x env)
-        (expr-symbol? x) (interpret-sym x)
+        (symx/operator? x)    (symx/simplify-op x env)
+        (form? x)             (simplify-form x env)
+        (symx/expr-symbol? x) (symx/interpret-sym x)
         :else (substitute-expr env x)))))
 
 ;; ? kinda messy - how to make this more systematic
@@ -650,7 +452,7 @@
   ([opts expr env]
    (let [{:keys [varorder results]}
          (eval-simplified* (merge opts {:only-vals? true}) expr env)]
-     (make tag_formDNA varorder (rseq results)))))
+     [tag_formDNA varorder (rseq results)])))
 
 (defn evaluate
   ([expr] (evaluate expr {}))
@@ -679,7 +481,7 @@
   - ordering of variable names in formDNA matters, see `find-vars`
   - stricter than `equiv`, which compares by `calc/equiv-dna`"
   [& exprs]
-  (let [data     (map (comp op-data =>*) exprs)
+  (let [data     (map (comp symx/op-data =>*) exprs)
         dnas     (map :dna data)
         varlists (map :varorder data)]
     (and (apply = varlists)
@@ -691,592 +493,10 @@
   - looser than `equal`, which compares by `calc/equal-dna`
   - can be slow on expressions with 6+ variables"
   [& exprs]
-  (apply calc/equiv-dna (map (comp #(op-get % :dna) =>*) exprs)))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Chained expressions
-
-(defn- mark [exprs] (map form exprs))
-
-(defn mark-exprs
-  "Chains expressions like `((a)(b)…)` or `(a)(b)…` if {:unmarked? true}`
-  - group expressions with arrangements: `[:- x y …]`"
-  [{:keys [unmarked?] :or {unmarked? false}} & exprs]
-  (let [f-chained (mark exprs)]
-    (if unmarked?
-      (apply make f-chained)
-      (apply form f-chained))))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Nested expressions
-
-(defn nest-exprs
-  "Nests expressions leftwards `(((…)a)b)` or rightwards `(a(b(…)))` if `{:ltr? true}`
-  - use `nil` for empty expressions
-  - use an arrangement `(make x y …)` to add multiple exprs. to the same level"
-  [{:keys [unmarked? ltr?]
-    :or {unmarked? false ltr? false} :as opts} expr & exprs]
-  {:pre [(map? opts)]}
-  (let [exprs  (cons expr exprs)
-        nested (if ltr?
-                 (utils/nest-right splice-ctx exprs)
-                 (utils/nest-left splice-ctx exprs))]
-    (apply (if unmarked? make form) nested)))
-
-(s/def :formform.specs.expr/expr-chain
-  (s/coll-of :formform.specs.expr/expression
-             :kind sequential?
-             :min-count 1))
-
-;; ! check assumptions about env while merging nesting contexts via crossing
-;; ! needs MASSIVE refactoring
-(defn simplify-expr-chain
-  "Reduces a sequence of expressions, intended to be linked in a `chain`, to a sequence of simplified expressions, possibly spliced or shortened via inference.
-  - assumes rightward-nesting, e.g. `(…(…(…)))`
-  - for leftward-nesting, e.g. `(((…)…)…)`, pass `{:rtl? true}`"
-  ([chain env] (simplify-expr-chain {} chain env))
-  ([{:keys [rtl?] :or {rtl? false}} chain env]
-   (vec
-    (loop [[expr & r]  (if rtl? (reverse chain) chain)
-           env         env
-           simpl-chain (if rtl? '() [])]
-      (let [[expr m] (ctx->cnt {:+meta? true}
-                               (simplify-context (cnt->ctx expr) env))
-            ;; needs upstream env to reduce with observed values
-            ;; ? is there a cleaner approach than using meta
-            ;; ? :depth will be incremented in simplify -> maybe not
-            env (dissoc (:env-next m) :depth)]
-        (if (and (empty? r) (= expr nil))
-          (condp == (count simpl-chain)
-            0 (conj simpl-chain nil)
-            ;; by law of calling
-            ;; > (a ()) = (())
-            1 (conj (empty simpl-chain) (form))
-            ;; > (a (() (… (z)))) = (a (())) = (a)
-            (if rtl?
-              (rest simpl-chain)
-              (butlast simpl-chain)))
-          (let [simpl-chain (if (and (> (count simpl-chain) 1)
-                                     (nil? ((if rtl? first last)
-                                            simpl-chain)))
-                              ;; by law of crossing
-                              ;; > (a (b ( (x …)))) = (a (b x …))
-                              ;; > (a (b ( (() …)))) = (a (()))
-                              (if rtl?
-                                (let [[xs before] (split-at 2 simpl-chain)
-                                      ctx  [expr (second xs)]
-                                      expr (ctx->cnt
-                                            {} ;; ? correct env
-                                            (simplify-context ctx {}))]
-                                  (conj before expr))
-                                (let [[before xs] (split-at
-                                                   (- (count simpl-chain) 2)
-                                                   simpl-chain)
-                                      ctx  [(first xs) expr]
-                                      expr (ctx->cnt
-                                            {} ;; ? correct env
-                                            (simplify-context ctx {}))]
-                                  (conj (vec before) expr)))
-                              (conj simpl-chain expr))]
-            (cond (= expr []) (cond
-                                ;; by law of calling/crossing
-                                ;; > (()) = (())
-                                ;; > (a (b (() …))) = (a (b))
-                                ;; > (a (b ( (() …)))) = (a (())) = (a)
-                                (== 1 (count simpl-chain)) simpl-chain
-                                rtl? (rest simpl-chain)
-                                :else (butlast simpl-chain))
-                  (empty? r) simpl-chain
-                  :else (recur r env simpl-chain)))))))))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; pre-defined Operators
-
-;;-------------------------------------------------------------------------
-;; syntactic operators
-
-(s/def :formform.specs.expr/arrangement
-  (s/cat :tag   (partial = tag_arrangement)
-         :exprs (s/* #(s/valid? :formform.specs.expr/expression %))))
-
-(def arrangement? (partial s/valid? :formform.specs.expr/arrangement))
-
-(defmethod op-spec tag_arrangement [_] :formform.specs.expr/arrangement)
-
-(defoperator tag_arrangement [& exprs] (vector (into [] exprs))
-  :predicate arrangement?
-  ; :reducer (fn [[_ & exprs] env] (simplify-content [exprs] env))
-  )
-
-(defn arr-prepend [x rel-expr]
-  (apply vector tag_arrangement x (rest rel-expr)))
-
-(defoperator :+ [& exprs] (into [] exprs))
-(defoperator :* [& exprs] (apply vector tag_arrangement (map form exprs)))
-(defoperator :| [& exprs] (mapv form exprs))
-
-;; Nested expressions
-(defoperator :<- [& exprs]
-  (apply nest-exprs {:unmarked? false :ltr? false} exprs))
-(defoperator :-> [& exprs]
-  (apply nest-exprs {:unmarked? false :ltr? true} exprs))
-(defoperator :< [& exprs]
-  (apply nest-exprs {:unmarked? true :ltr? false} exprs))
-(defoperator :> [& exprs]
-  (apply nest-exprs {:unmarked? true :ltr? true} exprs))
-
-;; Chained expressions
-;; ? redundant because of :* and :|
-(defoperator :<-> [& exprs]
-  (apply mark-exprs {:unmarked? false} exprs))
-(defoperator :<> [& exprs]
-  (apply mark-exprs {:unmarked? true} exprs))
-
-
-;;-------------------------------------------------------------------------
-;; unclear FORMs
-
-(s/def :formform.specs.expr/unclear
-  (s/cat :tag   (partial = tag_unclear)
-         :label #(and (string? %) ((complement empty?) %))))
-
-(def unclear? (partial s/valid? :formform.specs.expr/unclear))
-
-(defmethod op-spec tag_unclear [_] :formform.specs.expr/unclear)
-
-(defn construct-unclear [op-k & args]
-  (let [label (->> args
-                   (remove nil?)
-                   (interpose " ")
-                   (apply str))
-        op    [op-k label]]
-    (if (valid-op? op)
-      op
-      (throw (ex-info "Invalid label for unclear FORM."
-                      {:label label})))))
-
-(defoperator tag_unclear [label] [tag_seq-reentry :<r label label]
-  :constructor construct-unclear
-  :predicate unclear?
-  :reducer
-  (fn [[_ label] env]
-    (let [fdna [tag_formDNA [label] [:N :U :U :U]]]
-      (simplify-op fdna env))))
-
-;;-------------------------------------------------------------------------
-;; memory FORMs
-
-(s/def :formform.specs.expr/rem-pair
-  (s/tuple #(s/valid? :formform.specs.expr/expression %)
-           #(s/valid? :formform.specs.expr/expression %)))
-
-(s/def :formform.specs.expr/rems
-  (s/coll-of :formform.specs.expr/rem-pair 
-             :kind sequential?
-             :into []))
-
-(s/def :formform.specs.expr/memory
-  (s/cat :tag  (partial = tag_memory)
-         :rems :formform.specs.expr/rems
-         :ctx  (s/* #(s/valid? :formform.specs.expr/expression %))))
-
-(def rem-pairs? (partial s/valid? :formform.specs.expr/rems))
-
-(def memory? (partial s/valid? :formform.specs.expr/memory))
-
-(defmethod op-spec tag_memory [_] :formform.specs.expr/memory)
-
-(defn memory-replace [[_ _ & ctx] & repl-pairs]
-  {:pre [(rem-pairs? repl-pairs)]}
-  (apply make-op tag_memory (vec repl-pairs) ctx))
-
-(defn memory-extend [[_ rems & ctx] & ext-pairs]
-  {:pre [(rem-pairs? ext-pairs)]}
-  (apply make-op tag_memory (vec (concat rems ext-pairs)) ctx))
-
-(defn- simplify-rems
-  [rems env]
-  (if (empty? rems)
-    [[] env]
-    (loop [[[k v] & r] rems
-           rems-reduced []
-           env env]
-      (let [v (simplify-content v env)
-            rems-reduced (conj rems-reduced [k v])
-            env (assoc env k v)]
-        (if (empty? r)
-          [rems-reduced env]
-          (recur r rems-reduced env))))))
-
-;; ? `& exprs` instead of `ctx`
-(defn- filter-rems
-  [rems ctx]
-  (let [rem-keys (set (find-subexprs ctx (set (map first rems))))
-        rev-rems (reverse rems)]
-    (first (reduce
-            (fn [[acc rem-keys varlist-next] [v x :as rem]]
-              (if (some? (rem-keys v))
-                (if (= v x) ;; remove self-reference [x x]
-                  [acc rem-keys (rest varlist-next)]
-                  (let [new-ks (if (struct-expr? x)
-                                 (find-subexprs x (set varlist-next))
-                                 '())]
-                    [(conj acc rem)
-                     (disj (into rem-keys new-ks) v)
-                     (rest varlist-next)]))
-                [acc rem-keys (rest varlist-next)]))
-            [[] rem-keys (map first (rest rev-rems))]
-            rev-rems))))
-
-(defn- simplify-memory
-  [mem env]
-  (let [[rems env] (simplify-rems (op-get mem :rems) env)
-        ctx  (simplify-context (op-get mem :ctx) env)
-        rems (filter-rems rems ctx)]
-    (if (empty? rems)
-      (apply make ctx)
-      (apply make-op tag_memory rems ctx))))
-
-(defoperator tag_memory [rems & ctx]
-  (let [eqs (apply make
-                   (map (fn [[k v]] (form (form k v)
-                                          (form (form k) (form v))))
-                        rems))]
-    (form eqs (apply form ctx)))
-  :predicate memory?
-  :reducer simplify-memory)
-
-(defn memory
-  "Constructs a memory FORM."
-  [rems & exprs]
-  (make-op tag_memory rems exprs))
-
-;;-------------------------------------------------------------------------
-;; self-equivalent re-entry FORMs
-
-(def seq-reentry-defaults {:parity :any, :open? false, :interpr :rec-instr})
-
-(def seq-reentry-sign->opts
-  "Maps signatures for self-equivalent re-entry FORMs to their corresponding option-maps."
-  (let [ds seq-reentry-defaults]
-    {:<r      (merge ds {})
-     :<..r    (merge ds {:parity :even})
-     :<..r.   (merge ds {:parity :odd})
-     :<r_     (merge ds {:open? true})
-     :<..r_   (merge ds {:open? true :parity :even})
-     :<..r._  (merge ds {:open? true :parity :odd})
-
-     :<r'     (merge ds {:interpr :rec-ident})
-     :<..r'   (merge ds {:interpr :rec-ident :parity :even})
-     :<..r'.  (merge ds {:interpr :rec-ident :parity :odd})
-     :<r'_    (merge ds {:interpr :rec-ident :open? true})
-     :<..r'_  (merge ds {:interpr :rec-ident :open? true :parity :even})
-     :<..r'._ (merge ds {:interpr :rec-ident :open? true :parity :odd})}))
-
-(defn seq-reentry-opts->sign
-  "Inverse map of seq-reentry-sign->opts with default args."
-  [m]
-  (let [opts (merge seq-reentry-defaults
-                    (select-keys m [:parity :open? :interpr]))
-        opts->sign (set/map-invert seq-reentry-sign->opts)]
-    (opts->sign opts)))
-
-(s/def :formform.specs.expr/seq-reentry-signature
-  (comp some? seq-reentry-sign->opts))
-
-(s/def :opts.seq-reentry/parity #{:odd :even :any})
-(s/def :opts.seq-reentry/open? boolean?)
-(s/def :opts.seq-reentry/interpr #{:rec-ident :rec-instr})
-
-(s/def :formform.specs.expr/seq-reentry-opts
-  (s/keys :req-un [:opts.seq-reentry/parity
-                   :opts.seq-reentry/open?
-                   :opts.seq-reentry/interpr]))
-
-(s/def :formform.specs.expr/seq-reentry
-  (s/cat :tag (partial = tag_seq-reentry)
-         :sign :formform.specs.expr/seq-reentry-signature
-         :nested-exprs (s/+ :formform.specs.expr/expression)))
-
-(def seq-reentry-signature?
-  (partial s/valid? :formform.specs.expr/seq-reentry-signature))
-
-(def seq-reentry-opts?
-  (partial s/valid? :formform.specs.expr/seq-reentry-opts))
-
-(def seq-reentry? (partial s/valid? :formform.specs.expr/seq-reentry))
-
-(defmethod op-spec tag_seq-reentry [_] :formform.specs.expr/seq-reentry)
-
-(defn simplify-seq-reentry
-  [seq-re env]
-  (let [env   (observed-removeall env) ;; no de/generation across seq-re bounds
-        sign  (op-get seq-re :sign)
-        exprs (op-get seq-re :nested-exprs)
-        {:keys [parity open? interpr] :as specs} (seq-reentry-sign->opts sign)
-        ;; ! check if :U from environment can be equivalent to :U in exprs
-        [re-entry? exprs]
-        (let [re-expr     (if (arrangement? (first exprs))
-                            (arr-prepend sign (first exprs))
-                            [tag_arrangement sign (first exprs)]) ;; apply?
-              [e & exprs] (simplify-expr-chain {:rtl? true}
-                                               (cons re-expr (rest exprs))
-                                               env)
-              [x & r]     (if (arrangement? e)
-                            (op-get e :exprs)
-                            [e])]
-          (if (= x sign)
-            [true  (cons (cond (empty? r) nil
-                               (== 1 (count r)) (first r)
-                               :else (apply make tag_arrangement r))
-                         exprs)]
-            [false (cons e exprs)]))
-        >< (fn [expr] (simplify-content expr env))] ; interpret ?
-    (if re-entry?
-      ;; try all possible cases for re-entry reduction:
-      (if (<= (count exprs) 3)
-        (let [exprs (vec exprs)
-              [x y z] (map #(get exprs % :∅) (range 3))]
-          (match [interpr open? parity  x y z]
-            ;; primitive cases:
-            [_ _     :even nil :∅  :∅] :U ;; ((f))
-            [_ _     _     nil :∅  :∅] [:U] ;; (f)
-            [_ false _     nil nil :∅] :U ;; ((f))
-            [_ true  _     nil nil :∅] [:U] ;; (((f))) => (f)
-
-            ;; if interpretation of `mn` is “recursive identity”
-            ;; and `f = ((f))` can be separated from the rest:
-            ;; f x      |  (f) x 
-            [:rec-ident true  :even xs :∅ :∅] (>< (make :U xs))
-            [:rec-ident true  _     xs :∅ :∅] (>< (make :I xs))
-            ;; (f) x    |  ((f x))
-            [:rec-ident true  _     nil ys :∅] (>< (make :I ys))
-            [:rec-ident false _     xs nil :∅] (>< (make :U xs))
-            ;; ((f x))  |  (((f) x))
-            [:rec-ident false :even nil ys nil] (>< (make :U ys))
-            [:rec-ident false _     nil ys nil] (>< (make :I ys))
-
-            ;; by case distinction:
-            [_ _     _     (:or :U ([:U] :seq)) nil :∅] [:U] ;; ((f U/I))
-            [_ _     _     nil (:or :U ([:U] :seq)) :∅] :U ;; ((f) U/I)
-
-            [_ false :even (:or :U ([:U] :seq)) :∅ :∅] :U ;; (f U/I)
-            [_ true  :even (:or :U ([:U] :seq)) :∅ :∅] [:U] ;; (f U/I)
-            [_ true  _     (:or :U ([:U] :seq)) :∅ :∅] :U ;; (f U/I)
-            [_ false _     (:or :U ([:U] :seq)) :∅ :∅] [:U] ;; (f U/I)
-
-            [_ false :even nil (:or :U ([:U] :seq)) nil] [:U] ;; (((f) U/I))
-            [_ true  :even nil (:or :U ([:U] :seq)) nil] :U ;; (((f) U/I))
-            [_ true  _     nil (:or :U ([:U] :seq)) nil] [:U] ;; (((f) U/I))
-            [_ false _     nil (:or :U ([:U] :seq)) nil] :U ;; (((f) U/I))
-
-             ;; if nothing applies, return the reduced seq-reentry FORM:
-            :else (apply make tag_seq-reentry sign exprs)))
-        (apply make tag_seq-reentry sign exprs))
-      ;; re-entry vanished due to dominance of the mark
-      ;; this is not a re-entry FORM anymore
-      (>< (apply nest-exprs {:unmarked? open? :ltr? false}
-                 exprs)))))
-
-(defn- construct-seq-reentry
-  [op-k specs & nested-exprs]
-  (let [signature
-        (cond
-          (keyword? specs) (if (seq-reentry-signature? specs)
-                             specs
-                             (throw (ex-info "Invalid re-entry signature."
-                                             {:arg specs})))
-          (map? specs) (seq-reentry-opts->sign specs)
-          :else (throw (ex-info "Invalid re-entry specifications."
-                                {:arg specs})))
-        nested-exprs (if (empty? nested-exprs) [nil] nested-exprs)
-        op (apply vector tag_seq-reentry signature nested-exprs)]
-    (if (seq-reentry? op)
-      op
-      ;; ! redundant checks
-      (throw (ex-info (str "Invalid operator arguments" op-k)
-                      {:op op-k :args (cons specs nested-exprs)})))))
-
-;; ? should even/odd construct redundant re-entries in interpretation?
-(defoperator tag_seq-reentry [sign & nested-exprs]
-  (let [[x & ys :as exprs] nested-exprs
-        {:keys [parity open?]} (seq-reentry-sign->opts sign)
-        res-odd?  (odd? (count exprs))
-        pre-step? (and res-odd? (not (= parity :even)))
-        re   [:f* (apply nest-exprs {:unmarked? false :ltr? false}
-                         (make :f* x) (if res-odd?
-                                        (concat ys (cons x ys))
-                                        ys))]
-        pre  (when pre-step?
-               [(if open? :f2 :f1)
-                (apply nest-exprs {:unmarked? false :ltr? false}
-                       (make :f* x) ys)])
-        open (when open?
-               [:f1 (apply nest-exprs {:unmarked? true :ltr? false}
-                           (make (if pre-step? :f2 :f*) x) ys)])
-        init (if (or pre-step? open?) :f1 :f*)]
-    (make-op tag_memory (vec (remove nil? [re pre open])) init))
-  :constructor construct-seq-reentry
-  :predicate seq-reentry?
-  :reducer simplify-seq-reentry)
-
-(defn seq-re
-  "Constructs a self-equivalent re-entry FORM given the arguments:
-  - `specs`: either a `seq-reentry-signature` or an options map
-  - `nested-exprs`: zero or more expressions intended as a nested sequence"
-  [specs & nested-exprs]
-  (apply construct-seq-reentry tag_seq-reentry specs nested-exprs))
-
-;;-------------------------------------------------------------------------
-;; Compound expressions
-
-;; Isolator FORMs/class
-(defoperator :N->M [x] (form (seq-re :<r (form x))
-                             (seq-re :<..r (form x))))
-(defoperator :M->M [x] (form (seq-re :<r x)
-                             (seq-re :<..r x)))
-(defoperator :U->M [x] (form (form (seq-re :<r (form x)) x)
-                             (form (seq-re :<..r x) (form x))))
-(defoperator :I->M [x] (form (form (seq-re :<r x) (form x))
-                             (form (seq-re :<..r (form x)) x)))
-
-(def const->isolator {:N (partial make :N->M)
-                      :M (partial make :M->M)
-                      :U (partial make :U->M)
-                      :I (partial make :I->M)})
-
-;; ! refactor
-;; Selector FORMs/class
-;; ? extend with flipped U/I for vcross (maybe a wrapper)
-(defn sel
-  ([vars->consts] (sel vars->consts true))
-  ([vars->consts simplify?]
-   (if (and simplify? (every? #{:M :N} (vals vars->consts)))
-     (apply form (map (fn [[v c]]
-                        (if (= c :M) (form v) v)) vars->consts))
-     (let [select-UI (fn [[v c]] (case c
-                                   :N [(form v) (form v)]
-                                   :M [v v]
-                                   :U [v (form v)]
-                                   :I [(form v) v]))
-           all-selections (map select-UI vars->consts)]
-       (make (form (apply make (map first all-selections))
-                   (form tag_seq-reentry :<..r))
-             (form (apply make (map second all-selections))
-                   (form tag_seq-reentry :<r)))))))
-
-
-;; Logical spaces
-
-(defoperator :<n> [& exprs]
-  (let [n-exprs (apply form exprs)]
-    (make (form n-exprs :U) (form n-exprs :I))))
-
-(defoperator :<m> [& exprs]
-  (let [m-exprs (apply make (map form exprs))]
-    (make (form m-exprs :U) (form m-exprs :I))))
-
-(defoperator :<u> [& exprs]
-  (let [n-exprs (apply form exprs)
-        m-exprs (apply make (map form exprs))]
-    (make (form n-exprs :U) (form m-exprs :I))))
-
-(defoperator :<i> [& exprs]
-  (let [n-exprs (apply form exprs)
-        m-exprs (apply make (map form exprs))]
-    (make (form m-exprs :U) (form n-exprs :I))))
-
-
-;;-------------------------------------------------------------------------
-;; formDNA
-
-(s/def :formform.specs.expr/formDNA
-  (s/and (s/nonconforming
-          (s/cat :tag      (partial = tag_formDNA)
-                 :varorder :formform.specs.expr/varorder
-                 :dna      :formform.specs.calc/dna))
-         #(== (count (second %)) (calc/dna-dimension (nth % 2)))))
-
-(def formDNA? (partial s/valid? :formform.specs.expr/formDNA))
-
-(defmethod op-spec tag_formDNA [_] :formform.specs.expr/formDNA)
-
-(defn- filter-formDNA
-  "Filters the `dna` by values from given `env` whose keys match variables in the `varlist` of the formDNA."
-  [fdna env]
-  (let [;; assumes only constant values
-        ;; ? what about unevaluated FORMs and formDNA?
-        {:keys [varorder dna]} (op-data fdna)
-        matches (map #(let [v (get env % calc/var-const)
-                            v (if (or (= calc/var-const v) (calc/const? v))
-                                v
-                                (expr->const v))]
-                        (vector % v))
-                     varorder)
-        vpoint (map second matches)]
-    (make tag_formDNA
-          (mapv first (filter #(= (second %) calc/var-const) matches))
-          (calc/filter-dna dna vpoint))))
-
-(defn- simplify-formDNA
-  [operator env]
-  (let [filtered-fdna (filter-formDNA operator env)]
-    (if (empty? (op-get filtered-fdna :varorder))
-      (first (op-get filtered-fdna :dna))
-      filtered-fdna)))
-
-(defn- construct-formDNA
-  ([op-k] (construct-formDNA op-k [] [:N]))
-  ([op-k dna] (let [varorder (vec (gen-vars (calc/dna-dimension dna)))]
-                (construct-formDNA op-k varorder dna)))
-  ([op-k varorder dna]
-   (let [op (vector op-k varorder dna)]
-     (if (formDNA? op)
-       op
-       (throw (ex-info (str "Invalid operator arguments" op-k)
-                       {:op op-k :varorder varorder :dna dna}))))))
-
-(defoperator tag_formDNA [varorder dna]
-  (if (empty? varorder)
-    (make (first dna))
-    (let [vdict (calc/dna->vdict dna {})]
-      (apply make
-             (map (fn [[vpoint res]]
-                    (apply form
-                           (form res)
-                           (map #(form ((const->isolator %1) %2))
-                                vpoint varorder)))
-                  vdict))))
-  :constructor construct-formDNA
-  :predicate formDNA?
-  :reducer simplify-formDNA)
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; pre-defined Symbols
-
-(defsymbol :N nil)
-(defsymbol :M (form))
-(defsymbol :U (seq-re :<r nil nil) :reducer (fn [u _] u))
-(defsymbol :I (form :U))
-
-(defsymbol :0 :N)
-(defsymbol :1 :U)
-(defsymbol :2 :I)
-(defsymbol :3 :M)
-
-(defsymbol :mn :U)
+  (apply calc/equiv-dna (map (comp #(symx/op-get % :dna) =>*) exprs)))
 
 
 (comment
-  ;; ! this shouldnt work:
-  (simplify-seq-reentry [:seq-re nil] {})
-  (op-get [:seq-re 'a] :sign)
-  (op-data [:seq-re 'a])
-
   ;; ? should env be always first arg
   ;; ! test more interpret function
   ;; ? should registered keywords be substitutable by env
@@ -1287,77 +507,13 @@
   (interpret-walk {:--focus #{[:- 'x]}} [:- 'a ['b [ [:- 'x] ]] :M])
   (interpret-walk {:--defocus #{[:- 'x]}} [:- 'a ['b [ [:- 'x] ]] :M])
 
-
-
-
-  (simplify [:fdna ['a] [:N :U :I :M]]
-            {'a :U})
-
-  (simplify ['a [:fdna ['b] [:N :U :I :M]]]
-            {'a :U})
-  ;=> (:U [:fdna [b] [:N :U :I :M]])
-  '[[:fdna [b] [:U :U :M :M]]]
-
-  (simplify ['a [:fdna ['b] [:N :U :I :M]]])
-  ;=> (a [:fdna [b] [:N :U :I :M]])
-  '[[:fdna [a b] [:M :M :M :M
-                  :I :M :I :M
-                  :U :U :M :M
-                  :N :U :I :M]]]
-
-  (simplify ['a 'b [:fdna ['c] [:N :U :I :M]]])
-  ;=> (a b [:fdna [c] [:N :U :I :M]])
-  '[[:fdna [a b c]
-     [:M :M :M :M  :M :M :M :M  :M :M :M :M  :M :M :M :M
-      :M :M :M :M  :I :M :I :M  :M :M :M :M  :I :M :I :M
-      :M :M :M :M  :M :M :M :M  :U :U :M :M  :U :U :M :M
-      :M :M :M :M  :I :M :I :M  :U :U :M :M  :N :U :I :M]]]
-
-  (meta (evaluate ['a 'b] {'b :U}))
-  (evaluate ['a 'b] {'a :M})
-  (eval-all ['a 'b] {'a :M})
-  (=> ['a 'b])
-  (=>* ['a 'b])
-  (=>* ['a 'b [:fdna ['c] [:N :U :I :M]]])
-
-  (=>* {:varorder ['l 'e 'r]}
-       (make (seq-re :<r 'l 'e 'r)
-             (seq-re :<r 'l 'r 'e)) {})
+  ;; form </> data in this case
+  (interpret [:if #(= % []) :x :M :U])
 
   (find-vars [['x] 'z 'a] {})
   (find-vars [['x] 'z 'a] {:ordered? true})
   (find-vars [['x] "a" 'z "x" 'a] {})
   (find-vars [['x] "a" 'z "x" 'a] {:ordered? true})
 
-  (defoperator :x5 [x] (repeat 5 x))
-  (defoperator :xn [n x] (repeat n x))
-  (defoperator :inv [x] (case x
-                          :N :M
-                          :U :I
-                          :I :U
-                          :M :N nil))
-
-  ;; ? how to deal with uninterpretable operators
-  (defoperator :if [pred x t f] [:if pred x t f]
-    :reducer (fn [[_ pred x t f] env]
-               (if (pred (simplify x env)) t f)))
-
-  (interpret [:x5 [:U]])
-  (interpret [:xn 6 :U])
-  (simplify [:inv :U])
-
-  (simplify [:mem [[:x []]] [:if #(= % []) :x :M :U]])
-
-  ;; form </> data in this case
-  (interpret [:if #(= % []) :x :M :U])
-
-  (str (calc/vdict->vmap 
-         (calc/dna->vdict 
-           (op-get (=>* nil) :dna) {})))
 
   )
-
-
-  
-
-
