@@ -13,111 +13,11 @@
              tag_seq-reentry]]
     #?(:clj  [formform.symexpr.core :as symx 
               :refer [defoperator defsymbol
-                      op-get op-data op-spec valid-op? interpret-op make-op
-                      ]]
+                      op-get op-data op-spec valid-op? interpret-op make-op]]
        :cljs [formform.symexpr.core :as symx 
               :refer [op-get op-data op-spec valid-op? interpret-op make-op]
               :refer-macros [defoperator defsymbol]])
-    [formform.expr :as expr :refer [make form]]
-    [formform.utils :as utils]))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Chained expressions
-
-(defn- mark [exprs] (map form exprs))
-
-(defn mark-exprs
-  "Chains expressions like `((a)(b)…)` or `(a)(b)…` if {:unmarked? true}`
-  - group expressions with arrangements: `[:- x y …]`"
-  [{:keys [unmarked?] :or {unmarked? false}} & exprs]
-  (let [f-chained (mark exprs)]
-    (if unmarked?
-      (apply make f-chained)
-      (apply form f-chained))))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Nested expressions
-
-(defn nest-exprs
-  "Nests expressions leftwards `(((…)a)b)` or rightwards `(a(b(…)))` if `{:ltr? true}`
-  - use `nil` for empty expressions
-  - use an arrangement `(make x y …)` to add multiple exprs. to the same level"
-  [{:keys [unmarked? ltr?]
-    :or {unmarked? false ltr? false} :as opts} expr & exprs]
-  {:pre [(map? opts)]}
-  (let [exprs  (cons expr exprs)
-        nested (if ltr?
-                 (utils/nest-right expr/splice-ctx exprs)
-                 (utils/nest-left expr/splice-ctx exprs))]
-    (apply (if unmarked? make form) nested)))
-
-(s/def :formform.specs.expr/expr-chain
-  (s/coll-of :formform.specs.expr/expression
-             :kind sequential?
-             :min-count 1))
-
-;; ! check assumptions about env while merging nesting contexts via crossing
-;; ! needs MASSIVE refactoring
-(defn simplify-expr-chain
-  "Reduces a sequence of expressions, intended to be linked in a `chain`, to a sequence of simplified expressions, possibly spliced or shortened via inference.
-  - assumes rightward-nesting, e.g. `(…(…(…)))`
-  - for leftward-nesting, e.g. `(((…)…)…)`, pass `{:rtl? true}`"
-  ([chain env] (simplify-expr-chain {} chain env))
-  ([{:keys [rtl?] :or {rtl? false}} chain env]
-   (vec
-    (loop [[expr & r]  (if rtl? (reverse chain) chain)
-           env         env
-           simpl-chain (if rtl? '() [])]
-      (let [[expr m] (expr/ctx->cnt {:+meta? true}
-                               (expr/simplify-context (expr/cnt->ctx expr) env))
-            ;; needs upstream env to reduce with observed values
-            ;; ? is there a cleaner approach than using meta
-            ;; ? :depth will be incremented in simplify -> maybe not
-            env (dissoc (:env-next m) :depth)]
-        (if (and (empty? r) (= expr nil))
-          (condp == (count simpl-chain)
-            0 (conj simpl-chain nil)
-            ;; by law of calling
-            ;; > (a ()) = (())
-            1 (conj (empty simpl-chain) (form))
-            ;; > (a (() (… (z)))) = (a (())) = (a)
-            (if rtl?
-              (rest simpl-chain)
-              (butlast simpl-chain)))
-          (let [simpl-chain (if (and (> (count simpl-chain) 1)
-                                     (nil? ((if rtl? first last)
-                                            simpl-chain)))
-                              ;; by law of crossing
-                              ;; > (a (b ( (x …)))) = (a (b x …))
-                              ;; > (a (b ( (() …)))) = (a (()))
-                              (if rtl?
-                                (let [[xs before] (split-at 2 simpl-chain)
-                                      ctx  [expr (second xs)]
-                                      expr (expr/ctx->cnt
-                                            {} ;; ? correct env
-                                            (expr/simplify-context ctx {}))]
-                                  (conj before expr))
-                                (let [[before xs] (split-at
-                                                   (- (count simpl-chain) 2)
-                                                   simpl-chain)
-                                      ctx  [(first xs) expr]
-                                      expr (expr/ctx->cnt
-                                            {} ;; ? correct env
-                                            (expr/simplify-context ctx {}))]
-                                  (conj (vec before) expr)))
-                              (conj simpl-chain expr))]
-            (cond (= expr []) (cond
-                                ;; by law of calling/crossing
-                                ;; > (()) = (())
-                                ;; > (a (b (() …))) = (a (b))
-                                ;; > (a (b ( (() …)))) = (a (())) = (a)
-                                (== 1 (count simpl-chain)) simpl-chain
-                                rtl? (rest simpl-chain)
-                                :else (butlast simpl-chain))
-                  (empty? r) simpl-chain
-                  :else (recur r env simpl-chain)))))))))
+    [formform.expr :as expr :refer [make form]]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -132,32 +32,32 @@
 
 ;; Nested expressions
 (defoperator :<- [& exprs]
-  (apply nest-exprs {:unmarked? false :ltr? false} exprs))
+  (apply expr/nest-exprs {:unmarked? false :ltr? false} exprs))
 (defoperator :-> [& exprs]
-  (apply nest-exprs {:unmarked? false :ltr? true} exprs))
+  (apply expr/nest-exprs {:unmarked? false :ltr? true} exprs))
 (defoperator :< [& exprs]
-  (apply nest-exprs {:unmarked? true :ltr? false} exprs))
+  (apply expr/nest-exprs {:unmarked? true :ltr? false} exprs))
 (defoperator :> [& exprs]
-  (apply nest-exprs {:unmarked? true :ltr? true} exprs))
+  (apply expr/nest-exprs {:unmarked? true :ltr? true} exprs))
 
 ;; Chained expressions
 ;; ? redundant because of :* and :|
 (defoperator :<-> [& exprs]
-  (apply mark-exprs {:unmarked? false} exprs))
+  (apply expr/mark-exprs {:unmarked? false} exprs))
 (defoperator :<> [& exprs]
-  (apply mark-exprs {:unmarked? true} exprs))
+  (apply expr/mark-exprs {:unmarked? true} exprs))
 
 
 ;;-------------------------------------------------------------------------
 ;; unclear FORMs
 
-(s/def :formform.specs.expr/unclear
+(s/def :formform.symexpr.extensions/unclear
   (s/cat :tag   (partial = tag_unclear)
          :label #(and (string? %) ((complement empty?) %))))
 
-(def unclear? (partial s/valid? :formform.specs.expr/unclear))
+(def unclear? (partial s/valid? :formform.symexpr.extensions/unclear))
 
-(defmethod op-spec tag_unclear [_] :formform.specs.expr/unclear)
+(defmethod op-spec tag_unclear [_] :formform.symexpr.extensions/unclear)
 
 (defn construct-unclear [op-k & args]
   (let [label (->> args
@@ -181,25 +81,25 @@
 ;;-------------------------------------------------------------------------
 ;; memory FORMs
 
-(s/def :formform.specs.expr/rem-pair
+(s/def :formform.symexpr.extensions/rem-pair
   (s/tuple #(s/valid? :formform.specs.expr/expression %)
            #(s/valid? :formform.specs.expr/expression %)))
 
-(s/def :formform.specs.expr/rems
-  (s/coll-of :formform.specs.expr/rem-pair 
+(s/def :formform.symexpr.extensions/rems
+  (s/coll-of :formform.symexpr.extensions/rem-pair 
              :kind sequential?
              :into []))
 
-(s/def :formform.specs.expr/memory
+(s/def :formform.symexpr.extensions/memory
   (s/cat :tag  (partial = tag_memory)
-         :rems :formform.specs.expr/rems
+         :rems :formform.symexpr.extensions/rems
          :ctx  (s/* #(s/valid? :formform.specs.expr/expression %))))
 
-(def rem-pairs? (partial s/valid? :formform.specs.expr/rems))
+(def rem-pairs? (partial s/valid? :formform.symexpr.extensions/rems))
 
-(def memory? (partial s/valid? :formform.specs.expr/memory))
+(def memory? (partial s/valid? :formform.symexpr.extensions/memory))
 
-(defmethod op-spec tag_memory [_] :formform.specs.expr/memory)
+(defmethod op-spec tag_memory [_] :formform.symexpr.extensions/memory)
 
 (defn memory-replace [[_ _ & ctx] & repl-pairs]
   {:pre [(rem-pairs? repl-pairs)]}
@@ -296,32 +196,32 @@
         opts->sign (set/map-invert seq-reentry-sign->opts)]
     (opts->sign opts)))
 
-(s/def :formform.specs.expr/seq-reentry-signature
+(s/def :formform.symexpr.extensions/seq-reentry-signature
   (comp some? seq-reentry-sign->opts))
 
 (s/def :opts.seq-reentry/parity #{:odd :even :any})
 (s/def :opts.seq-reentry/open? boolean?)
 (s/def :opts.seq-reentry/interpr #{:rec-ident :rec-instr})
 
-(s/def :formform.specs.expr/seq-reentry-opts
+(s/def :formform.symexpr.extensions/seq-reentry-opts
   (s/keys :req-un [:opts.seq-reentry/parity
                    :opts.seq-reentry/open?
                    :opts.seq-reentry/interpr]))
 
-(s/def :formform.specs.expr/seq-reentry
+(s/def :formform.symexpr.extensions/seq-reentry
   (s/cat :tag (partial = tag_seq-reentry)
-         :sign :formform.specs.expr/seq-reentry-signature
+         :sign :formform.symexpr.extensions/seq-reentry-signature
          :nested-exprs (s/+ :formform.specs.expr/expression)))
 
 (def seq-reentry-signature?
-  (partial s/valid? :formform.specs.expr/seq-reentry-signature))
+  (partial s/valid? :formform.symexpr.extensions/seq-reentry-signature))
 
 (def seq-reentry-opts?
-  (partial s/valid? :formform.specs.expr/seq-reentry-opts))
+  (partial s/valid? :formform.symexpr.extensions/seq-reentry-opts))
 
-(def seq-reentry? (partial s/valid? :formform.specs.expr/seq-reentry))
+(def seq-reentry? (partial s/valid? :formform.symexpr.extensions/seq-reentry))
 
-(defmethod op-spec tag_seq-reentry [_] :formform.specs.expr/seq-reentry)
+(defmethod op-spec tag_seq-reentry [_] :formform.symexpr.extensions/seq-reentry)
 
 (defn simplify-seq-reentry
   [seq-re env]
@@ -334,7 +234,7 @@
         (let [re-expr     (if (symx/arrangement? (first exprs))
                             (symx/arr-prepend sign (first exprs))
                             [tag_arrangement sign (first exprs)]) ;; apply?
-              [e & exprs] (simplify-expr-chain {:rtl? true}
+              [e & exprs] (expr/simplify-expr-chain {:rtl? true}
                                                (cons re-expr (rest exprs))
                                                env)
               [x & r]     (if (symx/arrangement? e)
@@ -390,7 +290,7 @@
         (apply make tag_seq-reentry sign exprs))
       ;; re-entry vanished due to dominance of the mark
       ;; this is not a re-entry FORM anymore
-      (>< (apply nest-exprs {:unmarked? open? :ltr? false}
+      (>< (apply expr/nest-exprs {:unmarked? open? :ltr? false}
                  exprs)))))
 
 (defn- construct-seq-reentry
@@ -418,16 +318,16 @@
         {:keys [parity open?]} (seq-reentry-sign->opts sign)
         res-odd?  (odd? (count exprs))
         pre-step? (and res-odd? (not (= parity :even)))
-        re   [:f* (apply nest-exprs {:unmarked? false :ltr? false}
+        re   [:f* (apply expr/nest-exprs {:unmarked? false :ltr? false}
                          (make :f* x) (if res-odd?
                                         (concat ys (cons x ys))
                                         ys))]
         pre  (when pre-step?
                [(if open? :f2 :f1)
-                (apply nest-exprs {:unmarked? false :ltr? false}
+                (apply expr/nest-exprs {:unmarked? false :ltr? false}
                        (make :f* x) ys)])
         open (when open?
-               [:f1 (apply nest-exprs {:unmarked? true :ltr? false}
+               [:f1 (apply expr/nest-exprs {:unmarked? true :ltr? false}
                            (make (if pre-step? :f2 :f*) x) ys)])
         init (if (or pre-step? open?) :f1 :f*)]
     (make-op tag_memory (vec (remove nil? [re pre open])) init))
@@ -505,16 +405,16 @@
 ;;-------------------------------------------------------------------------
 ;; formDNA
 
-(s/def :formform.specs.expr/formDNA
+(s/def :formform.symexpr.extensions/formDNA
   (s/and (s/nonconforming
           (s/cat :tag      (partial = tag_formDNA)
                  :varorder :formform.specs.expr/varorder
                  :dna      :formform.specs.calc/dna))
          #(== (count (second %)) (calc/dna-dimension (nth % 2)))))
 
-(def formDNA? (partial s/valid? :formform.specs.expr/formDNA))
+(def formDNA? (partial s/valid? :formform.symexpr.extensions/formDNA))
 
-(defmethod op-spec tag_formDNA [_] :formform.specs.expr/formDNA)
+(defmethod op-spec tag_formDNA [_] :formform.symexpr.extensions/formDNA)
 
 (defn- filter-formDNA
   "Filters the `dna` by values from given `env` whose keys match variables in the `varlist` of the formDNA."

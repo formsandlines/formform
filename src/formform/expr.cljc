@@ -7,11 +7,11 @@
   (:require
    [clojure.set :as set]
    [clojure.walk :as walk]
+   [clojure.spec.alpha :as s]
    [formform.calc :as calc]
    [formform.symexpr.common :refer [tag_arrangement tag_formDNA]]
    [formform.symexpr.core :as symx]
-   [formform.utils :as utils]
-   [clojure.spec.alpha :as s]))
+   [formform.utils :as utils]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -494,6 +494,104 @@
   - can be slow on expressions with 6+ variables"
   [& exprs]
   (apply calc/equiv-dna (map (comp #(symx/op-get % :dna) =>*) exprs)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Chained expressions
+
+(defn- mark [exprs] (map form exprs))
+
+(defn mark-exprs
+  "Chains expressions like `((a)(b)…)` or `(a)(b)…` if {:unmarked? true}`
+  - group expressions with arrangements: `[:- x y …]`"
+  [{:keys [unmarked?] :or {unmarked? false}} & exprs]
+  (let [f-chained (mark exprs)]
+    (if unmarked?
+      (apply make f-chained)
+      (apply form f-chained))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Nested expressions
+
+(defn nest-exprs
+  "Nests expressions leftwards `(((…)a)b)` or rightwards `(a(b(…)))` if `{:ltr? true}`
+  - use `nil` for empty expressions
+  - use an arrangement `(make x y …)` to add multiple exprs. to the same level"
+  [{:keys [unmarked? ltr?]
+    :or {unmarked? false ltr? false} :as opts} expr & exprs]
+  {:pre [(map? opts)]}
+  (let [exprs  (cons expr exprs)
+        nested (if ltr?
+                 (utils/nest-right splice-ctx exprs)
+                 (utils/nest-left splice-ctx exprs))]
+    (apply (if unmarked? make form) nested)))
+
+(s/def :formform.specs.expr/expr-chain
+  (s/coll-of :formform.specs.expr/expression
+             :kind sequential?
+             :min-count 1))
+
+;; ! check assumptions about env while merging nesting contexts via crossing
+;; ! needs MASSIVE refactoring
+(defn simplify-expr-chain
+  "Reduces a sequence of expressions, intended to be linked in a `chain`, to a sequence of simplified expressions, possibly spliced or shortened via inference.
+  - assumes rightward-nesting, e.g. `(…(…(…)))`
+  - for leftward-nesting, e.g. `(((…)…)…)`, pass `{:rtl? true}`"
+  ([chain env] (simplify-expr-chain {} chain env))
+  ([{:keys [rtl?] :or {rtl? false}} chain env]
+   (vec
+    (loop [[expr & r]  (if rtl? (reverse chain) chain)
+           env         env
+           simpl-chain (if rtl? '() [])]
+      (let [[expr m] (ctx->cnt {:+meta? true}
+                               (simplify-context (cnt->ctx expr) env))
+            ;; needs upstream env to reduce with observed values
+            ;; ? is there a cleaner approach than using meta
+            ;; ? :depth will be incremented in simplify -> maybe not
+            env (dissoc (:env-next m) :depth)]
+        (if (and (empty? r) (= expr nil))
+          (condp == (count simpl-chain)
+            0 (conj simpl-chain nil)
+            ;; by law of calling
+            ;; > (a ()) = (())
+            1 (conj (empty simpl-chain) (form))
+            ;; > (a (() (… (z)))) = (a (())) = (a)
+            (if rtl?
+              (rest simpl-chain)
+              (butlast simpl-chain)))
+          (let [simpl-chain (if (and (> (count simpl-chain) 1)
+                                     (nil? ((if rtl? first last)
+                                            simpl-chain)))
+                              ;; by law of crossing
+                              ;; > (a (b ( (x …)))) = (a (b x …))
+                              ;; > (a (b ( (() …)))) = (a (()))
+                              (if rtl?
+                                (let [[xs before] (split-at 2 simpl-chain)
+                                      ctx  [expr (second xs)]
+                                      expr (ctx->cnt
+                                            {} ;; ? correct env
+                                            (simplify-context ctx {}))]
+                                  (conj before expr))
+                                (let [[before xs] (split-at
+                                                   (- (count simpl-chain) 2)
+                                                   simpl-chain)
+                                      ctx  [(first xs) expr]
+                                      expr (ctx->cnt
+                                            {} ;; ? correct env
+                                            (simplify-context ctx {}))]
+                                  (conj (vec before) expr)))
+                              (conj simpl-chain expr))]
+            (cond (= expr []) (cond
+                                ;; by law of calling/crossing
+                                ;; > (()) = (())
+                                ;; > (a (b (() …))) = (a (b))
+                                ;; > (a (b ( (() …)))) = (a (())) = (a)
+                                (== 1 (count simpl-chain)) simpl-chain
+                                rtl? (rest simpl-chain)
+                                :else (butlast simpl-chain))
+                  (empty? r) simpl-chain
+                  :else (recur r env simpl-chain)))))))))
 
 
 (comment
