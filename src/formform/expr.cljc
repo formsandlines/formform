@@ -4,6 +4,7 @@
    [formform.expr.common
     :refer [tag_memory tag_formDNA tag_unclear tag_arrangement
             tag_seq-reentry]]
+   [formform.calc :as calc]
    [formform.expr.symexpr :as symx]
    [formform.expr.core :as core]
    [formform.expr.operators :as ops]
@@ -439,6 +440,10 @@
                :exprs (s/* ::expression))
   :ret  ::memory)
 
+;; untested
+(s/fdef ops/seq-reentry-sign->opts
+  :args (s/cat :sign ::seq-reentry-signature)
+  :ret  ::seq-reentry-opts)
 
 (s/fdef ops/seq-reentry-opts->sign
   :args (s/cat :opt-map (s/keys :opt-un [:opts.seq-reentry/parity

@@ -143,6 +143,8 @@
 ;; -> element of formDNA representing a primitive FORM value
 ;; -> single-digit formDNA
 
+(defapi core/var-const)
+
 (defapi core/const?
   "Checks if the argument is a valid constant.")
 

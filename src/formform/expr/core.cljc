@@ -426,7 +426,7 @@
   "Evaluates a FORM expression for all possible interpretations of any occurring variable in the expression. Returns a formDNA expression by default.
   - if `to-fdna?` is false, returns a seq of results as returned by `=>` in the order of the corresponding `vspace` ordering"
   ([expr] (=>* expr {}))
-  ([expr env] (=>* {} expr {}))
+  ([expr env] (=>* {} expr env)) ;; ?? why was this (=>* {} expr {})
   ([opts expr env]
    (let [{:keys [varorder results]}
          (eval-simplified* (merge opts {:only-vals? true}) expr env)]
@@ -444,7 +444,7 @@
 
 (defn eval-all
   ([expr] (eval-all expr {}))
-  ([expr env] (eval-all {} expr {}))
+  ([expr env] (eval-all {} expr env)) ;; ?? why was this (eval-all {} expr {})
   ([opts expr env]
    (let [{:keys [varorder results] :as res}
          (eval-simplified* (merge opts {:only-vals? false}) expr env)

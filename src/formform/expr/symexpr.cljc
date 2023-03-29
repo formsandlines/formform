@@ -5,7 +5,6 @@
 
 (ns formform.expr.symexpr
   (:require
-   [clojure.spec.alpha :as s]
    [formform.expr.common :refer [tag_arrangement]])
   #?(:cljs (:require-macros
             [formform.expr.symexpr :refer [defoperator defsymbol]])))
@@ -193,7 +192,7 @@
 ;; Core Operators
 
 ;; !! shallow predicate
-(def arrangement? (partial s/valid? :formform.expr/arrangement))
+(def arrangement? #(= tag_arrangement (op-symbol %)))
 
 (defoperator tag_arrangement [& exprs] (vector (into [] exprs))
   :predicate arrangement?
