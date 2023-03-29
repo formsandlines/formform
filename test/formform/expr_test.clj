@@ -1,7 +1,8 @@
 (ns formform.expr-test
   (:require [clojure.test :as t :refer [deftest is are testing]]
             [formform.calc :as calc]
-            [formform.expr :as expr :refer :all]
+            [formform.expr.core :refer :all]
+            [formform.expr.symexpr.core :refer :all]
             [formform.specs.expr]
             [orchestra.spec.test :as stest]
             ; [clojure.spec.test.alpha :as stest]

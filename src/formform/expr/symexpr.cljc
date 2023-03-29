@@ -1,14 +1,14 @@
 ;; ========================================================================
-;;     formform symbolic expression core module
+;;     formform symbolic expression module
 ;;     -- created 03/2023, (c) Peter Hofmann
 ;; ========================================================================
 
-(ns formform.symexpr.core
+(ns formform.expr.symexpr
   (:require
    [clojure.spec.alpha :as s]
-   [formform.symexpr.common :refer [tag_arrangement]])
+   [formform.expr.common :refer [tag_arrangement]])
   #?(:cljs (:require-macros
-            [formform.symexpr.core :refer [defoperator defsymbol]])))
+            [formform.expr.symexpr :refer [defoperator defsymbol]])))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -180,39 +180,25 @@
                     {:sym sym-k :env env}))))
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Definitions
-
-(s/def :formform.specs.symexpr.core/expr-symbol
-  (s/and keyword? #(% (methods interpret-sym))))
-
-(s/def :formform.specs.symexpr.core/op-symbol
-  (s/and keyword? #(% (methods interpret-op))))
-
-(s/def :formform.specs.symexpr.core/generic-operator
-  (s/cat :tag            :formform.specs.symexpr.core/op-symbol
-         :args-unchecked (s/* any?)))
-
 (defmulti op-spec first)
-(defmethod op-spec :default [_] :formform.specs.symexpr.core/generic-operator)
+(defmethod op-spec :default [_] :formform.expr/operator)
 
-(s/def :formform.specs.symexpr.core/operator (s/multi-spec op-spec first))
-
-(def expr-symbol? (partial s/valid? :formform.specs.symexpr.core/expr-symbol))
-(def op-symbol? (partial s/valid? :formform.specs.symexpr.core/op-symbol))
-(def operator? (partial s/valid? :formform.specs.symexpr.core/generic-operator))
+;; !! unchecked
+(def expr-symbol? #(and (keyword? %)
+                        (% (methods interpret-sym))))
+(def op-symbol? #(and (keyword? %)
+                      (% (methods interpret-op))))
+(def operator? #(and (sequential? %)
+                     (op-symbol? (first %))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Core Operators
 
-(s/def :formform.specs.symexpr.core/arrangement
-  (s/cat :tag   (partial = tag_arrangement)
-         :exprs (s/* #(s/valid? :formform.specs.expr/expression %))))
+;; !! shallow predicate
+(def arrangement? (partial s/valid? :formform.expr/arrangement))
 
-(def arrangement? (partial s/valid? :formform.specs.symexpr.core/arrangement))
-
-(defmethod op-spec tag_arrangement [_] :formform.specs.symexpr.core/arrangement)
+(defmethod op-spec tag_arrangement [_] :formform.expr/arrangement)
 
 (defoperator tag_arrangement [& exprs] (vector (into [] exprs))
   :predicate arrangement?
@@ -231,14 +217,19 @@
 (defsymbol :U [:seq-re :<r nil nil] :reducer (fn [u _] u)) ;; ! not DRY
 (defsymbol :I [:U])
 
+(defsymbol :0 :N)
+(defsymbol :1 :U)
+(defsymbol :2 :I)
+(defsymbol :3 :M)
+
+(defsymbol :mn :U)
+
 (def expr->const {nil :N
                   [] :M
                   [:seq-re :<r nil nil] :U
                   [[:seq-re :<r nil nil]] :I
                   [:U] :I})
 
-
 (comment
-  
-  )
 
+  )

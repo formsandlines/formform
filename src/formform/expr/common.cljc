@@ -1,4 +1,4 @@
-(ns formform.symexpr.common)
+(ns formform.expr.common)
 
 (def tag_arrangement :-)
 (def tag_unclear :uncl)

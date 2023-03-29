@@ -1,47 +1,12 @@
 (ns formform.calc-test
   (:require [clojure.test :as t :refer [deftest is are testing]]
-            [formform.calc :as calc :refer :all]
-            [formform.specs.calc]
-            [orchestra.spec.test :as stest]
-            ; [clojure.spec.test.alpha :as stest]
-            ))
+            [formform.calc.core :as calc :refer :all]
+            [formform.calc 
+             :refer [fns-with-specs dna?
+                     dna-dimension? vpoint? vspace? vdict? vmap?]]
+            [orchestra.spec.test :as stest]))
 
-(stest/instrument 'formform.calc/digit->const)
-(stest/instrument 'formform.calc/char->const)
-(stest/instrument 'formform.calc/const->digit)
-
-(stest/instrument 'formform.calc/dna-dimension)
-(stest/instrument 'formform.calc/rand-dna)
-(stest/instrument 'formform.calc/consts->quaternary)
-(stest/instrument 'formform.calc/make-compare-consts)
-(stest/instrument 'formform.calc/reorder-dna-seq)
-
-(stest/instrument 'formform.calc/prod=dna-seq->dna)
-(stest/instrument 'formform.calc/prod=dna->dna-seq)
-(stest/instrument 'formform.calc/digits->dna)
-(stest/instrument 'formform.calc/chars->dna)
-(stest/instrument 'formform.calc/dna->digits)
-(stest/instrument 'formform.calc/expand-dna-seq)
-(stest/instrument 'formform.calc/reduce-dna-seq)
-(stest/instrument 'formform.calc/make-dna)
-(stest/instrument 'formform.calc/filter-dna-seq)
-(stest/instrument 'formform.calc/filter-dna)
-
-(stest/instrument 'formform.calc/permute-dna-seq)
-(stest/instrument 'formform.calc/dna-seq-perspectives)
-(stest/instrument 'formform.calc/dna-perspectives)
-(stest/instrument 'formform.calc/equal-dna)
-(stest/instrument 'formform.calc/equiv-dna)
-
-(stest/instrument 'formform.calc/rand-vpoint)
-(stest/instrument 'formform.calc/vspace)
-(stest/instrument 'formform.calc/vdict)
-(stest/instrument 'formform.calc/dna->vdict)
-(stest/instrument 'formform.calc/vdict->vmap)
-(stest/instrument 'formform.calc/dna->vmap)
-
-(stest/instrument 'formform.calc/rel)
-(stest/instrument 'formform.calc/inv)
+(doseq [fsym fns-with-specs] (stest/instrument fsym))
 
 
 ;; ? should test dna functions with lists too
