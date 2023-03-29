@@ -17,6 +17,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Data specs
 
+(defmulti op-spec first)
+
 (s/def ::expr-symbol
   (s/and keyword? #(% (methods symx/interpret-sym))))
 
@@ -27,7 +29,7 @@
   (s/cat :tag            ::op-symbol
          :args-unchecked (s/* any?)))
 
-(s/def ::operator (s/multi-spec symx/op-spec first))
+(s/def ::operator (s/multi-spec op-spec first))
 
 (s/def ::arrangement
   (s/cat :tag   (partial = tag_arrangement)
@@ -122,6 +124,17 @@
                  :varorder ::varorder
                  :dna      :formform.calc/dna))
          #(== (count (second %)) (calc/dna-dimension (nth % 2)))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Operator specs
+
+(defmethod op-spec :default [_] ::operator)
+(defmethod op-spec tag_arrangement [_] ::arrangement)
+(defmethod op-spec tag_unclear [_] ::unclear)
+(defmethod op-spec tag_memory [_] ::memory)
+(defmethod op-spec tag_seq-reentry [_] ::seq-reentry)
+(defmethod op-spec tag_formDNA [_] ::formDNA)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

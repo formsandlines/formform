@@ -180,9 +180,6 @@
                     {:sym sym-k :env env}))))
 
 
-(defmulti op-spec first)
-(defmethod op-spec :default [_] :formform.expr/operator)
-
 ;; !! unchecked
 (def expr-symbol? #(and (keyword? %)
                         (% (methods interpret-sym))))
@@ -197,8 +194,6 @@
 
 ;; !! shallow predicate
 (def arrangement? (partial s/valid? :formform.expr/arrangement))
-
-(defmethod op-spec tag_arrangement [_] :formform.expr/arrangement)
 
 (defoperator tag_arrangement [& exprs] (vector (into [] exprs))
   :predicate arrangement?

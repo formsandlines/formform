@@ -14,9 +14,9 @@
             tag_seq-reentry]]
    #?(:clj  [formform.expr.symexpr :as symx
              :refer [defoperator defsymbol
-                     op-get op-data op-spec valid-op? interpret-op make-op]]
+                     op-get op-data valid-op? interpret-op make-op]]
       :cljs [formform.expr.symexpr :as symx
-             :refer [op-get op-data op-spec valid-op? interpret-op make-op]
+             :refer [op-get op-data valid-op? interpret-op make-op]
              :refer-macros [defoperator defsymbol]])
    [formform.expr.core :as core :refer [make form]]))
 
@@ -54,8 +54,6 @@
 
 (def unclear? (partial s/valid? :formform.expr/unclear))
 
-(defmethod op-spec tag_unclear [_] :formform.expr/unclear)
-
 (defn construct-unclear [op-k & args]
   (let [label (->> args
                    (remove nil?)
@@ -84,8 +82,6 @@
                       (every? core/expression? %)))
 
 (def memory? (partial s/valid? :formform.expr/memory))
-
-(defmethod op-spec tag_memory [_] :formform.expr/memory)
 
 (defn memory-replace [[_ _ & ctx] & repl-pairs]
   {:pre [(rem-pairs? repl-pairs)]}
@@ -188,8 +184,6 @@
   (partial s/valid? :formform.expr/seq-reentry-opts))
 
 (def seq-reentry? (partial s/valid? :formform.expr/seq-reentry))
-
-(defmethod op-spec tag_seq-reentry [_] :formform.expr/seq-reentry)
 
 (defn simplify-seq-reentry
   [seq-re env]
@@ -374,8 +368,6 @@
 ;; formDNA
 
 (def formDNA? (partial s/valid? :formform.expr/formDNA))
-
-(defmethod op-spec tag_formDNA [_] :formform.expr/formDNA)
 
 (defn- filter-formDNA
   "Filters the `dna` by values from given `env` whose keys match variables in the `varlist` of the formDNA."
