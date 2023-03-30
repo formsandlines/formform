@@ -142,6 +142,7 @@
 ;; -> element of formDNA representing a primitive FORM value
 ;; -> single-digit formDNA
 
+(defapi core/consts)
 (defapi core/var-const)
 
 (defapi core/const?

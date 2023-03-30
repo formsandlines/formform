@@ -310,6 +310,11 @@
 
 
 (comment
+  (read-expr "{2r|}")
+  (expr/seq-reentry-signature? {:parity :even, :open? false, :interpr :rec-instr})
+  (expr/seq-reentry-opts? {:parity :even, :open? false, :interpr :rec-instr})
+
+
   (uniform-expr {:branchname :space} [[:M] 'a])
 
   (uniform-expr {:use-unmarked? true

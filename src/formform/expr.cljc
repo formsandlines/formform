@@ -1,9 +1,7 @@
 (ns formform.expr
   "API for the `expr` module of `formform`."
   (:require
-   [formform.expr.common
-    :refer [tag_memory tag_formDNA tag_unclear tag_arrangement
-            tag_seq-reentry]]
+   [formform.expr.common :as common]
    [formform.calc :as calc]
    [formform.expr.symexpr :as symx]
    [formform.expr.core :as core]
@@ -32,7 +30,7 @@
 (s/def ::operator (s/multi-spec op-spec first))
 
 (s/def ::arrangement
-  (s/cat :tag   (partial = tag_arrangement)
+  (s/cat :tag   (partial = common/tag_arrangement)
          :exprs (s/* #(s/valid? ::expression %))))
 
 
@@ -74,7 +72,7 @@
 
 
 (s/def ::unclear
-  (s/cat :tag   (partial = tag_unclear)
+  (s/cat :tag   (partial = common/tag_unclear)
          :label #(and (string? %) ((complement empty?) %))))
 
 
@@ -88,7 +86,7 @@
              :into []))
 
 (s/def ::memory
-  (s/cat :tag  (partial = tag_memory)
+  (s/cat :tag  (partial = common/tag_memory)
          :rems ::rems
          :ctx  (s/* #(s/valid? ::expression %))))
 
@@ -105,14 +103,14 @@
                    :opts.seq-reentry/interpr]))
 
 (s/def ::seq-reentry
-  (s/cat :tag (partial = tag_seq-reentry)
+  (s/cat :tag (partial = common/tag_seq-reentry)
          :sign ::seq-reentry-signature
          :nested-exprs (s/+ ::expression)))
 
 
 (s/def ::formDNA
   (s/and (s/nonconforming
-          (s/cat :tag      (partial = tag_formDNA)
+          (s/cat :tag      (partial = common/tag_formDNA)
                  :varorder ::varorder
                  :dna      :formform.calc/dna))
          #(== (count (second %)) (calc/dna-dimension (nth % 2)))))
@@ -122,11 +120,17 @@
 ;; Operator specs
 
 (defmethod op-spec :default [_] ::operator)
-(defmethod op-spec tag_arrangement [_] ::arrangement)
-(defmethod op-spec tag_unclear [_] ::unclear)
-(defmethod op-spec tag_memory [_] ::memory)
-(defmethod op-spec tag_seq-reentry [_] ::seq-reentry)
-(defmethod op-spec tag_formDNA [_] ::formDNA)
+(defmethod op-spec common/tag_arrangement [_] ::arrangement)
+(defmethod op-spec common/tag_unclear [_] ::unclear)
+(defmethod op-spec common/tag_memory [_] ::memory)
+(defmethod op-spec common/tag_seq-reentry [_] ::seq-reentry)
+(defmethod op-spec common/tag_formDNA [_] ::formDNA)
+
+(defapi common/tag_arrangement)
+(defapi common/tag_unclear)
+(defapi common/tag_memory)
+(defapi common/tag_seq-reentry)
+(defapi common/tag_formDNA)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -583,6 +587,8 @@
   :ret  ::memory)
 (defapi ops/memory
   "Constructs a memory FORM.")
+
+(defapi ops/seq-reentry-defaults)
 
 ;; should not be spec’d since its a map, not a function!
 ; (s/fdef ops/seq-reentry-sign->opts

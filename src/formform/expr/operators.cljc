@@ -79,13 +79,17 @@
 ;;-------------------------------------------------------------------------
 ;; memory FORMs
 
+(def rem-pair? #(and (sequential? %)
+                     (== 2 (count %))
+                     (every? core/expression? %)))
+
 ;; !! unchecked
 (def rem-pairs? #(and (sequential? %)
-                      (== 2 (count %))
-                      (every? core/expression? %)))
+                      (every? rem-pair? %)))
 
 (def memory? #(and (symx/operator? %)
-                   (= tag_memory (op-symbol %))))
+                   (= tag_memory (op-symbol %))
+                   (rem-pairs? (second %))))
 
 (defn memory-replace [[_ _ & ctx] & repl-pairs]
   {:pre [(rem-pairs? repl-pairs)]}
@@ -181,11 +185,10 @@
 
 (def seq-reentry-signature? (comp some? seq-reentry-sign->opts))
 
-;; !! untested & shallow predicate
+;; ! shallow predicate
 (def seq-reentry-opts?
   #(and (map? %)
-        (let [{:keys [parity open? interpr]} %]
-          (and parity open? interpr))))
+        (every? (partial contains? %) [:parity :interpr :open?])))
 
 (def seq-reentry? #(and (symx/operator? %)
                         (= tag_seq-reentry (op-symbol %))))
