@@ -29,7 +29,8 @@
                       (symx/operator? %)
                       (form? %)
                       (symx/expr-symbol? %)
-                      (variable? %)))
+                      (variable? %)
+                      (keyword? %)))
 
 (def struct-expr? #(or (form? %) (symx/operator? %)))
 (def literal-expr? #(or (symx/expr-symbol? %) (variable? %)))
@@ -39,7 +40,6 @@
 ;; Core Operations
 
 (defn splice-ctx
-  "Dissolves arrangements in given context such that their elements become direct children of the context itself."
   [ctx]
   (reduce (fn [acc x] (cond
                         (nil? x) acc
@@ -48,11 +48,6 @@
           [] ctx))
 
 (defn make
-  "Constructor for expressions of any kind. Validates its input.
-  - if the first argument (or the first after the options map) is a keyword of a registered operator, will call the constructor for that operator
-  - can be given an options map as first argument:
-    - `mark?` (default: false) marks the whole expression, creating a FORM
-    - `splice?` (default: true) dissolves all top-level arrangements"
   [& args]
   (let [[{:keys [mark? splice?] :or {mark? false splice? true}}
          [x & r]] (if (map? (first args))
@@ -77,7 +72,6 @@
             (apply vector tag_arrangement exprs)))))))
 
 (defn form
-  "Constructor for FORM expressions. Calls `make` on arguments."
   [& args]
   (let [[opts ctx] (if (map? (first args))
                      [(first args) (rest args)]
@@ -86,7 +80,6 @@
 
 
 (defn- substitute-expr
-  "Substitutes an expression by a matching expression in given environment. Returns the original expression if match failed."
   [env expr]
   (let [x (get env expr :not-found)]
     (if (= x :not-found) expr x)))
@@ -94,34 +87,25 @@
 ;; ! check if defaults from `env` destructuring must be propagated in 
 ;;   `substitute-expr`
 (defn interpret
-  "Interprets an expression of any kind. Returns the original expression if it cannot be interpreted.
-
-  Can be given an `env` map to interpret variables (as keys).
-  This map can have an optional `--defocus` entry whose value is a set of items that should not be interpreted and a complementary `--focus` entry to only interpret the items specified in its set and nothing else.
-  - the keywords `:ops` / `:syms` / `:vars` designate _all_ operations / expression symbols / variables
-  - an operator symbol can provided to designate a specific operator
-  - any other expression (like a variable) can be designated as itself
-  - `--focus` and `--defocus` can cancel each other out if they contain the same item so you usually pick one or the other"
   ([expr] (interpret {} expr))
   ([{:keys [--defocus --focus] :or {--defocus #{}
                                     --focus #{}} :as env} expr]
    (cond
-     (--defocus expr)                          expr
+     (--defocus expr)               expr
      (and (seq --focus)
           (if (symx/operator? expr)
             (nil? (--focus (symx/op-symbol expr)))
-            (nil? (--focus expr))))            expr
+            (nil? (--focus expr)))) expr
      (and (nil? (--defocus :ops))
           (symx/operator? expr)
           (nil? (--defocus (symx/op-symbol expr)))) (symx/interpret-op expr)
      (and (nil? (--defocus :syms))
-          (symx/expr-symbol? expr))                 (symx/interpret-sym expr)
+          (symx/expr-symbol? expr)) (symx/interpret-sym expr)
      (and (nil? (--defocus :vars))
-          (variable? expr))                    (substitute-expr env expr)
+          (variable? expr))         (substitute-expr env expr)
      :else expr)))
 
 (defn interpret-walk
-  "Recursively calls `interpret` on given expression and all its subexpressions with a depth-first walk."
   ([expr] (interpret-walk {} expr))
   ([env expr]
    (walk/postwalk (partial interpret env) expr)))
@@ -141,17 +125,14 @@
            :else (recur expr' (inc i))))))))
 
 (def interpret*
-  "Like `interpret`, but repeats substitution on interpreted expressions until they cannot be interpreted any further."
   (prod=iterate-unless-eq interpret))
 
 (def interpret-walk*
-  "Like `interpret-walk`, but repeats substitution on interpreted (sub-)expressions until they cannot be interpreted any further."
   (prod=iterate-unless-eq interpret-walk))
 
 
 ;; ? be more specific than `sequential?`
 (defn find-subexprs
-  "Finds all subexpressions in `expr` that match any element of the given set `subexprs`."
   [expr subexprs]
   (if (some? (subexprs expr))
     (list expr)
@@ -162,11 +143,6 @@
 
 ;; ! type order not recognized
 (defn find-vars
-  "Finds all variables in an expresson or returns the expression itself if it is a variable.
-  
-  Options:
-  - {:ordered true} to return variables in: type order -> alphanumeric order
-  - {:vars #{…}} can be given a set of specific variables to find"
   [expr {:keys [ordered? vars] :or {ordered? false}}]
   (if (sequential? expr)
     (let [children (fn [x] (filter #(or (struct-expr? %) (if (nil? vars)
@@ -272,6 +248,16 @@
         (symx/expr-symbol? x) (symx/interpret-sym x)
         :else (substitute-expr env x)))))
 
+(defmethod symx/simplify-op :default simplify-op->unknown
+  [[op-k & _ :as expr] env]
+  (if (symx/op-symbol? op-k)
+    ;; ? applicative order (eval args first) would be more efficient
+    ;;   but how to know if all args are expressions?
+    ;;   -> should leave that to dedicated simplifier
+    (simplify-content (symx/interpret-op expr) env)
+    (throw (ex-info (str "Don’t know how to simplify " op-k)
+                    {:op op-k :expr expr :env env}))))
+
 ;; ? kinda messy - how to make this more systematic
 (defn- simplify-by-calling
   "Tries to reduce given context to `()` if it contains the equivalent of a `MARK` or both `:U` and `:I` are present in the context and/or given `env`.
@@ -362,19 +348,11 @@
 
 ;; ? should env be reduced completely before substitution?
 (defn cnt>
-  "Simplifies a FORM content recursively until it cannot be further simplified.
-  All deductions are justified by the axioms of FORM logic.
-  - if `x` is a complex FORM, calls `simplify-context` on `x`
-  - if no simplification applies, tries to retrieve the value from given `env`
-  - if retrieval was unsuccessful, returns `x` as is"
   ([x]     (cnt> x {}))
   ([x env] (simplify-matching-content
-             (simplify-content x (simplify-env env))))) ;; interpret ?
+            (simplify-content x (simplify-env env))))) ;; interpret ?
 
 (defn ctx>
-  "Simplifies a FORM context recursively until it cannot be further simplified.
-  All deductions are justified by the axioms of FORM logic.
-  - for complex expressions, calls `simplify-content` on every unique element"
   ([ctx]     (ctx> ctx {}))
   ([ctx env] (vec (simplify-context ctx (simplify-env env)))))
 
@@ -416,15 +394,11 @@
 ;   [expr])
 
 (defn =>
-  "Evaluates a FORM expression with an optional `env` and returns a Constant expression with attached metadata including the maximally reduced expression in `:expr` and the environment in `:env`.
-  - `env` must be a map with a content/variable in `expr` as a key"
   ([expr] (=> expr {}))
   ([expr env]
    (:val (eval-simplified expr env))))
 
 (defn =>*
-  "Evaluates a FORM expression for all possible interpretations of any occurring variable in the expression. Returns a formDNA expression by default.
-  - if `to-fdna?` is false, returns a seq of results as returned by `=>` in the order of the corresponding `vspace` ordering"
   ([expr] (=>* expr {}))
   ([expr env] (=>* {} expr env)) ;; ?? why was this (=>* {} expr {})
   ([opts expr env]
@@ -455,9 +429,6 @@
 
 
 (defn equal
-  "Equality check for expressions. Two expressions are considered equal, if their formDNAs are equal. Compares formDNAs from evaluation results of each expression by calling `calc/equal-dna`.
-  - ordering of variable names in formDNA matters, see `find-vars`
-  - stricter than `equiv`, which compares by `calc/equiv-dna`"
   [& exprs]
   (let [data     (map (comp symx/op-data =>*) exprs)
         dnas     (map :dna data)
@@ -466,10 +437,6 @@
          (apply calc/equal-dna dnas))))
 
 (defn equiv
-  "Equivalence check for expressions. Two expressions are considered equivalent, if their formDNAs are equivalent. Compares formDNAs from evaluation results of each expression by calling `calc/equiv-dna`.
-  - ordering of variable names in formDNA is irrelevant
-  - looser than `equal`, which compares by `calc/equal-dna`
-  - can be slow on expressions with 6+ variables"
   [& exprs]
   (apply calc/equiv-dna (map (comp #(symx/op-get % :dna) =>*) exprs)))
 
@@ -480,8 +447,6 @@
 (defn- mark [exprs] (map form exprs))
 
 (defn mark-exprs
-  "Chains expressions like `((a)(b)…)` or `(a)(b)…` if {:unmarked? true}`
-  - group expressions with arrangements: `[:- x y …]`"
   [{:keys [unmarked?] :or {unmarked? false}} & exprs]
   (let [f-chained (mark exprs)]
     (if unmarked?
@@ -493,9 +458,6 @@
 ;; Nested expressions
 
 (defn nest-exprs
-  "Nests expressions leftwards `(((…)a)b)` or rightwards `(a(b(…)))` if `{:ltr? true}`
-  - use `nil` for empty expressions
-  - use an arrangement `(make x y …)` to add multiple exprs. to the same level"
   [{:keys [unmarked? ltr?]
     :or {unmarked? false ltr? false} :as opts} expr & exprs]
   {:pre [(map? opts)]}
@@ -508,9 +470,6 @@
 ;; ! check assumptions about env while merging nesting contexts via crossing
 ;; ! needs MASSIVE refactoring
 (defn simplify-expr-chain
-  "Reduces a sequence of expressions, intended to be linked in a `chain`, to a sequence of simplified expressions, possibly spliced or shortened via inference.
-  - assumes rightward-nesting, e.g. `(…(…(…)))`
-  - for leftward-nesting, e.g. `(((…)…)…)`, pass `{:rtl? true}`"
   ([chain env] (simplify-expr-chain {} chain env))
   ([{:keys [rtl?] :or {rtl? false}} chain env]
    (vec

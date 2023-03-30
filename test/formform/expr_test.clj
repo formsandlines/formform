@@ -1,84 +1,13 @@
 (ns formform.expr-test
   (:require [clojure.test :as t :refer [deftest is are testing]]
             [formform.calc :as calc]
+            [formform.expr.symexpr :refer :all]
             [formform.expr.core :refer :all]
-            [formform.expr.symexpr.core :refer :all]
-            [formform.specs.expr]
-            [orchestra.spec.test :as stest]
-            ; [clojure.spec.test.alpha :as stest]
-            ))
+            [formform.expr.operators :refer :all]
+            [formform.expr :refer [fns-with-specs]]
+            [orchestra.spec.test :as stest]))
 
-;; Multimethods
-;; -> instrumentation of multimethods causes issues with defmethod 
-;;    and other problems (e.g. ClassCastException) due to wrapping
-; (stest/instrument 'formform.expr/make-op)
-; (stest/instrument 'formform.expr/valid-op?)
-; (stest/instrument 'formform.expr/interpret-op)
-; (stest/instrument 'formform.expr/simplify-op)
-; (stest/instrument 'formform.expr/op-get)
-; (stest/instrument 'formform.expr/op-data)
-; (stest/instrument 'formform.expr/interpret-sym)
-; (stest/instrument 'formform.expr/simplify-sym)
-
-;; Functions
-(stest/instrument 'formform.expr/splice-ctx)
-(stest/instrument 'formform.expr/make)
-(stest/instrument 'formform.expr/form)
-(stest/instrument 'formform.expr/substitute-expr)
-(stest/instrument 'formform.expr/interpret)
-(stest/instrument 'formform.expr/interpret*)
-(stest/instrument 'formform.expr/interpret-walk)
-(stest/instrument 'formform.expr/interpret-walk*)
-(stest/instrument 'formform.expr/find-subexprs)
-(stest/instrument 'formform.expr/find-vars)
-(stest/instrument 'formform.expr/gen-vars)
-
-(stest/instrument 'formform.expr/ctx->cnt)
-(stest/instrument 'formform.expr/cnt->ctx)
-(stest/instrument 'formform.expr/simplify-matching-content)
-(stest/instrument 'formform.expr/simplify-form)
-(stest/instrument 'formform.expr/simplify-content)
-(stest/instrument 'formform.expr/simplify-by-calling)
-(stest/instrument 'formform.expr/simplify-by-crossing)
-(stest/instrument 'formform.expr/substitute-in-context)
-(stest/instrument 'formform.expr/simplify-context)
-(stest/instrument 'formform.expr/simplify-env)
-(stest/instrument 'formform.expr/cnt>)
-(stest/instrument 'formform.expr/ctx>)
-
-(stest/instrument 'formform.expr/=>)
-(stest/instrument 'formform.expr/=>*)
-(stest/instrument 'formform.expr/evaluate)
-(stest/instrument 'formform.expr/eval-all)
-(stest/instrument 'formform.expr/equal)
-(stest/instrument 'formform.expr/equiv)
-
-(stest/instrument 'formform.expr/mark)
-(stest/instrument 'formform.expr/mark-exprs)
-(stest/instrument 'formform.expr/nest-left)
-(stest/instrument 'formform.expr/nest-right)
-(stest/instrument 'formform.expr/nest-exprs)
-(stest/instrument 'formform.expr/simplify-expr-chain)
-
-(stest/instrument 'formform.expr/construct-unclear)
-
-(stest/instrument 'formform.expr/memory-replace)
-(stest/instrument 'formform.expr/memory-extend)
-(stest/instrument 'formform.expr/simplify-rems)
-(stest/instrument 'formform.expr/filter-rems)
-(stest/instrument 'formform.expr/simplify-memory)
-(stest/instrument 'formform.expr/memory)
-
-(stest/instrument 'formform.expr/seq-reentry-opts->sign)
-(stest/instrument 'formform.expr/simplify-seq-reentry)
-(stest/instrument 'formform.expr/construct-seq-reentry)
-(stest/instrument 'formform.expr/seq-re)
-
-(stest/instrument 'formform.expr/sel)
-
-(stest/instrument 'formform.expr/filter-formDNA)
-(stest/instrument 'formform.expr/simplify-formDNA)
-(stest/instrument 'formform.expr/construct-formDNA)
+(doseq [fsym fns-with-specs] (stest/instrument fsym))
 
 
 (deftest make-op-test
@@ -1339,9 +1268,9 @@
 
 (deftest filter-rems-test
   (testing "Removal of unreferenced shadowed rems"
-    (is (= (#'expr/filter-rems '[[a (x)] [x a] [x :M]] ['x])
+    (is (= (filter-rems '[[a (x)] [x a] [x :M]] ['x])
            '[[x :M]]))
-    (is (= (#'expr/filter-rems '[[a :N] [x :M] [a (x)]] ['a])
+    (is (= (filter-rems '[[a :N] [x :M] [a (x)]] ['a])
            '[[a (x)] [x :M]]))))
 
 

@@ -4,8 +4,7 @@
             #?(:clj  [formform.utils :as utils :refer [defapi]]
                :cljs [formform.utils :as utils :refer-macros [defapi]])
             [clojure.spec.alpha :as s]
-            [clojure.spec.gen.alpha :as gen]
-            [orchestra.spec.test :as stest]))
+            [clojure.spec.gen.alpha :as gen]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -552,6 +551,7 @@
   "Inverts the value of a every constant in a formDNA.")
 ;; alias
 (def | inv)
+
 
 (def fns-with-specs (utils/list-fn-specs "formform.calc"))
 

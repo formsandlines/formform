@@ -19,35 +19,28 @@
 ;; Operator methods
 
 (defmulti make-op
-  "Constructs a symbolic expression given a registered operator and parameters."
   (fn [op-k & _] {:pre [(keyword? op-k)]} op-k))
 
 (defmulti valid-op?
-  "Validates the shape of a symbolic expression with a registered operator."
   (fn [[op-k & _]] {:pre [(keyword? op-k)]} op-k))
 
 (defmulti interpret-op
-  "Interprets a symbolic expression with a registered operator."
   (fn [[op-k & _]] {:pre [(keyword? op-k)]} op-k))
 
 (defmulti simplify-op
-  "Simplifies a symbolic expression with a registered operator given an optional environment."
   (fn [[op-k & _] _] {:pre [(keyword? op-k)]} op-k))
 
 (defmulti op-get
-  "Gets a specified part from a symbolic expression with a registered operator."
   (fn [[op-k & _] param] {:pre [(keyword? op-k)
                                 (keyword? param)]} [op-k param]))
 
 (defmulti op-data
-  "Gets all parameters from a symbolic expression with a registered operator as a map."
   (fn [[op-k & _]] {:pre [(keyword? op-k)]} op-k))
 
 
 ;; default methods
 
 (declare op-symbol?)
-(declare simplify-content)
 
 ;; default constructor
 (defmethod make-op :default make-op->unknown
@@ -73,15 +66,8 @@
   (throw (ex-info (str "Don’t know how to interpret " op-k)
                   {:op op-k :expr expr})))
 
-(defmethod simplify-op :default simplify-op->unknown
-  [[op-k & _ :as expr] env]
-  (if (op-symbol? op-k)
-    ;; ? applicative order (eval args first) would be more efficient
-    ;;   but how to know if all args are expressions?
-    ;;   -> should leave that to dedicated simplifier
-    (simplify-content (interpret-op expr) env)
-    (throw (ex-info (str "Don’t know how to simplify " op-k)
-                    {:op op-k :expr expr :env env}))))
+;; default method for `simplify-op` is in expr.core
+;; this is due to its dependency on `core/simplify-content`
 
 (defmethod op-get :default op-get->unknown
   [[op-k & _ :as expr] param]
@@ -145,11 +131,9 @@
 ;; Symbol methods
 
 (defmulti interpret-sym
-  "Interprets a registered symbol."
   (fn [sym] {:pre [(keyword? sym)]} sym))
 
 (defmulti simplify-sym
-  "Simplifies a registered symbol given an optional environment."
   (fn [sym _] {:pre [(keyword? sym)]} sym))
 
 (defmacro defsymbol
@@ -191,8 +175,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Core Operators
 
-;; !! shallow predicate
-(def arrangement? #(= tag_arrangement (op-symbol %)))
+;; !! unchecked & shallow predicate
+(def arrangement? #(and (operator? %)
+                        (= tag_arrangement (op-symbol %))))
 
 (defoperator tag_arrangement [& exprs] (vector (into [] exprs))
   :predicate arrangement?

@@ -4,21 +4,23 @@
 ;; ========================================================================
 
 (ns formform.expr.operators
-  [clojure.set :as set]
   (:require
-    #?(:clj  [clojure.core.match :refer [match]]
-       :cljs [cljs.core.match :refer-macros [match]])
-    [formform.calc :as calc]
-    [formform.expr.common
-     :refer [tag_memory tag_formDNA tag_unclear tag_arrangement
-             tag_seq-reentry]]
-    #?(:clj  [formform.expr.symexpr :as symx
-              :refer [defoperator
-                      op-get op-data op-symbol valid-op? interpret-op make-op]]
-       :cljs [formform.expr.symexpr :as symx
-              :refer [op-get op-data op-symbol valid-op? interpret-op make-op]
-              :refer-macros [defoperator]])
-    [formform.expr.core :as core :refer [make form]]))
+   [clojure.set :as set]
+   #?(:clj  [clojure.core.match :refer [match]]
+      :cljs [cljs.core.match :refer-macros [match]])
+   [formform.calc :as calc]
+   [formform.expr.common
+    :refer [tag_memory tag_formDNA tag_unclear tag_arrangement
+            tag_seq-reentry]]
+   #?(:clj  [formform.expr.symexpr :as symx
+             :refer [defoperator
+                     op-get op-data op-symbol valid-op? make-op
+                     interpret-op simplify-op]]
+      :cljs [formform.expr.symexpr :as symx
+             :refer [op-get op-data op-symbol valid-op? make-op
+                     interpret-op simplify-op]
+             :refer-macros [defoperator]])
+   [formform.expr.core :as core :refer [make form]]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -52,7 +54,8 @@
 ;;-------------------------------------------------------------------------
 ;; unclear FORMs
 
-(def unclear? #(= tag_unclear (op-symbol %)))
+(def unclear? #(and (symx/operator? %)
+                    (= tag_unclear (op-symbol %))))
 
 (defn construct-unclear [op-k & args]
   (let [label (->> args
@@ -81,7 +84,8 @@
                       (== 2 (count %))
                       (every? core/expression? %)))
 
-(def memory? #(= tag_memory (op-symbol %)))
+(def memory? #(and (symx/operator? %)
+                   (= tag_memory (op-symbol %))))
 
 (defn memory-replace [[_ _ & ctx] & repl-pairs]
   {:pre [(rem-pairs? repl-pairs)]}
@@ -106,7 +110,7 @@
           (recur r rems-reduced env))))))
 
 ;; ? `& exprs` instead of `ctx`
-(defn- filter-rems
+(defn filter-rems
   [rems ctx]
   (let [rem-keys (set (core/find-subexprs ctx (set (map first rems))))
         rev-rems (reverse rems)]
@@ -144,7 +148,6 @@
   :reducer simplify-memory)
 
 (defn memory
-  "Constructs a memory FORM."
   [rems & exprs]
   (make-op tag_memory rems exprs))
 
@@ -154,7 +157,6 @@
 (def seq-reentry-defaults {:parity :any, :open? false, :interpr :rec-instr})
 
 (def seq-reentry-sign->opts
-  "Maps signatures for self-equivalent re-entry FORMs to their corresponding option-maps."
   (let [ds seq-reentry-defaults]
     {:<r      (merge ds {})
      :<..r    (merge ds {:parity :even})
@@ -171,7 +173,6 @@
      :<..r'._ (merge ds {:interpr :rec-ident :open? true :parity :odd})}))
 
 (defn seq-reentry-opts->sign
-  "Inverse map of seq-reentry-sign->opts with default args."
   [m]
   (let [opts (merge seq-reentry-defaults
                     (select-keys m [:parity :open? :interpr]))
@@ -186,7 +187,8 @@
         (let [{:keys [parity open? interpr]} %]
           (and parity open? interpr))))
 
-(def seq-reentry? #(= tag_seq-reentry (op-symbol %)))
+(def seq-reentry? #(and (symx/operator? %)
+                        (= tag_seq-reentry (op-symbol %))))
 
 (defn simplify-seq-reentry
   [seq-re env]
@@ -301,9 +303,6 @@
   :reducer simplify-seq-reentry)
 
 (defn seq-re
-  "Constructs a self-equivalent re-entry FORM given the arguments:
-  - `specs`: either a `seq-reentry-signature` or an options map
-  - `nested-exprs`: zero or more expressions intended as a nested sequence"
   [specs & nested-exprs]
   (apply construct-seq-reentry tag_seq-reentry specs nested-exprs))
 
@@ -370,7 +369,8 @@
 ;;-------------------------------------------------------------------------
 ;; formDNA
 
-(def formDNA? #(= tag_formDNA (op-symbol %)))
+(def formDNA? #(and (symx/operator? %)
+                    (= tag_formDNA (op-symbol %))))
 
 (defn- filter-formDNA
   "Filters the `dna` by values from given `env` whose keys match variables in the `varlist` of the formDNA."
@@ -421,8 +421,6 @@
   :constructor construct-formDNA
   :predicate formDNA?
   :reducer simplify-formDNA)
-
-
 
 
 (comment
