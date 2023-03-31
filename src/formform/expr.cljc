@@ -1,8 +1,8 @@
 (ns formform.expr
   "API for the `expr` module of `formform`."
   (:require
-   [formform.expr.common :as common]
    [formform.calc :as calc]
+   [formform.expr.common :as common]
    [formform.expr.symexpr :as symx]
    [formform.expr.core :as core]
    [formform.expr.operators :as ops]

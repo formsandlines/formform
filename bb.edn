@@ -3,5 +3,5 @@
  {:requires ([tasks])
   instafix
   {:doc "formula.ebnf -> formula.cljc (instaparse fix for ClojureScript)"
-   :task (tasks/grammar->cljc "formform/grammar/formula.ebnf"
+   :task (tasks/grammar->cljc "formform/io/formula.ebnf"
                               {:parser-opts {:auto-whitespace :standard}})}}}

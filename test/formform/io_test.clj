@@ -1,14 +1,16 @@
 (ns formform.io-test
   (:require [clojure.test :as t :refer [deftest is are testing]]
-            [formform.grammar.formula :refer [parser]]
             [formform.calc :as calc]
             [formform.expr :as expr]
-            [formform.io :as io :refer [read-expr parse-tree print-expr]]
+            [formform.io.formula :refer [parser]]
+            [formform.io.core :refer :all]
+            [formform.io :refer [fns-with-specs]]
             [instaparse.core :as insta]
             [orchestra.spec.test :as stest]))
 
 (doseq [fsym calc/fns-with-specs] (stest/instrument fsym))
 (doseq [fsym expr/fns-with-specs] (stest/instrument fsym))
+(doseq [fsym fns-with-specs]      (stest/instrument fsym))
 
 
 (def tree parser)
