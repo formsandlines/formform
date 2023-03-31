@@ -7,7 +7,9 @@
             :exec-args {:git/branch "main"
                         :github/repo "https://github.com/formsandlines/formform"
                         :overrides {formform.calc
-                                    {fns-with-specs {:no-doc true}}
+                                    {fns-with-specs {:no-doc true}
+                                     spec--dna-seq-args {:no-doc true}
+                                     spec--dna-args {:no-doc true}}
                                     formform.expr
                                     {fns-with-specs {:no-doc true}
                                      tag_arrangement {:no-doc true}

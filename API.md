@@ -38,8 +38,6 @@
     -  [`reorder-dna-seq`](#formform.calc/reorder-dna-seq) - Reorders given formDNA/<code>dna-seq</code> from <code>sort-code-from</code> to <code>sort-code-to</code>.
     -  [`reverse-dna`](#formform.calc/reverse-dna) - Reverses a formDNA (returns an rseq) - make sure the input is a vector for constant-time reverse.
     -  [`sort-code?`](#formform.calc/sort-code?)
-    -  [`spec--dna-args`](#formform.calc/spec--dna-args)
-    -  [`spec--dna-seq-args`](#formform.calc/spec--dna-seq-args)
     -  [`var-const`](#formform.calc/var-const)
     -  [`vdict`](#formform.calc/vdict) - Generates a vdict given a map from vpoint to result (constant).
     -  [`vdict->vmap`](#formform.calc/vdict->vmap) - Generates a vmap from a given vdict.
@@ -427,22 +425,6 @@ Reverses a formDNA (returns an rseq)
 
 
 <p><sub><a href="https://github.com/formsandlines/formform/blob/main/src/formform/calc.cljc#L60-L60">Source</a></sub></p>
-
-## <a name="formform.calc/spec--dna-args">`spec--dna-args`</a><a name="formform.calc/spec--dna-args"></a>
-``` clojure
-
-(spec--dna-args)
-```
-Function.
-<p><sub><a href="https://github.com/formsandlines/formform/blob/main/src/formform/calc.cljc#L284-L287">Source</a></sub></p>
-
-## <a name="formform.calc/spec--dna-seq-args">`spec--dna-seq-args`</a><a name="formform.calc/spec--dna-seq-args"></a>
-``` clojure
-
-(spec--dna-seq-args spec)
-```
-Function.
-<p><sub><a href="https://github.com/formsandlines/formform/blob/main/src/formform/calc.cljc#L275-L282">Source</a></sub></p>
 
 ## <a name="formform.calc/var-const">`var-const`</a><a name="formform.calc/var-const"></a>
 
