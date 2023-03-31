@@ -300,14 +300,15 @@
     (throw (ex-info "Unknown expression type." {:expr expr}))))
 
 (defn uniform-expr
-  [{:keys [legacy?] :as opts} expr]
-  (expr->uniform (merge {:branchname (if legacy? :space :children)
-                         :use-unmarked? legacy?
-                         :use-unclear? legacy?
-                         :use-const? legacy?
-                         :use-seq-reentry? legacy?}
-                        opts)
-                 expr))
+  ([expr] (uniform-expr {} expr))
+  ([{:keys [legacy?] :as opts} expr]
+   (expr->uniform (merge {:branchname (if legacy? :space :children)
+                          :use-unmarked? legacy?
+                          :use-unclear? legacy?
+                          :use-const? legacy?
+                          :use-seq-reentry? legacy?}
+                         opts)
+                  expr)))
 
 
 (comment

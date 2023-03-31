@@ -1,6 +1,20 @@
 {:paths ["src" "bb"]
  :tasks
  {:requires ([tasks])
+  quickdoc {:doc "Invoke quickdoc"
+            :extra-deps {io.github.borkdude/quickdoc {:git/sha "32e726cd6d785d00e49d4e614a05f7436d3831c0"}}
+            :task (exec 'quickdoc.api/quickdoc)
+            :exec-args {:git/branch "main"
+                        :github/repo "https://github.com/formsandlines/formform"
+                        :overrides {formform.calc
+                                    {fns-with-specs {:no-doc true}}
+                                    formform.expr
+                                    {fns-with-specs {:no-doc true}}
+                                    formform.io
+                                    {fns-with-specs {:no-doc true}}}
+                        :source-paths ["src/formform/calc.cljc"
+                                       "src/formform/expr.cljc"
+                                       "src/formform/io.cljc"]}}
   instafix
   {:doc "formula.ebnf -> formula.cljc (instaparse fix for ClojureScript)"
    :task (tasks/grammar->cljc "formform/io/formula.ebnf"

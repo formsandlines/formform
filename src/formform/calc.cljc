@@ -180,7 +180,7 @@
   :ret  ::quaternary-str)
 (defapi core/consts->quaternary
   "Converts a sequence of constants to a corresponding quaternary number (as a string, prefixed by '4r').
-  - use `read-string` to obtain the decimal value as a BigInt")
+- use `read-string` to obtain the decimal value as a BigInt")
 
 
 ;; for some reason, spec/orchestra needs a custom generator for `map-entry?`
@@ -218,7 +218,7 @@
   )
 (defapi core/make-compare-consts
   "Given a `sort-code` (try `calc.nuim-code` or `calc.nmui-code`), returns a comparator function to sort single constants, formDNA or arbitrary sequences of constants (can be mixed).
-  - can also compare map-entries by keys of comparable types")
+- can also compare map-entries by keys of comparable types")
 (defapi core/compare-consts)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -238,7 +238,7 @@
               :dim ::dna-dimension))
 (defapi core/dna-dimension
   "Calculates the dimension of a formDNA/`dna-seq` (corresponds to the number of variables in a FORM). The length of a `dna-seq` is 4^d for its dimension d.
-  - the input sequence can have any type of elements")
+- the input sequence can have any type of elements")
 
 (s/fdef core/rand-dna
   :args (s/alt :ar1 (s/cat :dim ::dna-dimension)
@@ -252,7 +252,7 @@
 
 (defapi core/reverse-dna
   "Reverses a formDNA (returns an rseq)
-  - make sure the input is a vector for constant-time reverse")
+- make sure the input is a vector for constant-time reverse")
 
 (s/def ::consts (s/every ::const
                          :kind sequential?
@@ -266,10 +266,10 @@
   :ret  ::dna-seq)
 (defapi core/reorder-dna-seq
   "Reorders given formDNA/`dna-seq` from `sort-code-from` to `sort-code-to`.
-  
-  Note:
-  - `dna-seq` can have any type of elements (not only constants)
-  - does NOT change the encoding of the elements, just their ordering")
+
+Note:
+- `dna-seq` can have any type of elements (not only constants)
+- does NOT change the encoding of the elements, just their ordering")
 
 
 (defmacro spec--dna-seq-args [spec]
@@ -308,7 +308,7 @@
 (defapi core/digits->dna
   "Converts a `seqable?` of digits (as string/char or integer) to formDNA.
   
-  Note that `nuim-code` is the default ordering. If a different `sort-code` is specified, `digits` will be reordered to match the code.")
+Note that `nuim-code` is the default ordering. If a different `sort-code` is specified, `digits` will be reordered to match the code.")
 
 (s/fdef core/chars->dna
   :args (spec--dna-seq-args (s/coll-of ::const-char 
@@ -318,7 +318,7 @@
 (defapi core/chars->dna
   "Converts a `seqable?` of chars to formDNA.
   
-  Note that `nuim-code` is the default ordering. If a different `sort-code` is specified, `digits` will be reordered to match the code.")
+Note that `nuim-code` is the default ordering. If a different `sort-code` is specified, `digits` will be reordered to match the code.")
 
 (s/fdef core/dna->digits
   :args (spec--dna-args)
@@ -328,7 +328,7 @@
 (defapi core/dna->digits
   "Converts formDNA to a sequence of digits corresponding to a `sort-code`.
   
-  Note that `nuim-code` is the default ordering. If a different `sort-code` is specified, `dna` will be reordered to match the code.")
+Note that `nuim-code` is the default ordering. If a different `sort-code` is specified, `dna` will be reordered to match the code.")
 
 
 (s/fdef core/expand-dna-seq
@@ -343,8 +343,8 @@
              (core/dna-dimension (-> % :ret))))
 (defapi core/expand-dna-seq
   "Expands a `dna-seq` to a given target dimension by repeating elements.
-  
-  Note: `dna-seq` can have any type of elements (not only constants)")
+
+Note: `dna-seq` can have any type of elements (not only constants)")
 
 (s/fdef core/reduce-dna-seq
   :args (s/or :ar1 (s/cat :dna-seq ::dna-seq)
@@ -358,10 +358,10 @@
                     (count (-> % :terms)))))
 (defapi core/reduce-dna-seq
   "Reduces a `dna-seq` by eliminating redundant/contingent terms.
-  - returns a tuple `[terms dna-seq]`, where `terms` is a sequence that represents the remaining terms after reduction
-  - takes an optional `terms` sequence of any kind of items that will be used instead of the default arithmetic sequence `[0 1 2 …]` to represent each term (length has to match the formDNA dimension)
-  
-  Note: `dna-seq` can have any type of elements (not only constants)")
+- returns a tuple `[terms dna-seq]`, where `terms` is a sequence that represents the remaining terms after reduction
+- takes an optional `terms` sequence of any kind of items that will be used instead of the default arithmetic sequence `[0 1 2 …]` to represent each term (length has to match the formDNA dimension)
+
+Note: `dna-seq` can have any type of elements (not only constants)")
 
 (s/fdef core/make-dna
   :args (s/and (s/nonconforming ::dna-seq-elem-tree)
@@ -371,10 +371,10 @@
              (count (flatten (-> % :args)))))
 (defapi core/make-dna
   "Creates a formDNA from arguments, which may be valid chars, keywords, integers or sequences thereof.
-  - valid chars are: \\n \\u \\i \\m (upper- or lowercase) and \\0 \\1 \\2 \\3
-  - valid integers are: 0 1 2 3
-  - valid keywords are: :N :U :I :M
-  - total argument count (including count of sequence args) must match a valid formDNA length, which is 4^d, where d is a natural number")
+- valid chars are: \\n \\u \\i \\m (upper- or lowercase) and \\0 \\1 \\2 \\3
+- valid integers are: 0 1 2 3
+- valid keywords are: :N :U :I :M
+- total argument count (including count of sequence args) must match a valid formDNA length, which is 4^d, where d is a natural number")
 
 (s/fdef core/filter-dna-seq
   :args (s/and (s/cat :dna-seq          ::dna-seq
@@ -393,7 +393,7 @@
   :ret  ::dna)
 (defapi core/filter-dna
   "Filters a `dna` by selecting specific parts corresponding to a given `vpoint`, which acts as a coordinate vector in its value space.
-  - use holes `:_` to indicate a variable selection")
+- use holes `:_` to indicate a variable selection")
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -478,7 +478,7 @@
   :ret  ::vspace)
 (defapi core/vspace
   "Generates a vspace of dimension `dim`, optionally with custom `sort-code`.
-  - returns a lazy-seq which may be too memory-expensive to fully realize for dimensions greater than 11 (> 200 Mio. elements in total!)")
+- returns a lazy-seq which may be too memory-expensive to fully realize for dimensions greater than 11 (> 200 Mio. elements in total!)")
 
 (s/def :vdict.opts/default-result ::const)
 
@@ -494,8 +494,8 @@
   :ret  ::vdict)
 (defapi core/vdict
   "Generates a vdict given a map from vpoint to result (constant).
-  - if the corresponding vspace is not a subset of the set of keys from `vp->r`, the remaining results will be filled with :N or a given default constant
-  - optional `sorted?` defaults to false since sorting large vspace dimensions can be expensive")
+- if the corresponding vspace is not a subset of the set of keys from `vp->r`, the remaining results will be filled with :N or a given default constant
+- optional `sorted?` defaults to false since sorting large vspace dimensions can be expensive")
 
 (s/fdef core/dna->vdict
   :args (s/cat :dna  ::dna
@@ -504,7 +504,7 @@
   :ret  ::vdict)
 (defapi core/dna->vdict
   "Generates a vdict from a given dna.
-  - optional `sorted?` defaults to false since sorting large vspace dimensions can be expensive")
+- optional `sorted?` defaults to false since sorting large vspace dimensions can be expensive")
 
 (s/fdef core/vdict->vmap
   :args (s/alt :ar1 (s/cat :vdict ::vdict)
@@ -541,7 +541,7 @@
 (defapi core/rel
   "Relates the values of 2 constants in a formDNA to each other.")
 ;; alias
-(def -- rel)
+(def -- "Alias to `rel`." rel)
 
 (s/fdef core/inv
   :args (s/* (s/or :const ::const
@@ -551,7 +551,7 @@
 (defapi core/inv
   "Inverts the value of a every constant in a formDNA.")
 ;; alias
-(def | inv)
+(def | "Alias to `inv`." inv)
 
 
 (def fns-with-specs (utils/list-fn-specs "formform.calc"))

@@ -28,7 +28,7 @@
   (s/coll-of ::uniform-expr :kind vector?))
 (s/def :uniform/space :uniform/children)
 
-(def has-type #(fn [uniform] (= % (:type uniform))))
+(def ^:private has-type #(fn [uniform] (= % (:type uniform))))
 
 (s/def ::uniform-expr
   (s/or :empty        (s/and (s/keys :req-un [:uniform/type])
@@ -70,12 +70,17 @@
                            :s string?))
   :ret  (s/or :expr :formform.expr/expression
               :fail insta/failure?))
-(defapi core/read-expr)
+(defapi core/read-expr
+  "Given a string in `formula` notation, returns the corresponding data structure that can be processed by `formform.expr`.
+  
+Can be given a map with the following options:
+- `:sort-code` -> to specify a different `sort-code` for `formDNA` interpretation (see `formform.calc/sort-code?`)")
 
 (s/fdef core/print-expr
   :args (s/cat :expr :formform.expr/expression)
   :ret  string?)
-(defapi core/print-expr)
+(defapi core/print-expr
+  "Given an expression, returns a string of its representation in `formula` notation.")
 
 (s/def :opts.uniform/legacy? boolean?)
 (s/def :opts.uniform/branchname string?)
@@ -85,15 +90,26 @@
 (s/def :opts.uniform/use-seq-reentry? boolean?)
 
 (s/fdef core/uniform-expr
-  :args (s/cat :opts (s/keys :opt-un [:opts.uniform/legacy?
-                                      :opts.uniform/branchname
-                                      :opts.uniform/use-unmarked?
-                                      :opts.uniform/unclear?
-                                      :opts.uniform/const?
-                                      :opts.uniform/use-seq-reentry?])
-               :expr :formform.expr/expression)
-  :ret  ::uniform-expr)
-(defapi core/uniform-expr)
+        :args (s/alt :ar1 (s/cat :expr :formform.expr/expression)
+                     :ar2 (s/cat :opts 
+                                 (s/keys :opt-un 
+                                         [:opts.uniform/legacy?
+                                          :opts.uniform/branchname
+                                          :opts.uniform/use-unmarked?
+                                          :opts.uniform/unclear?
+                                          :opts.uniform/const?
+                                          :opts.uniform/use-seq-reentry?])
+                                 :expr :formform.expr/expression))
+        :ret  ::uniform-expr)
+(defapi core/uniform-expr
+  "Given an expression, returns a `uniform` data structure that is a nested map with the following pattern:
+```
+{:type <expr-type>
+ …
+ :children [<uniform> …]}
+```
+  
+Can be given an option map to support various customizations (see source), e.g. the `:legacy?` flag can be set to output a map that can be used as `formJSON` for backward compatibility with formform 1.")
 
 
 (def fns-with-specs (utils/list-fn-specs "formform.io"))
