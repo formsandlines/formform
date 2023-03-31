@@ -9,7 +9,12 @@
                         :overrides {formform.calc
                                     {fns-with-specs {:no-doc true}}
                                     formform.expr
-                                    {fns-with-specs {:no-doc true}}
+                                    {fns-with-specs {:no-doc true}
+                                     tag_arrangement {:no-doc true}
+                                     tag_formDNA {:no-doc true}
+                                     tag_memory {:no-doc true}
+                                     tag_seq-reentry {:no-doc true}
+                                     tag_unclear {:no-doc true}}
                                     formform.io
                                     {fns-with-specs {:no-doc true}}}
                         :source-paths ["src/formform/calc.cljc"

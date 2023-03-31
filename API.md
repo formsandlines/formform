@@ -105,11 +105,6 @@
     -  [`splice-ctx`](#formform.expr/splice-ctx) - Dissolves arrangements in given context such that their elements become direct children of the context itself.
     -  [`struct-expr?`](#formform.expr/struct-expr?)
     -  [`substitute-expr`](#formform.expr/substitute-expr) - Substitutes an expression by a matching expression in given environment.
-    -  [`tag_arrangement`](#formform.expr/tag_arrangement)
-    -  [`tag_formDNA`](#formform.expr/tag_formDNA)
-    -  [`tag_memory`](#formform.expr/tag_memory)
-    -  [`tag_seq-reentry`](#formform.expr/tag_seq-reentry)
-    -  [`tag_unclear`](#formform.expr/tag_unclear)
     -  [`unclear?`](#formform.expr/unclear?)
     -  [`valid-op?`](#formform.expr/valid-op?) - Validates the shape of a symbolic expression with a registered operator.
     -  [`variable?`](#formform.expr/variable?)
@@ -968,36 +963,6 @@ Dissolves arrangements in given context such that their elements become direct c
 
 Substitutes an expression by a matching expression in given environment. Returns the original expression if match failed.
 <p><sub><a href="https://github.com/formsandlines/formform/blob/main/src/formform/expr.cljc#L278-L279">Source</a></sub></p>
-
-## <a name="formform.expr/tag_arrangement">`tag_arrangement`</a><a name="formform.expr/tag_arrangement"></a>
-
-
-
-<p><sub><a href="https://github.com/formsandlines/formform/blob/main/src/formform/expr.cljc#L129-L129">Source</a></sub></p>
-
-## <a name="formform.expr/tag_formDNA">`tag_formDNA`</a><a name="formform.expr/tag_formDNA"></a>
-
-
-
-<p><sub><a href="https://github.com/formsandlines/formform/blob/main/src/formform/expr.cljc#L133-L133">Source</a></sub></p>
-
-## <a name="formform.expr/tag_memory">`tag_memory`</a><a name="formform.expr/tag_memory"></a>
-
-
-
-<p><sub><a href="https://github.com/formsandlines/formform/blob/main/src/formform/expr.cljc#L131-L131">Source</a></sub></p>
-
-## <a name="formform.expr/tag_seq-reentry">`tag_seq-reentry`</a><a name="formform.expr/tag_seq-reentry"></a>
-
-
-
-<p><sub><a href="https://github.com/formsandlines/formform/blob/main/src/formform/expr.cljc#L132-L132">Source</a></sub></p>
-
-## <a name="formform.expr/tag_unclear">`tag_unclear`</a><a name="formform.expr/tag_unclear"></a>
-
-
-
-<p><sub><a href="https://github.com/formsandlines/formform/blob/main/src/formform/expr.cljc#L130-L130">Source</a></sub></p>
 
 ## <a name="formform.expr/unclear?">`unclear?`</a><a name="formform.expr/unclear?"></a>
 
