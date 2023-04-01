@@ -7,7 +7,7 @@
   codox:run
   ;; requires https://github.com/http-party/http-server
   {:doc "Run http server (Node.js) to locally inspect generated docs"
-   :task (shell "npx http-server target/doc")}
+   :task (shell "npx http-server codox")}
   codox {:doc "Generate Codox docs and run"
          :task (do (run 'codox:gen)
                    (run 'codox:run))}

@@ -72,9 +72,10 @@
               :fail insta/failure?))
 (defapi core/read-expr
   "Given a string in `formula` notation, returns the corresponding data structure that can be processed by `formform.expr`.
-  
-Can be given a map with the following options:
-- `:sort-code` -> to specify a different `sort-code` for `formDNA` interpretation (see `formform.calc/sort-code?`)")
+
+  Can be given a map with the following options:
+
+  * `:sort-code` -> to specify a different `sort-code` for `formDNA` interpretation (see `formform.calc/sort-code?`)")
 
 (s/fdef core/print-expr
   :args (s/cat :expr :formform.expr/expression)

@@ -200,14 +200,15 @@
 
 (defapi symx/defoperator ;; macro
   "Defines a new operator by its symbol (a keyword), a vector of arguments and an interpretation function. Takes additional key-value pairs for options.
+  
+  Registers various methods for the operator: 
 
-Registers various methods for the operator:
-- `interpret-op` to access the interpretation function
-- `make-op` -> constructor (either uses the provided `args` or a custom constructor function via the option `:constructor`)
-- `simplify-op` -> simplifier (either defaults to the given interpretation function or uses a custom reducer via the option `:reducer`)
-- `valid-op?` -> validator (provided by the `:predicate` option)
-- `op-data` -> returns a key-value map of the operator arguments
-- `op-get` -> returns a specific value by a given argument-key")
+  * `interpret-op` to access the interpretation function
+  * `make-op` -> constructor (either uses the provided `args` or a custom constructor function via the option `:constructor`)
+  * `simplify-op` -> simplifier (either defaults to the given interpretation function or uses a custom reducer via the option `:reducer`)
+  * `valid-op?` -> validator (provided by the `:predicate` option)
+  * `op-data` -> returns a key-value map of the operator arguments
+  * `op-get` -> returns a specific value by a given argument-key")
 
 (s/fdef symx/interpret-sym
   :args (s/cat :expr-symbol ::expr-symbol)
@@ -225,9 +226,10 @@ Registers various methods for the operator:
 (defapi symx/defsymbol ;; macro
   "Defines a new expression symbol by its symbol (a keyword) and an interpretation function. Takes additional key-value pairs for options.
 
-Registers various methods for the expression symbol:
-- `interpret-sym` -> to access the interpretation function
-- `simplify-sym` -> simplifier (either defaults to the given interpretation function or uses a custom reducer via the option `:reducer`)")
+  Registers various methods for the expression symbol:
+
+  * `interpret-sym` -> to access the interpretation function
+  * `simplify-sym` -> simplifier (either defaults to the given interpretation function or uses a custom reducer via the option `:reducer`)")
 
 (defapi symx/expr-symbol?)
 (defapi symx/op-symbol?)
@@ -261,9 +263,10 @@ Registers various methods for the expression symbol:
 (defapi core/make
   "Constructor for expressions of any kind. Validates its input. If the first argument (or the first after the options map) is a keyword of a registered operator, will call the constructor for that operator
 
-Can be given an options map as first argument:
-- `mark?` (default: false) marks the whole expression, creating a FORM
-- `splice?` (default: true) dissolves all top-level arrangements")
+  Can be given an options map as first argument:
+
+  * `mark?` (default: false) marks the whole expression, creating a FORM
+  * `splice?` (default: true) dissolves all top-level arrangements")
 
 (s/fdef core/form
   :args (s/* any?)
@@ -286,11 +289,12 @@ Can be given an options map as first argument:
 (defapi core/interpret
   "Interprets an expression of any kind. Returns the original expression if it cannot be interpreted.
 
-Can be given an `env` map to interpret variables (as keys). This map can have an optional `--defocus` entry whose value is a set of items that should not be interpreted and a complementary `--focus` entry to only interpret the items specified in its set and nothing else.
-- the keywords `:ops` / `:syms` / `:vars` designate _all_ operations / expression symbols / variables
-- an operator symbol can provided to designate a specific operator
-- any other expression (like a variable) can be designated as itself
-- `--focus` and `--defocus` can cancel each other out if they contain the same item so you usually pick one or the other")
+  Can be given an `env` map to interpret variables (as keys). This map can have an optional `--defocus` entry whose value is a set of items that should not be interpreted and a complementary `--focus` entry to only interpret the items specified in its set and nothing else.
+
+  * the keywords `:ops` / `:syms` / `:vars` designate _all_ operations / expression symbols / variables
+  * an operator symbol can provided to designate a specific operator
+  * any other expression (like a variable) can be designated as itself
+  * `--focus` and `--defocus` can cancel each other out if they contain the same item so you usually pick one or the other")
 
 (s/fdef core/interpret*
   :args (s/alt :ar1 (s/cat :expr ::expression)
@@ -332,9 +336,10 @@ Can be given an `env` map to interpret variables (as keys). This map can have an
 (defapi core/find-vars
   "Finds all variables in an expresson or returns the expression itself if it is a variable.
 
-Options:
-- {:ordered true} to return variables in: type order -> alphanumeric order
-- {:vars #{…}} can be given a set of specific variables to find")
+  Options:
+
+  * {:ordered true} to return variables in: type order -> alphanumeric order
+  * {:vars #{…}} can be given a set of specific variables to find")
 
 (s/fdef core/gen-vars
   :args (s/cat :n nat-int?)
@@ -403,10 +408,11 @@ Options:
   :ret  ::expression)
 (defapi core/cnt>
   "Simplifies a FORM content recursively until it cannot be further simplified.
-All deductions are justified by the axioms of FORM logic.
-- if `x` is a complex FORM, calls `simplify-context` on `x`
-- if no simplification applies, tries to retrieve the value from given `env`
-- if retrieval was unsuccessful, returns `x` as is")
+  All deductions are justified by the axioms of FORM logic.
+
+  * if `x` is a complex FORM, calls `simplify-context` on `x`
+  * if no simplification applies, tries to retrieve the value from given `env`
+  * if retrieval was unsuccessful, returns `x` as is")
 
 (s/fdef core/ctx>
   :args (s/alt :ar1 (s/cat :ctx ::context)
@@ -415,8 +421,9 @@ All deductions are justified by the axioms of FORM logic.
   :ret  ::context)
 (defapi core/ctx>
   "Simplifies a FORM context recursively until it cannot be further simplified.
-All deductions are justified by the axioms of FORM logic.
-- for complex expressions, calls `simplify-content` on every unique element")
+  All deductions are justified by the axioms of FORM logic.
+
+  * for complex expressions, calls `simplify-content` on every unique element")
 
 
 (s/fdef core/=>
@@ -426,7 +433,8 @@ All deductions are justified by the axioms of FORM logic.
   :ret  :formform.calc/const?)
 (defapi core/=>
   "Evaluates a FORM expression with an optional `env` and returns a Constant expression with attached metadata including the maximally reduced expression in `:expr` and the environment in `:env`.
-- `env` must be a map with a content/variable in `expr` as a key")
+
+  * `env` must be a map with a content/variable in `expr` as a key")
 
 (s/fdef core/=>*
   :args (s/alt :ar1 (s/cat :expr ::expression)
@@ -438,7 +446,8 @@ All deductions are justified by the axioms of FORM logic.
   :ret  ::formDNA)
 (defapi core/=>*
   "Evaluates a FORM expression for all possible interpretations of any occurring variable in the expression. Returns a formDNA expression by default.
-- if `to-fdna?` is false, returns a seq of results as returned by `=>` in the order of the corresponding `vspace` ordering")
+
+  * if `to-fdna?` is false, returns a seq of results as returned by `=>` in the order of the corresponding `vspace` ordering")
 
 (s/def :evaluate/result (s/or :const :formform.calc/const
                               :expr  ::expression))
@@ -473,17 +482,19 @@ All deductions are justified by the axioms of FORM logic.
   :ret  boolean?)
 (defapi core/equal
   "Equality check for expressions. Two expressions are considered equal, if their formDNAs are equal. Compares formDNAs from evaluation results of each expression by calling `calc/equal-dna`.
-- ordering of variable names in formDNA matters, see `find-vars`
-- stricter than `equiv`, which compares by `calc/equiv-dna`")
+
+  * ordering of variable names in formDNA matters, see `find-vars`
+  * stricter than `equiv`, which compares by `calc/equiv-dna`")
 
 (s/fdef core/equiv
   :args (s/cat :exprs (s/* ::expression))
   :ret  boolean?)
 (defapi core/equiv
   "Equivalence check for expressions. Two expressions are considered equivalent, if their formDNAs are equivalent. Compares formDNAs from evaluation results of each expression by calling `calc/equiv-dna`.
-- ordering of variable names in formDNA is irrelevant
-- looser than `equal`, which compares by `calc/equal-dna`
-- can be slow on expressions with 6+ variables")
+
+  * ordering of variable names in formDNA is irrelevant
+  * looser than `equal`, which compares by `calc/equal-dna`
+  * can be slow on expressions with 6+ variables")
 
 
 (s/fdef core/mark
@@ -497,7 +508,8 @@ All deductions are justified by the axioms of FORM logic.
   :ret  ::expression)
 (defapi core/mark-exprs
   "Chains expressions like `((a)(b)…)` or `(a)(b)…` if {:unmarked? true}`
-- group expressions with arrangements: `[:- x y …]`")
+
+  * group expressions with arrangements: `[:- x y …]`")
 
 (s/fdef formform.utils/nest-left
   :args (s/cat :items sequential?)
@@ -515,8 +527,9 @@ All deductions are justified by the axioms of FORM logic.
   :ret  ::expression)
 (defapi core/nest-exprs
   "Nests expressions leftwards `(((…)a)b)` or rightwards `(a(b(…)))` if `{:ltr? true}`
-- use `nil` for empty expressions
-- use an arrangement `(make x y …)` to add multiple exprs. to the same level")
+
+  * use `nil` for empty expressions
+  * use an arrangement `(make x y …)` to add multiple exprs. to the same level")
 
 (s/fdef core/simplify-expr-chain
   :args (s/alt :ar2 (s/cat :chain ::expr-chain
@@ -527,8 +540,9 @@ All deductions are justified by the axioms of FORM logic.
   :ret  ::expr-chain)
 (defapi core/simplify-expr-chain
   "Reduces a sequence of expressions, intended to be linked in a `chain`, to a sequence of simplified expressions, possibly spliced or shortened via inference.
-- assumes rightward-nesting, e.g. `(…(…(…)))`
-- for leftward-nesting, e.g. `(((…)…)…)`, pass `{:rtl? true}`")
+
+  * assumes rightward-nesting, e.g. `(…(…(…)))`
+  * for leftward-nesting, e.g. `(((…)…)…)`, pass `{:rtl? true}`")
 
 
 ;;-------------------------------------------------------------------------
@@ -624,8 +638,9 @@ All deductions are justified by the axioms of FORM logic.
   :ret  ::seq-reentry)
 (defapi ops/seq-re
   "Constructs a self-equivalent re-entry FORM given the arguments:
-- `specs`: either a `seq-reentry-signature` or an options map
-- `nested-exprs`: zero or more expressions intended as a nested sequence")
+
+  * `specs`: either a `seq-reentry-signature` or an options map
+  * `nested-exprs`: zero or more expressions intended as a nested sequence")
 
 
 (defapi ops/const->isolator)
