@@ -22,7 +22,7 @@
           :exec-args {:name "formform"
                       :version "0.0.1"
                       :description "Clojure(Script) library to represent, transform and evaluate all the FORMs of uFORM iFORM"
-                      :output-path "codox"
+                      :output-path "../formform-www/docs"
                       :doc-paths ["docs"]
                       :namespaces [formform.calc
                                    formform.expr

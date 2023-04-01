@@ -432,6 +432,7 @@
                            :env  ::environment))
   :ret  :formform.calc/const?)
 (defapi core/=>
+  ;; ! verify/correct docstring
   "Evaluates a FORM expression with an optional `env` and returns a Constant expression with attached metadata including the maximally reduced expression in `:expr` and the environment in `:env`.
 
   * `env` must be a map with a content/variable in `expr` as a key")
@@ -445,6 +446,7 @@
                            :env  ::environment))
   :ret  ::formDNA)
 (defapi core/=>*
+  ;; ! verify/correct docstring
   "Evaluates a FORM expression for all possible interpretations of any occurring variable in the expression. Returns a formDNA expression by default.
 
   * if `to-fdna?` is false, returns a seq of results as returned by `=>` in the order of the corresponding `vspace` ordering")
@@ -457,7 +459,8 @@
                :ar2 (s/cat :expr ::expression
                            :env  ::environment))
   :ret  (s/keys :req-un [:evaluate/result]))
-(defapi core/evaluate)
+(defapi core/evaluate
+  "Evaluates a FORM expresson with an optional `env` and returns either a constant or the simplified expression if it could not be determined to a value.")
 
 (s/def :eval-all/results
   (s/and (s/coll-of
@@ -475,7 +478,8 @@
                            :expr ::expression
                            :env  ::environment))
   :ret  (s/keys :req-un [::varorder :eval-all/results]))
-(defapi core/eval-all)
+(defapi core/eval-all
+  "Evaluates a FORM expresson for all possible interpretations of any occurring variable in the expresson. Returns a map with a `:results` key whose value is a sequence of `[<interpretation> <result>]` tuples and with a `:varorder` key whose value is the reading order for variable results in the interpretations. This output is particularly suited for value tables.")
 
 (s/fdef core/equal
   :args (s/cat :exprs (s/* ::expression))

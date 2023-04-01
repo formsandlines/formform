@@ -7,10 +7,10 @@
   codox:run
   ;; requires https://github.com/http-party/http-server
   {:doc "Run http server (Node.js) to locally inspect generated docs"
-   :task (shell "npx http-server codox")}
-  codox {:doc "Generate Codox docs and run"
-         :task (do (run 'codox:gen)
-                   (run 'codox:run))}
+   :task (shell "npx http-server ../formform-www/docs")}
+  docs {:doc "Generate docs and call a (private) script to upload to server"
+        :task (do (run 'codox:gen)
+                  (shell {:dir ".."} "./deploy-docs.sh"))}
   instafix
   {:doc "formula.ebnf -> formula.cljc (instaparse fix for ClojureScript)"
    :task (tasks/grammar->cljc "formform/io/formula.ebnf"
