@@ -4,6 +4,8 @@
 
 **formform** is a modular Clojure/ClojureScript library all about the 4-valued logic of cognition first introduced 2017 by Ralf Peyn in [uFORM iFORM](https://uformiform.info). In its core, the purpose of the library is to enable the representation, evaluation and algebraic simplification of all (undetermined, imaginary, unclear, …) FORMs that have been introduced in the book. 
 
+[API Docs](https://formform.dev/docs/)
+
 ---
 
 *Please note that this library is still in an alpha state and things are changing all the time, so do not rely on it for your projects yet. It is a complete rewrite of my previous (stable-ish) JavaScript version, which is still available [here](https://github.com/formsandlines/formform-js). Prior to this (final) one, I have attempted a rewrite in ReScript, which is also still [available](https://github.com/formsandlines/formform-rescript), for historical reasons.*
@@ -23,7 +25,10 @@ The library is divided into 3 core modules:
 
 * `calc`: calculate with the 4 value constants or create and transform value structures such as value tables/maps and what I call *formDNA*
 * `expr`: construct, simplify and evaluate various FORM expressions or define and use powerful abstractions I call *symbolic expressions*
-* `alg`: *(work in progress)* define substitution rules using a pattern language to represent and perform stepwise algebraic deductions
+* `io`: read and print strings in *FORMula notation*, which is easier for end users to read and write
+
+*Work in progress:*
+* `alg`: define substitution rules using a pattern language to represent and perform stepwise algebraic deductions
 
 It is extendable with more specialized modules for different tasks such as visualization or simulation/analysis with cellular automata.
 
