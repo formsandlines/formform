@@ -3,7 +3,7 @@
 ;;     -- created 03/2023, (c) Peter Hofmann
 ;; ========================================================================
 
-(ns formform.expr.operators
+(ns ^:no-doc formform.expr.operators
   (:require
    [clojure.set :as set]
    #?(:clj  [clojure.core.match :refer [match]]

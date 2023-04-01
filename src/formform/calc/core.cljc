@@ -3,7 +3,7 @@
 ;;     -- created 08/2022, (c) Peter Hofmann
 ;; ========================================================================
 
-(ns formform.calc.core
+(ns ^:no-doc formform.calc.core
   (:require [clojure.edn :as edn]
             [clojure.math :as math]
             [clojure.math.combinatorics :as combo]

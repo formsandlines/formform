@@ -112,7 +112,7 @@ Can be given a map with the following options:
 Can be given an option map to support various customizations (see source), e.g. the `:legacy?` flag can be set to output a map that can be used as `formJSON` for backward compatibility with formform 1.")
 
 
-(def fns-with-specs (utils/list-fn-specs "formform.io"))
+(def ^:no-doc fns-with-specs (utils/list-fn-specs "formform.io"))
 
 
 (comment

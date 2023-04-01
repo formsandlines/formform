@@ -674,7 +674,7 @@ All deductions are justified by the axioms of FORM logic.
     `symx/interpret-sym
     `symx/simplify-sym})
 
-(def fns-with-specs
+(def ^:no-doc fns-with-specs
   (remove exclude-from-instrumentation
           (utils/list-fn-specs "formform.expr")))
 

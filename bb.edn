@@ -1,27 +1,16 @@
 {:paths ["src" "bb"]
  :tasks
  {:requires ([tasks])
-  quickdoc {:doc "Invoke quickdoc"
-            :extra-deps {io.github.borkdude/quickdoc {:git/sha "32e726cd6d785d00e49d4e614a05f7436d3831c0"}}
-            :task (exec 'quickdoc.api/quickdoc)
-            :exec-args {:git/branch "main"
-                        :github/repo "https://github.com/formsandlines/formform"
-                        :overrides {formform.calc
-                                    {fns-with-specs {:no-doc true}
-                                     spec--dna-seq-args {:no-doc true}
-                                     spec--dna-args {:no-doc true}}
-                                    formform.expr
-                                    {fns-with-specs {:no-doc true}
-                                     tag_arrangement {:no-doc true}
-                                     tag_formDNA {:no-doc true}
-                                     tag_memory {:no-doc true}
-                                     tag_seq-reentry {:no-doc true}
-                                     tag_unclear {:no-doc true}}
-                                    formform.io
-                                    {fns-with-specs {:no-doc true}}}
-                        :source-paths ["src/formform/calc.cljc"
-                                       "src/formform/expr.cljc"
-                                       "src/formform/io.cljc"]}}
+  codox:gen
+  {:doc "Generate docs with Codox"
+   :task (clojure "-X:codox")}
+  codox:run
+  ;; requires https://github.com/http-party/http-server
+  {:doc "Run http server (Node.js) to locally inspect generated docs"
+   :task (shell "npx http-server target/doc")}
+  codox {:doc "Generate Codox docs and run"
+         :task (do (run 'codox:gen)
+                   (run 'codox:run))}
   instafix
   {:doc "formula.ebnf -> formula.cljc (instaparse fix for ClojureScript)"
    :task (tasks/grammar->cljc "formform/io/formula.ebnf"

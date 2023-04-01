@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>0.0.1</modelVersion>
+  <name>formform</name>
+  <description>Clojure(Script) library to represent, transform and evaluate all the FORMs of uFORM iFORM</description>
+  <url>https://github.com/formsandlines/formform</url>
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://github.com/formsandlines/formform/blob/main/LICENSE</url>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <name>Peter Hofmann</name>
+    </developer>
+  </developers>
+  <scm>
+    <url>https://github.com/formsandlines/formform</url>
+    <connection>scm:git:git://github.com/formsandlines/formform.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/formsandlines/formform.git</developerConnection>
+  </scm>
+</project>

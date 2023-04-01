@@ -4,7 +4,7 @@
 ;;   `src/formform/io/formula.ebnf`
 ;; and then execute the dedicated task in `bb.edn` to re-generate this file.
 
-(ns formform.io.formula
+(ns ^:no-doc formform.io.formula
   (:require #?(:clj  [instaparse.core :as insta :refer [defparser]]
                :cljs [instaparse.core :as insta :refer-macros [defparser]])))
 

@@ -1,4 +1,4 @@
-(ns formform.utils
+(ns ^:no-doc formform.utils
   (:require
    [clojure.math :as math]
    [clojure.string :as string]

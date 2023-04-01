@@ -1,4 +1,4 @@
-(ns formform.expr.common)
+(ns ^:no-doc formform.expr.common)
 
 (def tag_arrangement :-)
 (def tag_unclear :uncl)

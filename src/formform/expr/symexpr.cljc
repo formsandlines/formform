@@ -3,7 +3,7 @@
 ;;     -- created 03/2023, (c) Peter Hofmann
 ;; ========================================================================
 
-(ns formform.expr.symexpr
+(ns ^:no-doc formform.expr.symexpr
   (:require
    [formform.expr.common :refer [tag_arrangement]])
   #?(:cljs (:require-macros

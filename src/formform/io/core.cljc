@@ -3,7 +3,7 @@
 ;;     -- created 11/2022, (c) Peter Hofmann
 ;; ========================================================================
 
-(ns formform.io.core
+(ns ^:no-doc formform.io.core
   (:require [formform.calc :as calc]
             [formform.expr :as expr]
             [formform.io.formula :refer [parser]]

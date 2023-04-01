@@ -3,7 +3,7 @@
 ;;     -- created 08/2022, (c) Peter Hofmann
 ;; ========================================================================
 
-(ns formform.expr.core
+(ns ^:no-doc formform.expr.core
   (:require
    [clojure.set :as set]
    [clojure.walk :as walk]

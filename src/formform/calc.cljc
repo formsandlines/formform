@@ -272,7 +272,7 @@ Note:
 - does NOT change the encoding of the elements, just their ordering")
 
 
-(defmacro spec--dna-seq-args [spec]
+(defmacro ^:private spec--dna-seq-args [spec]
   `(s/alt :ar1 (s/cat :dna-seq ~(if (nil? spec)
                                   `::dna-seq
                                   `(s/and ::dna-seq ~spec)))
@@ -281,7 +281,7 @@ Note:
                                   `(s/and ::dna-seq ~spec))
                       :sort-code ::sort-code)))
 
-(defmacro spec--dna-args []
+(defmacro ^:private spec--dna-args []
   `(s/alt :ar1 (s/cat :dna       ::dna)
           :ar2 (s/cat :dna       ::dna
                       :sort-code ::sort-code)))
@@ -554,7 +554,7 @@ Note: `dna-seq` can have any type of elements (not only constants)")
 (def | "Alias to `inv`." inv)
 
 
-(def fns-with-specs (utils/list-fn-specs "formform.calc"))
+(def ^:no-doc fns-with-specs (utils/list-fn-specs "formform.calc"))
 
 
 (comment
