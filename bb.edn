@@ -4,13 +4,17 @@
   codox:gen
   {:doc "Generate docs with Codox"
    :task (clojure "-X:codox")}
+
   codox:run
   ;; requires https://github.com/http-party/http-server
   {:doc "Run http server (Node.js) to locally inspect generated docs"
    :task (shell "npx http-server ../formform-www/docs")}
-  docs {:doc "Generate docs and call a (private) script to upload to server"
-        :task (do (run 'codox:gen)
-                  (shell {:dir ".."} "./deploy-docs.sh"))}
+
+  docs 
+  {:doc "Generate docs and call a (private) script to upload to server"
+   :task (do (run 'codox:gen)
+             (shell {:dir ".."} "./deploy-docs.sh"))}
+
   instafix
   {:doc "formula.ebnf -> formula.cljc (instaparse fix for ClojureScript)"
    :task (tasks/grammar->cljc "formform/io/formula.ebnf"
