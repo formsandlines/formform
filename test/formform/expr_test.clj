@@ -740,7 +740,7 @@
 
 (defn ->nmui [fdna-expr]
   (let [{:keys [varorder dna]} (op-data fdna-expr)]
-    (apply str varorder "::" (calc/dna->digits dna calc/nmui-code))))
+    (apply str varorder "::" (calc/dna->digits calc/nmui-code dna))))
 
 (deftest =>*-test
   (testing "Correctness of returned combinatorial space"

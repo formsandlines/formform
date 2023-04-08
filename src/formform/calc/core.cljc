@@ -23,15 +23,15 @@
 
 
 (defn digit->const
-  ([n] (digit->const n nuim-code))
-  ([n sort-code]
+  ([n] (digit->const nuim-code n))
+  ([sort-code n]
    (if (== n -1)
      var-const ;; “hole” or variable value
      (sort-code n))))
 
 (defn char->const
-  ([c] (char->const c nuim-code))
-  ([c sort-code]
+  ([c] (char->const nuim-code c))
+  ([sort-code c]
    (case c
      (\n \N) :N
      (\u \U) :U
@@ -39,22 +39,30 @@
      (\m \M) :M
      \_      var-const
      (when-let [n (edn/read-string (str c))]
-       (digit->const n sort-code)))))
+       (digit->const sort-code n)))))
 
 (defn const->digit
-  ([c] (const->digit c nuim-code))
-  ([c sort-code]
+  ([c] (const->digit nuim-code c))
+  ([sort-code c]
+   {:pre [(consts c)]}
+   ((zipmap sort-code (range)) c)))
+
+(defn const?->digit
+  ([c] (const?->digit nuim-code c))
+  ([sort-code c]
    (if (= c var-const)
      -1 ;; “hole” or variable value
-     ((zipmap sort-code (range)) c))))
+     (const->digit sort-code c))))
 
 (defn consts->quaternary
+  "Converts a sequence of constants to a corresponding quaternary number (as a string, prefixed by '4r'). Used for comparison.
+
+  * use `read-string` to obtain the decimal value as a BigInt"
   [consts]
   (if (seq consts)
     (let [digits (map const->digit consts)]
       (apply str "4r" digits))
     (throw (ex-info "Must contain at least one element." {:arg consts}))))
-
 
 (defn make-compare-consts
   [sort-code]
@@ -68,7 +76,7 @@
                         ;;   or a different approach
                         ; (dna? x)   (edn/read-string (consts->quaternary x))
                         (sequential? x) (edn/read-string
-                                          (consts->quaternary x))
+                                         (consts->quaternary x))
                         (const? x) (sort-map x)
                         ; (coll? x)  (mapv convert x)
                         :else (throw (ex-info "Incompatible type: " {:x x}))))]
@@ -86,12 +94,12 @@
 (def dna-lengths (iterate (partial * 4) 1))
 
 ;; ? true for JavaScript
-(def max-safe-dna-dim 25)
+(def ^:private max-safe-dna-dim 25)
 
-(def max-safe-dna-len
+(def ^:private max-safe-dna-len
   (last (take max-safe-dna-dim dna-lengths)))
 
-(def cached_dna-length->dim
+(def ^:private cached_dna-length->dim
   (into {} (map vector (take max-safe-dna-dim dna-lengths) (range))))
 
 (defn dna-length->dim
@@ -108,18 +116,6 @@
   [xs]
   (dna-length->dim (count xs)))
 
-
-(defn rand-dna
-  ([dim] (rand-dna dim nil))
-  ([dim elems]
-   (let [len    (apply * (repeat dim 4))
-         gen-fn #(rand-nth (if (and (some? elems) (<= (count elems) 4))
-                             elems
-                             nuim-code))]
-     (vec (repeatedly len gen-fn)))))
-
-
-(declare dna->digits)
 
 (def reverse-dna (comp rseq vec))
 
@@ -156,8 +152,8 @@
   - if `sort+x->const` is `nil`, the expected type of `x` is `const`"
   [sort+x->const]
   (fn f
-    ([dna-seq] (f dna-seq nuim-code))
-    ([dna-seq sort-code]
+    ([dna-seq] (f nuim-code dna-seq))
+    ([sort-code dna-seq]
      (let [dna-seq (if (= sort-code nuim-code)
                      dna-seq
                      (reorder-dna-seq dna-seq sort-code nuim-code))]
@@ -169,35 +165,33 @@
   - if `sort+x->const` is `nil`, the expected type of `x` is `const`"
   [sort+const->x]
   (fn f
-    ([dna] (f dna nuim-code))
-    ([dna sort-code]
+    ([dna] (f nuim-code dna))
+    ([sort-code dna]
      (let [dna-seq (mapv (partial sort+const->x sort-code) dna)]
        (if (= sort-code nuim-code)
          dna-seq
          (reorder-dna-seq dna-seq nuim-code sort-code))))))
 
 (def digits->dna
-  (prod=dna-seq->dna (fn [sort-code x] (digit->const x sort-code))))
+  (prod=dna-seq->dna (fn [sort-code x] (digit->const sort-code x))))
 
+;; ? not needed
 (def chars->dna
-  (prod=dna-seq->dna (fn [sort-code x] (char->const x sort-code))))
+  (prod=dna-seq->dna (fn [sort-code x] (char->const sort-code x))))
 
 (def dna->digits
-  (prod=dna->dna-seq (fn [sort-code x] (const->digit x sort-code))))
+  (prod=dna->dna-seq (fn [sort-code x] (const?->digit sort-code x))))
 
 
 ;; ? is this correct expansion for dim > 2 (see `rel`)
 (defn expand-dna-seq
-  ([dna-seq ext-dim]
-   (let [dim (dna-dimension dna-seq)]
-     (expand-dna-seq dna-seq dim ext-dim)))
-  ([dna-seq dim ext-dim]
-   (reduce
+  [dna-seq dim ext-dim]
+  (reduce
     (fn [seq-expanded x]
       (into seq-expanded
             (repeat (utils/pow-nat 4 (- ext-dim dim)) x)))
     []
-    dna-seq)))
+    dna-seq))
 
 (defn reduce-dna-seq
   ([dna-seq]
@@ -274,73 +268,58 @@
 
 (defn filter-dna
   [dna vpoint]
-  (filter-dna-seq dna (map const->digit vpoint)))
+  (filter-dna-seq dna (map const?->digit vpoint)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; formDNA perspectives
 
 (defn permute-dna-seq
-  ([dna-seq perm-order] (permute-dna-seq dna-seq perm-order {}))
-  ([dna-seq perm-order {:keys [limit?] :or {limit? true}}]
-   (let [dim     (dna-dimension dna-seq)
-         dna-vec (vec dna-seq)]
-     (cond
-       (not= dim (count perm-order)) nil
-       (< dim 2)                     [perm-order dna-vec]
-       (= perm-order (range dim))    [perm-order dna-vec]
+  [{:keys [limit?] :or {limit? true}} dna-seq perm-order]
+  (let [dim     (dna-dimension dna-seq)
+        dna-vec (vec dna-seq)]
+    (cond
+      (not= dim (count perm-order)) nil
+      (< dim 2)                     [perm-order dna-vec]
+      (= perm-order (range dim))    [perm-order dna-vec]
        ;; fast-ish for up to 10 dimensions, have not tested beyond 12
-       (and limit? (> dim 12))       (throw
-                                      (ex-info "Aborted: operation too expensive for dimensions greater than 12. Set `:limit?` to false to proceed."
-                                               {:input [dna-seq perm-order]}))
-       :else
-       (let [int->quat-str (fn [n] (utils/pad-left (utils/int->nbase n 4)
-                                                   dim "0"))
-             dim-ns (range dim)
-             perm-dna-seq
-             (mapv (fn [i]
-                     (let [qtn-key  (mapv (comp edn/read-string str)
-                                          (int->quat-str i))
-                           perm-key (apply str "4r"
-                                           (map #(qtn-key (perm-order %))
-                                                dim-ns))
-                           i-perm   (edn/read-string perm-key)]
-                       (dna-vec i-perm)))
-                   (range (count dna-seq)))]
-         [perm-order perm-dna-seq])))))
-
-;; ? redundant
-(defn permute-dna
-  ([dna perm-order] (permute-dna dna perm-order {}))
-  ([dna perm-order opts]
-   (permute-dna-seq dna perm-order opts)))
+      (and limit? (> dim 12))       (throw
+                                     (ex-info "Aborted: operation too expensive for dimensions greater than 12. Set `:limit?` to false to proceed."
+                                              {:input [dna-seq perm-order]}))
+      :else
+      (let [int->quat-str (fn [n] (utils/pad-left (utils/int->nbase n 4)
+                                                  dim "0"))
+            dim-ns (range dim)
+            perm-dna-seq
+            (mapv (fn [i]
+                    (let [qtn-key  (mapv (comp edn/read-string str)
+                                         (int->quat-str i))
+                          perm-key (apply str "4r"
+                                          (map #(qtn-key (perm-order %))
+                                               dim-ns))
+                          i-perm   (edn/read-string perm-key)]
+                      (dna-vec i-perm)))
+                  (range (count dna-seq)))]
+        [perm-order perm-dna-seq]))))
 
 (defn dna-seq-perspectives
-  ([dna-seq] (dna-seq-perspectives dna-seq {}))
-  ([dna-seq {:keys [limit?] :or {limit? true}}]
-   (let [dim (dna-dimension dna-seq)]
-     (if (and limit? (> dim 6))
+  [{:keys [limit?] :or {limit? true}} dna-seq]
+  (let [dim (dna-dimension dna-seq)]
+    (if (and limit? (> dim 6))
        ;; fast-ish for up to 5 dimensions, have not tested beyond 6.
-       (throw (ex-info "Aborted: operation too expensive for dimensions greater than 6. Set `:limit?` to false to proceed, but be aware that the combinatorial space explodes quickly!" {:input dna-seq}))
-       (let [dna-vec (vec dna-seq)]
-         (map (partial permute-dna-seq dna-vec)
-              (combo/permutations (range dim))))))))
-
-;; ? redundant
-(defn dna-perspectives
-  ([dna] (dna-perspectives dna {}))
-  ([dna opts]
-   (into {}
-         (map #(let [[order dna-psp] %] [order dna-psp])
-              (dna-seq-perspectives dna opts)))))
+      (throw (ex-info "Aborted: operation too expensive for dimensions greater than 6. Set `:limit?` to false to proceed, but be aware that the combinatorial space explodes quickly!" {:input dna-seq}))
+      (let [dna-vec (vec dna-seq)]
+        (map (partial permute-dna-seq {} dna-vec)
+             (combo/permutations (range dim)))))))
 
 
 (def equal-dna =)
 
 (defn equiv-dna
   ([_] true)
-  ([a b] (let [->psps (comp dna-perspectives second reduce-dna-seq)
-               ->set  (comp set vals)
+  ([a b] (let [->psps (comp (partial dna-seq-perspectives {})
+                            second reduce-dna-seq)
+               ->set  (comp set (partial map second))
                a-psps (-> a ->psps ->set)
                b-psps (-> b ->psps ->set)]
            (= a-psps b-psps)))
@@ -355,28 +334,16 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Value structures
 
-;;-------------------------------------------------------------------------
-;; vpoint
-
-(defn rand-vpoint
-  ([]    (repeatedly #(rand-nth nuim-code)))
-  ([dim] (repeatedly dim #(rand-nth nuim-code))))
-
-;;-------------------------------------------------------------------------
-;; vspace
-
 (defn vspace
-  ([dim] (vspace dim nuim-code))
-  ([dim sort-code]
+  ([dim] (vspace nuim-code dim))
+  ([sort-code dim]
    (let [vs sort-code]
      (apply combo/cartesian-product (repeat dim sort-code)))))
 
-;;-------------------------------------------------------------------------
-;; vdict
 
 (defn vdict
-  [vp->r {:keys [default-result sorted?]
-          :or {default-result :N sorted? false}}]
+  [{:keys [default-result sorted?] :or {default-result :N sorted? false}}
+   vp->r]
   (let [dim   (count (ffirst vp->r))
         vspc  (vspace dim)
         def-r (if (const? default-result) default-result :N)]
@@ -387,7 +354,8 @@
          (into (if sorted? (sorted-map-by compare-consts) (hash-map))))))
 
 (defn dna->vdict
-  [dna {:keys [sorted? unsafe?] :or {sorted? false unsafe? false}}]
+  [{:keys [sorted? unsafe?] :or {sorted? false unsafe? false}}
+   dna]
   (let [dim     (dna-dimension dna)
         _       (when (and (not unsafe?) (> dim 11))
                   (throw (ex-info "Aborted: operation may freeze for formDNA dimensions above 11. Set option `unsafe?` to true if you still want to proceed." {:dimension dim})))
@@ -396,8 +364,6 @@
     (into (if sorted? (sorted-map-by compare-consts) (hash-map))
           (map vector vspc dna-rev))))
 
-;;-------------------------------------------------------------------------
-;; vmap
 
 ;; fast-ish with up to 10 dimensions
 (defn vdict->vmap
@@ -420,13 +386,7 @@
 ;; ? can a custom algo directly from formDNA be more efficient here
 (defn dna->vmap
   [dna]
-  (vdict->vmap (dna->vdict dna {})))
-
-; (vmap? (dna->vmap (rand-dna 1)))
-; (vdict->vmap {[] :U})
-; (vdict->vmap
-;  (fn [vmap vspc depth dim] (assoc vmap :depth depth :vspace vspc))
-;  (dna->vdict (rand-dna 2) {}))
+  (vdict->vmap nil (dna->vdict {} dna)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; formDNA arithmetic
@@ -452,8 +412,8 @@
                  bdim (dna-dimension b)]
              (cond
                (= adim bdim) (mapv rel a b)
-               (> adim bdim) (mapv rel a (expand-dna-seq b adim))
-               :else         (mapv rel (expand-dna-seq a bdim) b)))))
+               (> adim bdim) (mapv rel a (expand-dna-seq b bdim adim))
+               :else         (mapv rel (expand-dna-seq a adim bdim) b)))))
   ([a b & xs] (rel a (reduce rel b xs))))
 
 

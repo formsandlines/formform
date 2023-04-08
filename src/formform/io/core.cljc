@@ -22,11 +22,11 @@
   (let [s (subs s 1)
         s (if (and (not= sort-code calc/nuim-code)
                    (some? (#{"0" "1" "2" "3"} s)))
-            (-> s
-                clojure.edn/read-string
-                (calc/digit->const sort-code)
-                (calc/const->digit)
-                str)
+            (->> s
+                 clojure.edn/read-string
+                 (calc/digit->const sort-code)
+                 (calc/const->digit)
+                 str)
             s)]
     (keyword s)))
 
@@ -42,7 +42,7 @@
         digits? (case (first s) (\N \U \I \M) false true)]
     (if digits?
       ;; ? allow numeric formDNA
-      (calc/digits->dna (mapv (comp clojure.edn/read-string str) s) sort-code)
+      (calc/digits->dna sort-code (mapv (comp clojure.edn/read-string str) s))
       (let [dna (apply calc/make-dna s)]
         (if (= sort-code calc/nuim-code)
           dna
