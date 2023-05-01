@@ -52,8 +52,8 @@
     (is (thrown? clojure.lang.ExceptionInfo
                  (rand-dna 4 [:x :y :z :v :w])))
     (is (thrown? clojure.lang.ExceptionInfo
-                 (rand-dna 1 [])))
-    ))
+                 (rand-dna 1 [])))))
+    
 
 
 (deftest make-dna-test
@@ -146,8 +146,8 @@
                  [[:N :M :U :I] [:N :U :I :M] [:M]])))
     (is (= [[:I :M] [:N :U :I :M] [:U :M :I] [:M :N :U]]
            (sort compare-consts
-                 [[:N :U :I :M] [:I :M] [:U :M :I] [:M :N :U]]))))
-  )
+                 [[:N :U :I :M] [:I :M] [:U :M :I] [:M :N :U]])))))
+  
 
 (deftest expand-dna-seq-test
   (testing "Correctness of expansion"
@@ -332,8 +332,8 @@
                                   :U :I :N :M
                                   :U :I :N :M
                                   :U :I :N :M])
-           [[0] [:U :I :N :M]]))
-    ))
+           [[0] [:U :I :N :M]]))))
+    
 
 
 (deftest equiv-dna-test
@@ -361,8 +361,8 @@
     (is (not (equiv-dna [:N] [:N :N :N :M])))
     (is (not (equiv-dna [:N :N :N :N] [:N :N :N :M])))
     (is (not (equiv-dna [:N :N :N :N :U :U :U :U :U :U :I :I :U :I :I :M]
-                        [:N :U :U :U :N :U :U :I :N :U :I :I :N :U :I :N])))
-    )
+                        [:N :U :U :U :N :U :U :I :N :U :I :I :N :U :I :N]))))
+    
 
   (testing "Equivalence of permutation"
     (are [x] (apply equiv-dna (vals (dna-perspectives x)))
@@ -396,8 +396,8 @@
     (is (equiv-dna [:N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :I :I :U :U :I :I :U :U :I :I :U :U :I :I :U :I :I :M :U :I :I :M :U :I :I :M :U :I :I :M :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :I :I :U :U :I :I :U :U :I :I :U :U :I :I :U :I :I :M :U :I :I :M :U :I :I :M :U :I :I :M :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :I :I :U :U :I :I :U :U :I :I :U :U :I :I :U :I :I :M :U :I :I :M :U :I :I :M :U :I :I :M :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :I :I :U :U :I :I :U :U :I :I :U :U :I :I :U :I :I :M :U :I :I :M :U :I :I :M :U :I :I :M]
                    [:N :N :N :N :U :U :U :U :U :U :I :I :U :I :I :M]
                    [:N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M]
-                   [:N :U :U :U :N :U :U :I :N :U :I :I :N :U :I :M])))
-  )
+                   [:N :U :U :U :N :U :U :I :N :U :I :I :N :U :I :M]))))
+  
 
 
 (deftest filter-dna-test
@@ -454,7 +454,7 @@
                              [:U :U] :I
                              ; [:X :Y] :M
                              [:U :U :I] :N}]
-                  (vdict {:default-result :U} vp->r))))) )
+                  (vdict {:default-result :U} vp->r))))))
 
 
 (deftest dna->vdict-test

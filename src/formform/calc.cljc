@@ -1,8 +1,6 @@
 (ns formform.calc
   "API for the `calc` module of `formform`."
   (:require [formform.calc.core :as core]
-            ; #?(:clj  [formform.utils :as utils :refer [defapi]]
-            ;    :cljs [formform.utils :as utils :refer-macros [defapi]])
             [formform.utils :as utils]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]))
@@ -17,18 +15,23 @@
 ;; Data structures
 
 ;;-------------------------------------------------------------------------
-;; `constant`
-;; -> representation of a primitive value in FORM logic
+;; constant
+;; → representation of a _value_ in FORM logic
 ;;
-;; `sort-code` specifies a numeric ordering for constants, which is
-;; useful for conversion to integers and `formDNA` interpretation order.
+;; - value → element of a _value system_
+;; - value > state indicated by an _expr/expression_
+;; - value system → system of differences
+
+;; Note:
+;; `sort-code` specifies a numeric ordering for _constants_, which is
+;; useful for conversion to integers and _formDNA_ interpretation order.
 ;; 
 ;; It is always assumed to be in `nuim-code` by default:
 ;; ```
-;;   0 = :N -> unmarked
-;;   1 = :U -> undetermined
-;;   2 = :I -> imaginary
-;;   3 = :M -> marked
+;;   0 = :N → unmarked
+;;   1 = :U → undetermined
+;;   2 = :I → imaginary
+;;   3 = :M → marked
 ;; ```
 ;; Make sure you convert to/from `nuim-code` when using different codes!
 
@@ -82,6 +85,8 @@
            #(== 4 (count %))
            #(= #{:N :U :I :M} (set %)))
     #(gen/shuffle [:N :U :I :M])))
+
+(def sort-code? (partial s/valid? ::sort-code))
 
 (def nuim-code core/nuim-code)
 (def nmui-code core/nmui-code)
@@ -162,8 +167,10 @@
 
 ;;-------------------------------------------------------------------------
 ;; formDNA
-;; -> quaternary code/number made of constants
-;; -> representation of a complex value structure in FORM logic
+;; → quaternary code/number/list from _constant_ elements
+;; → representation of a _value structure_ in FORM logic
+;;
+;; - value structure → specific structure in _value system_
 
 (s/def ::dna-length
   (s/with-gen
@@ -399,8 +406,8 @@ Note that `nuim-code` is the default ordering. If a different `sort-code` is spe
 
 ;;-------------------------------------------------------------------------
 ;; formDNA perspective
-;; -> permutation of a formDNA
-;; -> representation of a different “perspective” on a value structure
+;; → permutation of _formDNA_
+;; → representation of a different perspective on the _value structure_
 
 (s/def ::permutation-order
   (s/coll-of nat-int?
@@ -443,8 +450,8 @@ Note that `nuim-code` is the default ordering. If a different `sort-code` is spe
 
 ;;-------------------------------------------------------------------------
 ;; vpoint
-;; -> value point
-;; -> vector of const-coordinates in a vspace
+;; → relate _values_ as a point
+;; → vector of _constant_-coordinates in a _vspace_
 
 (s/def ::vpoint
   (s/every ::const?
@@ -463,8 +470,8 @@ Note that `nuim-code` is the default ordering. If a different `sort-code` is spe
 
 ;;-------------------------------------------------------------------------
 ;; vspace
-;; -> value space
-;; -> vector of all `n`-dimensional vpoints
+;; → relate _vpoints_ as a space
+;; > vector of all n-dimensional _vpoints_
 
 (s/def ::vspace
   (s/and (s/coll-of ::vpoint
@@ -495,10 +502,11 @@ Note that `nuim-code` is the default ordering. If a different `sort-code` is spe
 
 ;;-------------------------------------------------------------------------
 ;; vdict
-;; -> value dictionary
-;; -> (sorted) k-v map from `vspace` to `dna`
+;; → map _vpoints_ to _values_ in a dictionary
+;; > (sorted) key-value map from _vspace_ to _formDNA_
+;; 
 ;; - for value table generation
-;; - like a flat vmap
+;; - like a flat _vmap_
 
 (s/def ::vdict
   (s/and map?
@@ -539,8 +547,8 @@ Note that `nuim-code` is the default ordering. If a different `sort-code` is spe
 
 ;;-------------------------------------------------------------------------
 ;; vmap
-;; -> value map
-;; -> mapping from `vspace` topology to `dna`
+;; → map recursively decomposed _vspace_ to _value structure_
+;; → mapping from _vspace_ topology to _formDNA_
 
 (s/def ::vmap
   (s/or :vmap (s/map-of ::const
@@ -606,9 +614,57 @@ Note that `nuim-code` is the default ordering. If a different `sort-code` is spe
 (def | "Alias to `inv`." inv)
 
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Implementation specs for testing
+
+(let [digits (set (map (comp first str) (range 4)))]
+  (s/def ::quaternary-str (s/and string?
+                                 #(= "4r" (subs % 0 2))
+                                 #(every? digits (subs % 2)))))
+
+(s/fdef core/consts->quaternary
+  :args (s/cat :consts ::consts)
+  :ret  ::quaternary-str)
+; (defn consts->quaternary
+;   "Converts a sequence of constants to a corresponding quaternary number (as a string, prefixed by '4r').
+
+;   * use `read-string` to obtain the decimal value as a BigInt"
+;   [consts]
+;   (core/consts->quaternary consts))
+
+
+(s/fdef core/prod=dna-seq->dna
+  :args (s/fspec :args (s/cat :sort-code ::sort-code
+                              :x         any?)
+                 :ret  ::const)
+  :ret  (s/fspec :args (spec--dna-seq-args nil)
+                 :ret  ::dna))
+
+(s/fdef core/prod=dna->dna-seq
+  :args (s/fspec :args (s/cat :sort-code ::sort-code
+                              :const     ::const)
+                 :ret  any?)
+  :ret  (s/fspec :args (spec--dna-args)
+                 :ret  ::dna-seq))
+
+(s/fdef core/chars->dna
+  :args (spec--dna-seq-args (s/coll-of ::const-char
+                                       :min-count 1
+                                       :kind sequential?))
+  :ret  ::dna)
+; (defn chars->dna
+;   "Converts a `seqable?` of chars to formDNA.
+  
+; Note that `nuim-code` is the default ordering. If a different `sort-code` is specified, `digits` will be reordered to match the code."
+;   ([dna-seq] (core/chars->dna dna-seq))
+;   ([sort-code dna-seq]
+;    (core/chars->dna sort-code dna-seq)))
+
+
 (def ^:no-doc fns-with-specs (utils/list-fn-specs "formform.calc"))
 
-(comment
+(comment)
 
-  )
+  
 

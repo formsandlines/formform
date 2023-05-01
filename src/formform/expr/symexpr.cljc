@@ -82,7 +82,7 @@
 (def op-symbol first)
 
 
-(defmacro defoperator
+(defn defoperator-impl
   [k args interpretation & {:keys [constructor predicate reducer]}]
   (let [[params r] (if (= (get args (- (count args) 2)) '&)
                      [(take (- (count args) 2) args) (last args)]
@@ -126,6 +126,10 @@
                              (into [] (subvec ~op-sym (inc i#)))
                              (~op-sym (inc i#))))))))
 
+(defmacro defoperator
+  [k args interpretation & {:as params}]
+  (apply defoperator-impl k args interpretation params))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Symbol methods
@@ -136,7 +140,7 @@
 (defmulti simplify-sym
   (fn [sym _] {:pre [(keyword? sym)]} sym))
 
-(defmacro defsymbol
+(defn defsymbol-impl
   [k interpretation & {:keys [reducer]}]
   (let [methodname (partial methodname k)]
     `(do (defmethod interpret-sym ~k ~(methodname "interpret-sym")
@@ -145,6 +149,10 @@
          ~(when (some? reducer)
             `(defmethod simplify-sym ~k ~(methodname "simplify-sym")
                [sym# env#] (~reducer sym# env#))))))
+
+(defmacro defsymbol
+  [k interpretation & {:as params}]
+  (apply defsymbol-impl k interpretation params))
 
 ;; default methods
 
@@ -180,9 +188,9 @@
                         (= tag_arrangement (op-symbol %))))
 
 (defoperator tag_arrangement [& exprs] (vector (into [] exprs))
-  :predicate arrangement?
+  :predicate arrangement?)
   ; :reducer (fn [[_ & exprs] env] (simplify-content [exprs] env))
-  )
+  
 
 (defn arr-prepend [x rel-expr]
   (apply vector tag_arrangement x (rest rel-expr)))
@@ -203,12 +211,12 @@
 
 (defsymbol :mn :U)
 
-(def expr->const {nil :N
-                  [] :M
-                  [:seq-re :<r nil nil] :U
+(def expr->const {nil  :N
+                  []   :M
+                  [:seq-re :<r nil nil]   :U
                   [[:seq-re :<r nil nil]] :I
                   [:U] :I})
 
-(comment
+(comment)
 
-  )
+  

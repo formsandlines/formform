@@ -227,7 +227,7 @@
   (let [form (simplify-context form env)
         expr (simplify-matching-content
               (if (and (== 1 (count form))
-                       (pure-form? (first form)) )
+                       (pure-form? (first form)))
                 (case (count (first form))
                   0 nil           ;; (()) = nil
                   1 (ffirst form) ;; ((x)) = x
@@ -356,13 +356,11 @@
   ([ctx]     (ctx> ctx {}))
   ([ctx env] (vec (simplify-context ctx (simplify-env env)))))
 
-(def simplify cnt>)
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Evaluation
 
-(defn- eval-simplified
+(defn eval-simplified
   [expr env]
   (let [simpl-expr (cnt> expr env)
         result     (case simpl-expr
@@ -376,7 +374,7 @@
      :val result}))
 
 ;; ? check for validity of varorder
-(defn- eval-simplified*
+(defn eval-simplified*
   [{:keys [varorder only-vals?]} expr global-env]
   (let [vars (if (nil? varorder) (find-vars expr {:ordered? true}) varorder)
         vspc (calc/vspace (count vars))
@@ -405,27 +403,6 @@
    (let [{:keys [varorder results]}
          (eval-simplified* (merge opts {:only-vals? true}) expr env)]
      [tag_formDNA varorder (rseq results)])))
-
-(defn evaluate
-  ([expr] (evaluate expr {}))
-  ([expr env]
-   (let [res (eval-simplified expr env)
-         v   (let [v (:val res)]
-               (if (= :_ v)
-                 (:expr res)
-                 v))]
-     (with-meta {:result v} res))))
-
-(defn eval-all
-  ([expr] (eval-all expr {}))
-  ([expr env] (eval-all {} expr env)) ;; ?? why was this (eval-all {} expr {})
-  ([opts expr env]
-   (let [{:keys [varorder results] :as res}
-         (eval-simplified* (merge opts {:only-vals? false}) expr env)
-         vdict (map #(vector (mapv (:env %) varorder)
-                             (:val %))
-                    results)]
-     (with-meta {:varorder varorder :results vdict} res))))
 
 
 (defn equal
@@ -543,7 +520,7 @@
   (find-vars [['x] 'z 'a] {})
   (find-vars [['x] 'z 'a] {:ordered? true})
   (find-vars [['x] "a" 'z "x" 'a] {})
-  (find-vars [['x] "a" 'z "x" 'a] {:ordered? true})
+  (find-vars [['x] "a" 'z "x" 'a] {:ordered? true}))
 
 
-  )
+  

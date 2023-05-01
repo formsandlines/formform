@@ -330,8 +330,8 @@
 ;; ! refactor
 ;; Selector FORMs/class
 ;; ? extend with flipped U/I for vcross (maybe a wrapper)
-(defn sel
-  ([vars->consts] (sel vars->consts true))
+(defn selector
+  ([vars->consts] (selector vars->consts true))
   ([vars->consts simplify?]
    (if (and simplify? (every? #{:M :N} (vals vars->consts)))
      (apply form (map (fn [[v c]]
@@ -488,6 +488,6 @@
 
   (str (calc/vdict->vmap
         (calc/dna->vdict
-         {} (op-get (core/=>* nil) :dna))))
+         {} (op-get (core/=>* nil) :dna)))))
 
-  )
+  

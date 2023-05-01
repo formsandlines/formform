@@ -117,7 +117,11 @@
   (dna-length->dim (count xs)))
 
 
-(def reverse-dna (comp rseq vec))
+(def reverse-dna
+  "Reverses a formDNA (returns an rseq)
+
+  * make sure the input is a vector for constant-time reverse"
+  (comp rseq vec))
 
 (defn reorder-dna-seq
   [dna-seq sort-code-from sort-code-to]
@@ -432,9 +436,9 @@
   ([a & xs] (inv (apply rel (cons a xs)))))
 
 
-(comment
+(comment)
   ; (set! *print-length* 50)
   ; (require '[criterium.core :as crt])
 
-  )
+  
 
