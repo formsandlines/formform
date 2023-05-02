@@ -267,7 +267,6 @@
       '( [:- nil a] [:- nil ()] ) '[a] ;; (a (())) => (a)
       '( [:- a ()] [:- nil b] )   '[()])) ;; (a () (b)) => (())
 
-
   (testing "Correctness of reduction via (de)generation rule across chain"
     (let [x [[:- 'a 'b] [:- 'a 'c]]]
       (is (= '[[:- a b] c]

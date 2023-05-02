@@ -1,6 +1,11 @@
 (ns formform.calc.core-test
   (:require [clojure.test :as t :refer [deftest is are testing]]
-            [formform.calc.core :refer :all]))
+            [formform.calc.specs :refer [fns-with-specs]]
+            [formform.calc.core :refer :all]
+            [orchestra.spec.test :as stest]))
+
+(doseq [fsym fns-with-specs] (stest/instrument fsym))
+
 
 (deftest filter-dna-seq-test
   (testing "Correctness and completeness of selection"
@@ -92,7 +97,7 @@
     ;; should this return nil?
     (is (= "4r23" (consts->quaternary [:I :M])))
     (is (= "4r0" (consts->quaternary [:N])))
-    (is (thrown? AssertionError
+    (is (thrown? clojure.lang.ExceptionInfo
                  (consts->quaternary [:_])))
     (is (thrown? clojure.lang.ExceptionInfo
                  (consts->quaternary [])))))

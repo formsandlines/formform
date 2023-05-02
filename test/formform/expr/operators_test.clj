@@ -1,6 +1,11 @@
 (ns formform.expr.operators-test
   (:require [clojure.test :as t :refer [deftest is are testing]]
-            [formform.expr.operators :refer :all]))
+            [formform.expr.specs :refer [fns-with-specs]]
+            [formform.expr.operators :refer :all]
+            [orchestra.spec.test :as stest]))
+
+(doseq [fsym fns-with-specs] (stest/instrument fsym))
+
 
 (defn f
   ([x] (f x {}))

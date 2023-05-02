@@ -179,7 +179,6 @@
 (def digits->dna
   (prod=dna-seq->dna (fn [sort-code x] (digit->const sort-code x))))
 
-;; ? not needed
 (def chars->dna
   (prod=dna-seq->dna (fn [sort-code x] (char->const sort-code x))))
 

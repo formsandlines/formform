@@ -1,8 +1,8 @@
 (ns formform.expr
   "API for the `expr` module of `formform`."
   (:require
-   [formform.calc :as calc]
-   [formform.expr.common :as common]
+   [formform.calc.specs :as calc-sp]
+   [formform.expr.specs :as sp]
    [formform.expr.symexpr :as symx]
    [formform.expr.core :as core]
    [formform.expr.operators :as ops]
@@ -10,12 +10,12 @@
    [clojure.spec.alpha :as s]
    #_[clojure.spec.gen.alpha :as gen]))
 
+
 (s/def :opts/ordered? boolean?)
 (s/def :opts/unmarked? boolean?)
 (s/def :opts/+meta? boolean?)
 (s/def :opts/rtl? boolean?)
 (s/def :opts/ltr? boolean?)
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Data structures
@@ -42,46 +42,13 @@
 ;; - relation > relate the _values_ of the content of the _expression_
 ;;
 
-;; ! check for predicates in input validation -> performance
-(s/def ::expression
-  (s/or :empty          nil?
-        :operator       ::generic-operator
-        :form           ::struct-expr
-        :expr-symbol    ::expr-symbol
-        :variable       ::variable
-        :unknown-symbol keyword?))
-
-(s/def ::struct-expr
-  (s/every ::expression
-           :kind sequential?))
-
-(s/def ::form-expr
-  (s/and ::struct-expr
-         (partial s/invalid? ::generic-operator)))
-
-(s/def ::variable (s/or :str string? :sym symbol?))
-
-(s/def ::vars (s/coll-of ::variable
-                         :kind (complement map?)))
-
-(s/def ::varorder (s/coll-of ::variable
-                             :kind sequential?))
-
-(s/def ::varseq ::varorder)
-
-(s/def ::expr-chain
-  (s/coll-of ::expression
-             :kind sequential?
-             :min-count 1))
-
-(def expression? (partial s/valid? ::expression))
-(def variable? (partial s/valid? ::variable))
-(def form? (partial s/valid? ::form-expr))
-
+(def expression? (partial s/valid? ::sp/expression))
+(def variable? (partial s/valid? ::sp/variable))
+(def form? (partial s/valid? ::sp/form-expr))
 
 (s/fdef make
   :args (s/* any?)
-  :ret  ::expression)
+  :ret  ::sp/expression)
 (defn make
   "Constructor for expressions of any kind. Validates its input. If the first argument (or the first after the options map) is a keyword of a registered operator, will call the constructor for that operator
 
@@ -94,7 +61,7 @@
 
 (s/fdef form
   :args (s/* any?)
-  :ret  ::struct-expr)
+  :ret  ::sp/struct-expr)
 (defn form
   "Constructor for FORM expressions. Calls `make` on arguments."
   [& args]
@@ -103,8 +70,8 @@
 ;; ? be more specific for :ret
 (s/fdef mark-exprs
   :args (s/cat :opts  (s/keys :opt-un [:opts/unmarked?])
-               :exprs (s/* ::expression))
-  :ret  ::expression)
+               :exprs (s/* ::sp/expression))
+  :ret  ::sp/expression)
 (defn mark-exprs
   "Chains expressions like `((a)(b)…)` or `(a)(b)…` if {:unmarked? true}`
 
@@ -114,8 +81,8 @@
 
 (s/fdef nest-exprs
   :args (s/cat :opts  (s/keys :opt-un [:opts/unmarked? :opts/ltr?])
-               :exprs (s/* ::expression))
-  :ret  ::expression)
+               :exprs (s/* ::sp/expression))
+  :ret  ::sp/expression)
 (defn nest-exprs
   "Nests expressions leftwards `(((…)a)b)` or rightwards `(a(b(…)))` if `{:ltr? true}`
 
@@ -129,9 +96,9 @@
 
 ;; ? check if :ret is subset of :subexprs
 (s/fdef find-subexprs
-  :args (s/cat :expr ::expression
-               :subexprs (s/coll-of ::expression :kind set?))
-  :ret  (s/every ::expression
+  :args (s/cat :expr ::sp/expression
+               :subexprs (s/coll-of ::sp/expression :kind set?))
+  :ret  (s/every ::sp/expression
                  :kind sequential?))
 (defn find-subexprs
   "Finds all subexpressions in `expr` that match any element of the given set `subexprs`."
@@ -140,9 +107,9 @@
 
 ;; ? opts first
 (s/fdef find-vars
-  :args (s/cat :expr ::expression
-               :opts (s/keys :opt-un [:opts/ordered? ::vars]))
-  :ret  ::varseq)
+  :args (s/cat :expr ::sp/expression
+               :opts (s/keys :opt-un [:opts/ordered? ::sp/vars]))
+  :ret  ::sp/varseq)
 (defn find-vars
   "Finds all variables in an expresson or returns the expression itself if it is a variable.
 
@@ -155,7 +122,7 @@
 
 (s/fdef gen-vars
   :args (s/cat :n nat-int?)
-  :ret  ::varseq)
+  :ret  ::sp/varseq)
 (defn gen-vars
   "Generates a number of variables with random names."
   [n]
@@ -181,25 +148,9 @@
 ;; → interpret the structure by its symbol as an _expression_ pattern
 ;;
 
-(s/def ::expr-symbol
-  (s/and keyword? #(% (methods symx/interpret-sym))))
-
-(s/def ::op-symbol
-  (s/and keyword? #(% (methods symx/interpret-op))))
-
-(s/def ::generic-operator
-  (s/cat :tag            ::op-symbol
-         :args-unchecked (s/* any?)))
-
-(defmulti op-spec
-  "Given an operator symbol, returns the spec for the operator (if defined)."
-  first)
-
-(s/def ::operator (s/multi-spec op-spec first))
-
-(def expr-symbol? (partial s/valid? ::expr-symbol))
-(def op-symbol? (partial s/valid? ::op-symbol))
-(def operator? (partial s/valid? ::operator))
+(def expr-symbol? (partial s/valid? ::sp/expr-symbol))
+(def op-symbol? (partial s/valid? ::sp/op-symbol))
+(def operator? (partial s/valid? ::sp/operator))
 
 (def op-symbol
   "Returns the symbol of a given operator."
@@ -234,9 +185,9 @@
 ;; -> do not work with instrumentation
 
 (s/fdef make-op
-  :args (s/cat :tag  ::op-symbol
+  :args (s/cat :tag  ::sp/op-symbol
                :args (s/* any?))
-  :ret  ::operator)
+  :ret  ::sp/operator)
 (def make-op
   "Constructs a symbolic expression given a registered operator and parameters.
   
@@ -244,14 +195,14 @@
   symx/make-op)
 
 (s/fdef valid-op?
-  :args (s/cat :operator (s/spec ::generic-operator))
+  :args (s/cat :operator (s/spec ::sp/generic-operator))
   :ret  boolean?)
 (def valid-op?
   "Validates the shape of a symbolic expression with a registered operator."
   symx/valid-op?)
 
 (s/fdef op-get
-  :args (s/cat :operator (s/spec ::operator)
+  :args (s/cat :operator (s/spec ::sp/operator)
                :param    keyword?)
   :ret  any?)
 (def op-get
@@ -259,7 +210,7 @@
   symx/op-get)
 
 (s/fdef op-data
-  :args (s/cat :operator (s/spec ::operator))
+  :args (s/cat :operator (s/spec ::sp/operator))
   :ret  (s/map-of keyword? any?))
 (def op-data
   "Gets all parameters from a symbolic expression with a registered operator as a map."
@@ -269,66 +220,34 @@
 ;;=========================================================================
 ;; Predefined Operators
 
-(defmethod op-spec :default [_] ::operator)
-(defmethod op-spec common/tag_arrangement [_] ::arrangement)
-(defmethod op-spec common/tag_unclear [_] ::unclear)
-(defmethod op-spec common/tag_seq-reentry [_] ::seq-reentry)
-(defmethod op-spec common/tag_memory [_] ::memory)
-(defmethod op-spec common/tag_formDNA [_] ::formDNA)
-
-
 ;;-------------------------------------------------------------------------
 ;; arrangement {`:-`}
 ;; → _operator_ to construct _relations_
 
-(s/def ::arrangement
-  (s/cat :tag   (partial = common/tag_arrangement)
-         :exprs (s/* #(s/valid? ::expression %))))
-
-(def arrangement? (partial s/valid? ::arrangement))
+(def arrangement? (partial s/valid? ::sp/arrangement))
 
 
 ;;-------------------------------------------------------------------------
 ;; unclear FORM {`:uncl`}
 ;; → _operator_ to construct unclear _FORMs_
 
-(s/def ::unclear
-  (s/cat :tag   (partial = common/tag_unclear)
-         :label #(and (string? %) ((complement empty?) %))))
-
-(def unclear? (partial s/valid? ::unclear))
+(def unclear? (partial s/valid? ::sp/unclear))
 
 
 ;;-------------------------------------------------------------------------
 ;; seq-reentry FORM {`:seq-re`}
 ;; → _operator_ to construct self-equivalent re-entry _FORMs_
 
-(s/def ::seq-reentry-signature ops/seq-reentry-signature?)
-
-(s/def :opts.seq-reentry/parity #{:odd :even :any})
-(s/def :opts.seq-reentry/open? boolean?)
-(s/def :opts.seq-reentry/interpr #{:rec-ident :rec-instr})
-
-(s/def ::seq-reentry-opts
-  (s/keys :req-un [:opts.seq-reentry/parity
-                   :opts.seq-reentry/open?
-                   :opts.seq-reentry/interpr]))
-
-(s/def ::seq-reentry
-  (s/cat :tag (partial = common/tag_seq-reentry)
-         :sign ::seq-reentry-signature
-         :nested-exprs (s/+ ::expression)))
-
-(def seq-reentry? (partial s/valid? ::seq-reentry))
+(def seq-reentry? (partial s/valid? ::sp/seq-reentry))
 
 (s/fdef seq-re
-  :args (s/cat :specs        (s/or :sign ::seq-reentry-signature
+  :args (s/cat :specs        (s/or :sign ::sp/seq-reentry-signature
                                    :opts
                                    (s/keys :opt-un [:opts.seq-reentry/parity
                                                     :opts.seq-reentry/open?
                                                     :opts.seq-reentry/interpr]))
-               :nested-exprs (s/* ::expression))
-  :ret  ::seq-reentry)
+               :nested-exprs (s/* ::sp/expression))
+  :ret  ::sp/seq-reentry)
 (defn seq-re
   "Constructs a self-equivalent re-entry FORM given the arguments:
 
@@ -338,8 +257,8 @@
   (apply ops/seq-re specs nested-exprs))
 
 (s/fdef seq-reentry-sign->opts
-  :args (s/cat :sign ::seq-reentry-signature)
-  :ret  ::seq-reentry-opts)
+  :args (s/cat :sign ::sp/seq-reentry-signature)
+  :ret  ::sp/seq-reentry-opts)
 (defn seq-reentry-sign->opts
   "Maps signatures for self-equivalent re-entry FORMs to their corresponding option-maps."
   [sign]
@@ -349,14 +268,14 @@
   :args (s/cat :opt-map (s/keys :opt-un [:opts.seq-reentry/parity
                                          :opts.seq-reentry/open?
                                          :opts.seq-reentry/interpr]))
-  :ret  ::seq-reentry-signature)
+  :ret  ::sp/seq-reentry-signature)
 (defn seq-reentry-opts->sign
   "Inverse map of seq-reentry-sign->opts with default args."
   [opt-map]
   (ops/seq-reentry-opts->sign opt-map))
 
-(def seq-reentry-signature? (partial s/valid? ::seq-reentry-signature))
-(def seq-reentry-opts? (partial s/valid? ::seq-reentry-opts))
+(def seq-reentry-signature? (partial s/valid? ::sp/seq-reentry-signature))
+(def seq-reentry-opts? (partial s/valid? ::sp/seq-reentry-opts))
 
 
 ;;-------------------------------------------------------------------------
@@ -366,44 +285,31 @@
 ;; rem pair
 ;; → observe and remember equality between the two expressions
 
-(s/def ::rem-pair
-  (s/tuple #(s/valid? ::expression %)
-           #(s/valid? ::expression %)))
-(s/def ::rem-pairs
-  (s/coll-of ::rem-pair
-             :kind sequential?
-             :into []))
-
-(s/def ::memory
-  (s/cat :tag       (partial = common/tag_memory)
-         :rem-pairs ::rem-pairs
-         :ctx       (s/* #(s/valid? ::expression %))))
-
-(def memory? (partial s/valid? ::memory))
-(def rem-pair? (partial s/valid? ::rem-pair))
+(def memory? (partial s/valid? ::sp/memory))
+(def rem-pair? (partial s/valid? ::sp/rem-pair))
 
 (s/fdef memory
-  :args (s/cat :rem-pairs ::rem-pairs
-               :exprs     (s/* ::expression))
-  :ret  ::memory)
+  :args (s/cat :rem-pairs ::sp/rem-pairs
+               :exprs     (s/* ::sp/expression))
+  :ret  ::sp/memory)
 (defn memory
   "Constructs a memory FORM from a given list of `rem-pair`s (key-value pairs, where both the key and the value is an expression) and one or more expressions which are in their scope."
   [rem-pairs & exprs]
   (apply ops/memory rem-pairs exprs))
 
 (s/fdef memory-replace
-  :args (s/cat :mem        (s/spec ::memory)
-               :repl-pairs (s/* ::rem-pair))
-  :ret  ::memory)
+  :args (s/cat :mem        (s/spec ::sp/memory)
+               :repl-pairs (s/* ::sp/rem-pair))
+  :ret  ::sp/memory)
 (defn memory-replace
   "Takes a memory FORM and replaces its `rem-pair`s by one or more given replacement pairs."
   [mem & repl-pairs]
   (apply ops/memory-replace mem repl-pairs))
 
 (s/fdef memory-extend
-  :args (s/cat :mem       (s/spec ::memory)
-               :ext-pairs (s/* ::rem-pair))
-  :ret  ::memory)
+  :args (s/cat :mem       (s/spec ::sp/memory)
+               :ext-pairs (s/* ::sp/rem-pair))
+  :ret  ::sp/memory)
 (defn memory-extend
   "Takes a memory FORM and extends its `rem-pair`s by one or more given extension pairs."
   [mem & ext-pairs]
@@ -414,14 +320,7 @@
 ;; formDNA {`:fdna`}
 ;; → _operator_ to construct _calc/formDNA_ _expressions_
 
-(s/def ::formDNA
-  (s/and (s/nonconforming
-          (s/cat :tag      (partial = common/tag_formDNA)
-                 :varorder ::varorder
-                 :dna      :formform.calc/dna))
-         #(== (count (second %)) (calc/dna-dimension (nth % 2)))))
-
-(def formDNA? (partial s/valid? ::formDNA))
+(def formDNA? (partial s/valid? ::sp/formDNA))
 
 
 ;;=========================================================================
@@ -431,8 +330,8 @@
 ;; isolator FORM class
 
 (s/fdef isolator
-  :args :formform.calc/const
-  :ret  ::expression)
+  :args ::calc-sp/const
+  :ret  ::sp/expression)
 (defn isolator
   "Given a constant, returns the corresponding FORM from the isolator class."
   [c]
@@ -442,12 +341,12 @@
 ;; selector FORM class
 
 (s/fdef selector
-  :args (s/alt :ar1 (s/cat :vars->consts (s/map-of ::variable
-                                                   :formform.calc/const))
-               :ar2 (s/cat :vars->consts (s/map-of ::variable
-                                                   :formform.calc/const)
+  :args (s/alt :ar1 (s/cat :vars->consts (s/map-of ::sp/variable
+                                                   ::calc-sp/const))
+               :ar2 (s/cat :vars->consts (s/map-of ::sp/variable
+                                                   ::calc-sp/const)
                            :simplify? boolean?))
-  :ret  ::expression)
+  :ret  ::sp/expression)
 (defn selector
   "Given a map variable->constant, returns a FORM from the selector class."
   ([vars->consts] (ops/selector vars->consts))
@@ -458,17 +357,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Operations
 
-(s/def ::environment map?)
-
-(s/def ::context
-  (s/coll-of ::expression
-             :kind sequential?))
-
 ;;-------------------------------------------------------------------------
 ;; Compare expressions
 
 (s/fdef equal
-  :args (s/cat :exprs (s/* ::expression))
+  :args (s/cat :exprs (s/* ::sp/expression))
   :ret  boolean?)
 (defn equal
   "Equality check for expressions. Two expressions are considered equal, if their formDNAs are equal. Compares formDNAs from evaluation results of each expression by calling `calc/equal-dna`.
@@ -479,7 +372,7 @@
   (apply core/equal exprs))
 
 (s/fdef equiv
-  :args (s/cat :exprs (s/* ::expression))
+  :args (s/cat :exprs (s/* ::sp/expression))
   :ret  boolean?)
 (defn equiv
   "Equivalence check for expressions. Two expressions are considered equivalent, if their formDNAs are equivalent. Compares formDNAs from evaluation results of each expression by calling `calc/equiv-dna`.
@@ -495,10 +388,10 @@
 ;; Interpret expressions
 
 (s/fdef interpret
-  :args (s/alt :ar1 (s/cat :expr ::expression)
-               :ar2 (s/cat :env  ::environment
-                           :expr ::expression))
-  :ret  ::expression)
+  :args (s/alt :ar1 (s/cat :expr ::sp/expression)
+               :ar2 (s/cat :env  ::sp/environment
+                           :expr ::sp/expression))
+  :ret  ::sp/expression)
 (defn interpret
   "Interprets an expression of any kind. Returns the original expression if it cannot be interpreted.
 
@@ -513,10 +406,10 @@
    (core/interpret env expr)))
 
 (s/fdef interpret*
-  :args (s/alt :ar1 (s/cat :expr ::expression)
-               :ar2 (s/cat :env  ::environment
-                           :expr ::expression))
-  :ret  ::expression)
+  :args (s/alt :ar1 (s/cat :expr ::sp/expression)
+               :ar2 (s/cat :env  ::sp/environment
+                           :expr ::sp/expression))
+  :ret  ::sp/expression)
 (defn interpret*
   "Like `interpret`, but repeats substitution on interpreted expressions until they cannot be interpreted any further."
   ([expr] (core/interpret* expr))
@@ -524,10 +417,10 @@
    (core/interpret* env expr)))
 
 (s/fdef interpret-walk
-  :args (s/alt :ar1 (s/cat :expr ::expression)
-               :ar2 (s/cat :env  ::environment
-                           :expr ::expression))
-  :ret  ::expression)
+  :args (s/alt :ar1 (s/cat :expr ::sp/expression)
+               :ar2 (s/cat :env  ::sp/environment
+                           :expr ::sp/expression))
+  :ret  ::sp/expression)
 (defn interpret-walk
   "Recursively calls `interpret` on given expression and all its subexpressions with a depth-first walk."
   ([expr] (core/interpret-walk expr))
@@ -535,10 +428,10 @@
    (core/interpret-walk env expr)))
 
 (s/fdef interpret-walk*
-  :args (s/alt :ar1 (s/cat :expr ::expression)
-               :ar2 (s/cat :env  ::environment
-                           :expr ::expression))
-  :ret  ::expression)
+  :args (s/alt :ar1 (s/cat :expr ::sp/expression)
+               :ar2 (s/cat :env  ::sp/environment
+                           :expr ::sp/expression))
+  :ret  ::sp/expression)
 (defn interpret-walk*
   "Like `interpret-walk`, but repeats substitution on interpreted (sub-)expressions until they cannot be interpreted any further."
   ([expr] (core/interpret-walk* expr))
@@ -549,8 +442,8 @@
 
 ;; ? needed
 (s/fdef interpret-op
-  :args (s/cat :operator (s/spec ::operator))
-  :ret  ::expression)
+  :args (s/cat :operator (s/spec ::sp/operator))
+  :ret  ::sp/expression)
 (def interpret-op
   "Interprets a symbolic expression with a registered operator.
   
@@ -559,8 +452,8 @@
 
 ;; ? needed
 (s/fdef interpret-sym
-  :args (s/cat :expr-symbol ::expr-symbol)
-  :ret  ::expression)
+  :args (s/cat :expr-symbol ::sp/expr-symbol)
+  :ret  ::sp/expression)
 (def interpret-sym
   "Interprets a registered symbol.
   
@@ -573,10 +466,10 @@
 
 ;; ? remove in impl
 (s/fdef simplify
-  :args (s/alt :ar1 (s/cat :x   ::expression)
-               :ar2 (s/cat :x   ::expression
-                           :env ::environment))
-  :ret  ::expression)
+  :args (s/alt :ar1 (s/cat :x   ::sp/expression)
+               :ar2 (s/cat :x   ::sp/expression
+                           :env ::sp/environment))
+  :ret  ::sp/expression)
 (defn simplify
   "Simplifies a FORM recursively until it cannot be further simplified. All deductions are justified by the axioms of FORM logic.
 
@@ -591,10 +484,10 @@
 
 ;; ? remove in impl
 (s/fdef simplify-in
-  :args (s/alt :ar1 (s/cat :ctx ::context)
-               :ar2 (s/cat :ctx ::context
-                           :env ::environment))
-  :ret  ::context)
+  :args (s/alt :ar1 (s/cat :ctx ::sp/context)
+               :ar2 (s/cat :ctx ::sp/context
+                           :env ::sp/environment))
+  :ret  ::sp/context)
 (defn simplify-in
   "Simplifies a context/sequence of FORMs recursively until it cannot be further simplified. All deductions are justified by the axioms of FORM logic.
 
@@ -607,9 +500,9 @@
 
 ;; ? needed
 (s/fdef simplify-op
-  :args (s/cat :operator (s/spec ::operator)
-               :env      ::environment)
-  :ret  ::expression)
+  :args (s/cat :operator (s/spec ::sp/operator)
+               :env      ::sp/environment)
+  :ret  ::sp/expression)
 (def simplify-op
   "Simplifies a symbolic expression with a registered operator given an optional environment.
   
@@ -618,9 +511,9 @@
 
 ;; ? needed
 (s/fdef simplify-sym
-  :args (s/cat :expr-symbol ::expr-symbol
-               :env         ::environment)
-  :ret  ::expression)
+  :args (s/cat :expr-symbol ::sp/expr-symbol
+               :env         ::sp/environment)
+  :ret  ::sp/expression)
 (def simplify-sym
   "Simplifies a registered symbol given an optional environment.
   
@@ -628,12 +521,12 @@
   symx/simplify-sym)
 
 (s/fdef simplify-expr-chain
-  :args (s/alt :ar2 (s/cat :chain ::expr-chain
-                           :env   ::environment)
+  :args (s/alt :ar2 (s/cat :chain ::sp/expr-chain
+                           :env   ::sp/environment)
                :ar3 (s/cat :opts  (s/keys :opt-un [:opts/rtl?])
-                           :chain ::expr-chain
-                           :env   ::environment))
-  :ret  ::expr-chain)
+                           :chain ::sp/expr-chain
+                           :env   ::sp/environment))
+  :ret  ::sp/expr-chain)
 (defn simplify-expr-chain
   "Reduces a sequence of expressions, intended to be linked in a `chain`, to a sequence of simplified expressions, possibly spliced or shortened via inference.
 
@@ -649,10 +542,10 @@
 
 ;; ? remove in impl
 (s/fdef eval->expr
-  :args (s/alt :ar1 (s/cat :expr ::expression)
-               :ar2 (s/cat :expr ::expression
-                           :env  ::environment))
-  :ret  :formform.calc/const?)
+  :args (s/alt :ar1 (s/cat :expr ::sp/expression)
+               :ar2 (s/cat :expr ::sp/expression
+                           :env  ::sp/environment))
+  :ret  ::calc-sp/const?)
 (defn eval->expr
   ;; ! verify/correct docstring
   "Evaluates a FORM expression with an optional `env` and returns a constant expression with attached metadata including the maximally reduced expression in `:expr` and the environment in `:env`.
@@ -664,13 +557,13 @@
 
 ;; ? remove in impl
 (s/fdef eval->expr-all
-  :args (s/alt :ar1 (s/cat :expr ::expression)
-               :ar2 (s/cat :expr ::expression
-                           :env  ::environment)
-               :ar3 (s/cat :opts (s/keys :opt-un [::varorder])
-                           :expr ::expression
-                           :env  ::environment))
-  :ret  ::formDNA)
+  :args (s/alt :ar1 (s/cat :expr ::sp/expression)
+               :ar2 (s/cat :expr ::sp/expression
+                           :env  ::sp/environment)
+               :ar3 (s/cat :opts (s/keys :opt-un [::sp/varorder])
+                           :expr ::sp/expression
+                           :env  ::sp/environment))
+  :ret  ::sp/formDNA)
 (defn eval->expr-all
   ;; ! verify/correct docstring
   "Evaluates a FORM expression for all possible interpretations of any occurring variable in the expression. Returns a formDNA expression by default.
@@ -681,13 +574,13 @@
   ([opts expr env] (core/=>* opts expr env)))
 (def =>* eval->expr-all)
 
-(s/def :evaluate/result (s/or :const :formform.calc/const
-                              :expr  ::expression))
+(s/def :evaluate/result (s/or :const ::calc-sp/const
+                              :expr  ::sp/expression))
 
 (s/fdef evaluate
-  :args (s/alt :ar1 (s/cat :expr ::expression)
-               :ar2 (s/cat :expr ::expression
-                           :env  ::environment))
+  :args (s/alt :ar1 (s/cat :expr ::sp/expression)
+               :ar2 (s/cat :expr ::sp/expression
+                           :env  ::sp/environment))
   :ret  (s/keys :req-un [:evaluate/result]))
 (defn evaluate
   "Evaluates a FORM expresson with an optional `env` and returns either a constant or the simplified expression if it could not be determined to a value."
@@ -702,20 +595,20 @@
 
 (s/def :eval-all/results
   (s/and (s/coll-of
-          (s/cat :interpretation (s/coll-of :formform.calc/const
+          (s/cat :interpretation (s/coll-of ::calc-sp/const
                                             :kind sequential?)
-                 :result         :formform.calc/const)
+                 :result         ::calc-sp/const)
           :kind sequential?)
-         :formform.calc/dna-count))
+         ::calc-sp/dna-count))
 
 (s/fdef eval-all
-  :args (s/alt :ar1 (s/cat :expr ::expression)
-               :ar2 (s/cat :expr ::expression
-                           :env  ::environment)
-               :ar3 (s/cat :opts (s/keys :opt-un [::varorder])
-                           :expr ::expression
-                           :env  ::environment))
-  :ret  (s/keys :req-un [::varorder :eval-all/results]))
+  :args (s/alt :ar1 (s/cat :expr ::sp/expression)
+               :ar2 (s/cat :expr ::sp/expression
+                           :env  ::sp/environment)
+               :ar3 (s/cat :opts (s/keys :opt-un [::sp/varorder])
+                           :expr ::sp/expression
+                           :env  ::sp/environment))
+  :ret  (s/keys :req-un [::sp/varorder :eval-all/results]))
 (defn eval-all
   "Evaluates a FORM expresson for all possible interpretations of any occurring variable in the expresson. Returns a map with a `:results` key whose value is a sequence of `[<interpretation> <result>]` tuples and with a `:varorder` key whose value is the reading order for variable results in the interpretations. This output is particularly suited for value tables."
   ([expr] (eval-all expr {}))
@@ -728,153 +621,6 @@
                     results)]
      (with-meta {:varorder varorder :results vdict} res))))
 
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Implementation specs for testing
-
-(s/fdef core/splice-ctx
-  :args (s/cat :ctx ::context)
-  :ret  ::context)
-; (defn splice-ctx
-;   "Dissolves arrangements in given context such that their elements become direct children of the context itself."
-;   [ctx]
-;   (core/splice-ctx ctx))
-
-(s/fdef core/substitute-expr
-  :args (s/cat :env  ::environment
-               :expr ::expression)
-  :ret  ::expression)
-; (defn substitute-expr
-;   "Substitutes an expression by a matching expression in given environment. Returns the original expression if match failed.")
-
-(s/fdef core/ctx->cnt
-  :args (s/cat :opts (s/keys :opt-un [:opts/+meta?])
-               :ctx  ::context)
-  :ret  (s/or :expr+meta (s/tuple ::expression
-                                  ::environment)
-              :expr ::expression))
-
-(s/fdef core/cnt->ctx
-  :args (s/cat :cnt ::expression)
-  :ret  ::context)
-
-(s/fdef core/simplify-matching-content
-  :args (s/alt :ar1 (s/cat :x ::expression)
-               :ar2 (s/cat :x ::expression
-                           :default any?))
-  :ret  ::expression)
-
-(s/fdef core/simplify-form
-  :args (s/cat :form ::struct-expr
-               :env  ::environment)
-  :ret  ::expression)
-
-;; ? is content = expression
-(s/fdef core/simplify-content
-  :args (s/cat :x   ::expression
-               :env ::environment)
-  :ret  ::expression)
-
-(s/fdef core/simplify-by-calling
-  :args (s/cat :ctx ::context
-               :env ::environment)
-  :ret  (s/tuple ::context
-                 ::environment))
-
-(s/fdef core/simplify-by-crossing
-  :args (s/cat :ctx ::context)
-  :ret  ::context)
-
-(s/fdef core/substitute-in-context
-  :args (s/cat :env ::environment
-               :ctx ::context)
-  :ret  ::context)
-
-(s/fdef core/simplify-context
-  :args (s/cat :ctx ::context
-               :env ::environment)
-  :ret  ::context)
-
-(s/fdef core/simplify-env
-  :args (s/cat :env ::environment)
-  :ret  ::environment)
-
-
-
-(s/fdef core/mark
-  :args (s/cat :exprs (s/coll-of ::expression :kind sequential?))
-  :ret  ::expression)
-
-(s/fdef formform.utils/nest-left
-  :args (s/cat :items sequential?)
-  :ret  (s/or :nil nil?
-              :seq sequential?))
-
-(s/fdef formform.utils/nest-right
-  :args (s/cat :items sequential?)
-  :ret  (s/or :nil nil?
-              :seq sequential?))
-
-
-(s/fdef ops/construct-unclear
-  :args (s/cat :op-k ::op-symbol
-               :args (s/* any?))
-  :ret  ::unclear)
-
-
-(s/fdef ops/simplify-rems
-  :args (s/cat :rem-pairs ::rem-pairs
-               :env       ::environment)
-  :ret  (s/tuple ::rem-pairs
-                 ::environment))
-
-(s/fdef ops/filter-rems
-  :args (s/cat :rem-pairs ::rem-pairs
-               :ctx       ::context)
-  :ret  ::rem-pairs)
-
-(s/fdef ops/simplify-memory
-  :args (s/cat :mem (s/spec ::memory)
-               :env ::environment)
-  :ret  ::expression)
-
-
-(s/fdef ops/simplify-seq-reentry
-  :args (s/cat :seq-re (s/spec ::seq-reentry)
-               :env    ::environment)
-  :ret  ::expression)
-
-(s/fdef ops/construct-seq-reentry
-  :args (s/cat :op-k         ::op-symbol
-               :specs        (s/or :sign ::seq-reentry-signature
-                                   :opts
-                                   (s/keys :opt-un [:opts.seq-reentry/parity
-                                                    :opts.seq-reentry/open?
-                                                    :opts.seq-reentry/interpr]))
-               :nested-exprs (s/* ::expression))
-  :ret  ::seq-reentry)
-
-
-(s/fdef ops/filter-formDNA
-  :args (s/cat :fdna ::formDNA
-               :env  ::environment)
-  :ret  ::formDNA)
-
-(s/fdef ops/simplify-formDNA
-  :args (s/cat :operator (s/spec ::formDNA)
-               :env      ::environment)
-  :ret  (s/or :fdna  ::formDNA
-              :const :formform.calc/const))
-
-(s/fdef ops/construct-formDNA
-  :args (s/alt :ar1 (s/cat :op-k ::op-symbol)
-               :ar2 (s/cat :op-k ::op-symbol
-                           :dna  :formform.calc/dna)
-               :ar3 (s/cat :op-k     ::op-symbol
-                           :varorder ::varseq
-                           :dna      :formform.calc/dna))
-  :ret  ::formDNA)
 
 
 ;; Exclude all multimethods
@@ -906,25 +652,25 @@
                             
              [k v]))))
 
-  (s/conform ::expression []) ;=> [:form []]
-  (s/conform ::expression :a) ;=> [:unknown-symbol :a]
-  (s/conform ::expression :M) ;=> [:expr-symbol :M]
-  (s/conform ::expression "x") ;=> [:variable [:str "x"]]
-  (s/conform ::expression 'x) ;=> [:variable [:sym x]]
-  (s/conform ::expression nil) ;=> [:empty nil]
+  (s/conform ::sp/expression []) ;=> [:form []]
+  (s/conform ::sp/expression :a) ;=> [:unknown-symbol :a]
+  (s/conform ::sp/expression :M) ;=> [:expr-symbol :M]
+  (s/conform ::sp/expression "x") ;=> [:variable [:str "x"]]
+  (s/conform ::sp/expression 'x) ;=> [:variable [:sym x]]
+  (s/conform ::sp/expression nil) ;=> [:empty nil]
 
-  ;; ? should `::expression` spec `::operator` instead of `::generic-operator`
-  (s/conform ::expression [:uncl "ä"]) ;=> [:operator {:tag :uncl, :label "ä"}]
+  ;; ? should `::sp/expression` spec `::sp/operator` instead of `::sp/generic-operator`
+  (s/conform ::sp/expression [:uncl "ä"]) ;=> [:operator {:tag :uncl, :label "ä"}]
 
-  ;; ? should `::struct-expr` and/or `::context` designate their matches
-  (s/conform ::expression [:foo [] []]) ;=> [:form [:foo [] []]]
-  (s/conform ::expression [[:M] [:- 'a ['b]]]) ;=> [:form [[:M] [:- a [b]]]]
+  ;; ? should `::sp/struct-expr` and/or `::sp/context` designate their matches
+  (s/conform ::sp/expression [:foo [] []]) ;=> [:form [:foo [] []]]
+  (s/conform ::sp/expression [[:M] [:- 'a ['b]]]) ;=> [:form [[:M] [:- a [b]]]]
 
-  (s/conform ::context [[:M] [:- 'a ['b]] 'x :U nil])
+  (s/conform ::sp/context [[:M] [:- 'a ['b]] 'x :U nil])
   ;=> [[:form [:M]] [:operator {:tag :-, :args-unchecked [a [b]]}] [:variable [:sym x]] [:expr-symbol :U] [:empty nil]]
 
 
- (s/valid? ::operator (seq-re {} nil))
+ (s/valid? ::sp/operator (seq-re {} nil))
  (seq-reentry-opts->sign {})
  (seq-reentry-sign->opts :<r))
 
