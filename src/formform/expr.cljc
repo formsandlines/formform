@@ -168,7 +168,7 @@
   * `valid-op?` -> validator (provided by the `:predicate` option)
   * `op-data` -> returns a key-value map of the operator arguments
   * `op-get` -> returns a specific value by a given argument-key"
-  [k args interpretation & {:as params}]
+  [k args interpretation & params]
   (apply symx/defoperator-impl k args interpretation params))
 
 (defmacro defsymbol
@@ -178,7 +178,7 @@
 
   * `interpret-sym` -> to access the interpretation function
   * `simplify-sym` -> simplifier (either defaults to the given interpretation function or uses a custom reducer via the option `:reducer`)"
-  [k interpretation & {:as params}]
+  [k interpretation & params]
   (apply symx/defsymbol-impl k interpretation params))
 
 ;; Multimethod specs - just for documentation
@@ -642,9 +642,6 @@
 
 
 (comment
-
-  (s/form (s/get-spec `symx/make-op))
-
   (s/form
    (s/get-spec
     (ffirst (for [[k v] (s/registry)

@@ -50,7 +50,7 @@
       (if (op-k (methods valid-op?))
         (if (valid-op? op)
           op
-          (throw (ex-info (str "Invalid operator arguments" op-k)
+          (throw (ex-info (str "Invalid operator arguments: " op-k)
                           {:op op-k :args args})))
         op))
     (throw (ex-info (str "Unknown operator " op-k)
@@ -127,7 +127,7 @@
                              (~op-sym (inc i#))))))))
 
 (defmacro defoperator
-  [k args interpretation & {:as params}]
+  [k args interpretation & params]
   (apply defoperator-impl k args interpretation params))
 
 
@@ -151,7 +151,7 @@
                [sym# env#] (~reducer sym# env#))))))
 
 (defmacro defsymbol
-  [k interpretation & {:as params}]
+  [k interpretation & params]
   (apply defsymbol-impl k interpretation params))
 
 ;; default methods
