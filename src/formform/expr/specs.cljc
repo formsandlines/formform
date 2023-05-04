@@ -27,7 +27,7 @@
 
 (s/def ::form-expr
   (s/and ::struct-expr
-         (partial s/invalid? ::generic-operator)))
+         #((complement s/valid?) ::generic-operator %)))
 
 (s/def ::variable (s/or :str string? :sym symbol?))
 
@@ -68,9 +68,8 @@
   "Given an operator symbol, returns the spec for the operator (if defined)."
   first)
 
-(s/def ::operator (s/multi-spec op-spec first))
+(s/def ::operator (s/multi-spec op-spec symx/op-symbol))
 
-(defmethod op-spec :default [_] ::operator)
 (defmethod op-spec common/tag_arrangement [_] ::arrangement)
 (defmethod op-spec common/tag_unclear [_] ::unclear)
 (defmethod op-spec common/tag_seq-reentry [_] ::seq-reentry)

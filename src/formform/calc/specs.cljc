@@ -26,7 +26,7 @@
 
 (s/def ::const-int (s/int-in 0 4))
 (s/def ::const-int? (s/or :int ::const-int
-                          :var-int #(== % -1)))
+                          :var-int #(and (int? %) (== % -1))))
 
 (s/def ::const-char #{\N \U \I \M, \n \u \i \m, \0 \1 \2 \3})
 (s/def ::const-char? (s/or :char ::const-char

@@ -642,20 +642,6 @@
 
 
 (comment
-  (s/form
-   (s/get-spec
-    (ffirst (for [[k v] (s/registry)
-                  :when (and (symbol? k))]
-                            
-             [k v]))))
-
-  (s/conform ::sp/expression []) ;=> [:form []]
-  (s/conform ::sp/expression :a) ;=> [:unknown-symbol :a]
-  (s/conform ::sp/expression :M) ;=> [:expr-symbol :M]
-  (s/conform ::sp/expression "x") ;=> [:variable [:str "x"]]
-  (s/conform ::sp/expression 'x) ;=> [:variable [:sym x]]
-  (s/conform ::sp/expression nil) ;=> [:empty nil]
-
   ;; ? should `::sp/expression` spec `::sp/operator` instead of `::sp/generic-operator`
   (s/conform ::sp/expression [:uncl "ä"]) ;=> [:operator {:tag :uncl, :label "ä"}]
 

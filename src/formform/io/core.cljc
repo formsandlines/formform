@@ -5,6 +5,8 @@
 
 (ns ^:no-doc formform.io.core
   (:require [formform.calc :as calc]
+            [formform.expr.operators :refer [seq-reentry-defaults]]
+            [formform.expr.common :as expr-common]
             [formform.expr :as expr]
             [formform.io.formula :refer [parser]]
             [clojure.edn :as edn]
@@ -57,7 +59,7 @@
 
 (defn parse-re-opts
   [& opts]
-  (into expr/seq-reentry-defaults
+  (into seq-reentry-defaults
         (map #(case %
                 "2r"   [:parity :even]
                 "2r+1" [:parity :odd]
@@ -76,43 +78,39 @@
     (apply expr/seq-re specs terms)))
 
 (defn parse-tree
-  ([tree] (parse-tree {} tree))
-  ([{:keys [sort-code] :or {sort-code calc/nuim-code}} tree]
-   (insta/transform
-    {:EXPR      expr/make
-     :FORM      expr/form
+  [{:keys [sort-code] :or {sort-code calc/nuim-code}} tree]
+  (insta/transform
+   {:EXPR      expr/make
+    :FORM      expr/form
 
-     :VAR       expr/make
-     :VAR_QUOT  expr/make
+    :VAR       expr/make
+    :VAR_QUOT  expr/make
 
-     :SYMBOL    (partial parse-symbol sort-code)
-     :OPERATOR  parse-operator
-     ; :UNPARSED  identity ;; EDN?
+    :SYMBOL    (partial parse-symbol sort-code)
+    :OPERATOR  parse-operator
+    ; :UNPARSED  identity ;; EDN?
 
-     :UNCLEAR   (partial expr/make :uncl)
+    :UNCLEAR   (partial expr/make :uncl)
+    :UNCLEAR_SYM (partial parse-symbol sort-code)
 
-     :SEQRE     parse-seqre
-     :SEQRE_SYM (partial parse-symbol sort-code)
-     :RE_SIGN   parse-re-sign
-     :RE_OPTS   parse-re-opts
+    :SEQRE     parse-seqre
+    :SEQRE_SYM (partial parse-symbol sort-code)
+    :RE_SIGN   parse-re-sign
+    :RE_OPTS   parse-re-opts
 
-     :FDNA_LIT  (partial expr/make :fdna)
-     :FDNA      (partial parse-fdna sort-code)
-     :FDNA_SYM  (partial parse-symbol sort-code)
-     :VARLIST   vector
+    :FDNA_LIT  (partial expr/make :fdna)
+    :FDNA      (partial parse-fdna sort-code)
+    :FDNA_SYM  (partial parse-symbol sort-code)
+    :VARLIST   vector
 
-     :MEMORY_SYM (partial parse-symbol sort-code)
-     :REMLIST   vector
-     :REM       vector}
-    tree)))
+    :MEMORY_SYM (partial parse-symbol sort-code)
+    :REMLIST   vector
+    :REM       vector}
+   tree))
 
 (defn formula->expr
-  ([s] (formula->expr {} s))
-  ([opts s]
-   (parse-tree opts (parser s))))
-
-;; alias
-(def read-expr formula->expr)
+  [opts s]
+  (parse-tree opts (parser s)))
 
 
 ;;-------------------------------------------------------------------------
@@ -176,8 +174,8 @@
     (str "[" op-k " " rems " | " (expr->formula expr) "]")))
 
 (defn unclear->formula
-  [[op-k & label]]
-  (str "[" op-k " " (str/join "" label) "]"))
+  [[op-k & labels]]
+  (str "[" op-k " " (str/join "" labels) "]"))
 
 (defn operator->formula
   [[op-k & _ :as op]]
@@ -199,9 +197,6 @@
     expr/operator? (operator->formula expr)
     expr/form?     (form->formula expr)
     (throw (ex-info "Unknown expression type." {}))))
-
-;; alias
-(def print-expr expr->formula)
 
 
 ;;-------------------------------------------------------------------------
@@ -251,17 +246,17 @@
   (let [op-sym (expr/op-symbol op)
         data   (expr/op-data op)]
     (cond (and use-unmarked?
-               (= expr/tag_arrangement op-sym))
+               (= expr-common/tag_arrangement op-sym))
           {:type :form
            :unmarked true
            branchname (ctx->uniform opts (:exprs data))}
           (and use-unclear?
-               (= expr/tag_unclear op-sym))
+               (= expr-common/tag_unclear op-sym))
           {:type :unclear
            :value :U
            :label (:label data)}
           (and use-seq-reentry?
-               (= expr/tag_seq-reentry op-sym))
+               (= expr-common/tag_seq-reentry op-sym))
           (legacy_expand-seq-reentry opts data)
           :else (merge
                  {:type :operator
@@ -300,19 +295,19 @@
     (throw (ex-info "Unknown expression type." {:expr expr}))))
 
 (defn uniform-expr
-  ([expr] (uniform-expr {} expr))
-  ([{:keys [legacy?] :as opts} expr]
-   (expr->uniform (merge {:branchname (if legacy? :space :children)
-                          :use-unmarked? legacy?
-                          :use-unclear? legacy?
-                          :use-const? legacy?
-                          :use-seq-reentry? legacy?}
-                         opts)
-                  expr)))
+  [{:keys [legacy?] :as opts} expr]
+  (expr->uniform (merge {:branchname (if legacy? :space :children)
+                         :use-unmarked? legacy?
+                         :use-unclear? legacy?
+                         :use-const? legacy?
+                         :use-seq-reentry? legacy?}
+                        opts)
+                 expr))
 
 
 (comment
-  (read-expr "{2r|}")
+  (formula->expr {} "(a)b")
+
   (expr/seq-reentry-signature? {:parity :even, :open? false, :interpr :rec-instr})
   (expr/seq-reentry-opts? {:parity :even, :open? false, :interpr :rec-instr})
 
@@ -335,8 +330,8 @@
 
   (let [{:keys [x y] :or {x "a" y "bar"} :as m} {:y "foo"}]
     [[x (:x m)]
-     [y (:y m)]])
-  )
+     [y (:y m)]]))
+  
 
 (comment
   (utils/nest-right #(map (partial expr->uniform {}) %) ['a 'b])
@@ -353,5 +348,5 @@
   (uniform-expr {:use-unmarked? true
                  :use-seq-reentry? true} (expr/seq-re :<r 'a 'b 'c))
 
-  (uniform-expr {:legacy? true} (expr/seq-re :<r 'a 'b '[:- c d]))
-  )
+  (uniform-expr {:legacy? true} (expr/seq-re :<r 'a 'b '[:- c d])))
+  

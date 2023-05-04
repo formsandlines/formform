@@ -97,6 +97,7 @@
          (fnode [x])
          (fnode (concat [x] [(nest-right fnode fx r)])))))))
 
+;; !! deprecated
 (defmacro defapi
   "Defines an alias for the API that retains the metadata of the implementation with an optional docstring replacement."
   ([impl-sym] `(defapi ~impl-sym nil))

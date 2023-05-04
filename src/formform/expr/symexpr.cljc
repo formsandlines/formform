@@ -211,11 +211,11 @@
 
 (defsymbol :mn :U)
 
-(def expr->const {nil  :N
-                  []   :M
+(def expr->const {nil                     :N
+                  []                      :M
                   [:seq-re :<r nil nil]   :U
                   [[:seq-re :<r nil nil]] :I
-                  [:U] :I})
+                  [:U]                    :I})
 
 (comment)
 

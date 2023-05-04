@@ -3,8 +3,7 @@
             [formform.calc :as calc]
             [formform.expr :as expr]
             [formform.io.formula :refer [parser]]
-            [formform.io.core :refer :all]
-            [formform.io :refer [fns-with-specs]]
+            [formform.io :refer :all]
             [instaparse.core :as insta]
             [orchestra.spec.test :as stest]))
 
@@ -78,17 +77,17 @@
       (is (= (tree "/a/'a'") [:EXPR [:UNCLEAR "a"] [:VAR_QUOT "a"]]))
       (is (= (tree "'a'/a/") [:EXPR [:VAR_QUOT "a"] [:UNCLEAR "a"]]))
       (is (= (tree "/a/\"a\"") [:EXPR [:UNCLEAR "a"] [:VAR_QUOT "a"]]))
-      (is (= (tree "\"a\"/a/") [:EXPR [:VAR_QUOT "a"] [:UNCLEAR "a"]]))
-      )
+      (is (= (tree "\"a\"/a/") [:EXPR [:VAR_QUOT "a"] [:UNCLEAR "a"]])))
+      
 
     (testing "valid characters"
       (is (= (trees "'6×2=24÷2'") '([:EXPR [:VAR_QUOT "6×2=24÷2"]])))
       (is (= (trees "\"x_1\" \"…\" \"x_2|v|+1\"")
              '([:EXPR [:VAR_QUOT "x_1"] [:VAR_QUOT "…"]
-                [:VAR_QUOT "x_2|v|+1"]])))
-      )
+                [:VAR_QUOT "x_2|v|+1"]])))))
+      
 
-    )
+    
 
   (testing "Parentheses"
     (testing "incomplete match"
@@ -98,13 +97,13 @@
 
       (is (fail? (tree ")(")))
       (is (fail? (tree "][")))
-      (is (fail? (tree "}{")))
-      )
+      (is (fail? (tree "}{"))))
+      
 
     (testing "invalid term"
       ;; ? maybe this has a use-case
-      (is (fail? (tree "[]")))
-      )
+      (is (fail? (tree "[]"))))
+      
 
     (testing "interfering matches"
       (is (fail? (tree "([)]")))
@@ -112,16 +111,16 @@
       (is (fail? (tree "({)}")))
       (is (fail? (tree "{(})")))
       (is (fail? (tree "[{]}")))
-      (is (fail? (tree "[(])")))
+      (is (fail? (tree "[(])"))))
 
-      )
+      
 
     (testing "valid empty pairs"
       (is (= (trees "()") [[:EXPR [:FORM]]]))
       (is (= (trees "{}") [[:EXPR [:SEQRE [:EXPR]]]]))
 
-      (is (= (trees "(){}") [[:EXPR [:FORM] [:SEQRE [:EXPR]]]]))
-      )
+      (is (= (trees "(){}") [[:EXPR [:FORM] [:SEQRE [:EXPR]]]])))
+      
 
     (testing "valid nested pairs"
       (is (= (trees "(())") [[:EXPR [:FORM [:FORM]]]]))
@@ -139,10 +138,10 @@
       (is (= (trees "({({})}(){()})(){(){}}")
              [[:EXPR [:FORM [:SEQRE [:EXPR [:FORM [:SEQRE [:EXPR]]]]] [:FORM]
                       [:SEQRE [:EXPR [:FORM]]]]
-               [:FORM] [:SEQRE [:EXPR [:FORM] [:SEQRE [:EXPR]]]]]]))
-      )
+               [:FORM] [:SEQRE [:EXPR [:FORM] [:SEQRE [:EXPR]]]]]]))))
+      
 
-    )
+    
 
   (testing "Allowed spacing"
     (testing "between literals"
@@ -184,8 +183,8 @@
       ;; symbol =/= formDNA
       (is (= (trees ":11") '([:EXPR [:SYMBOL ":11"]])))
       (is (= (trees ":MM") '([:EXPR [:SYMBOL ":MM"]])))
-      (is (= (trees ":NUIM") '([:EXPR [:SYMBOL ":NUIM"]])))
-      )
+      (is (= (trees ":NUIM") '([:EXPR [:SYMBOL ":NUIM"]]))))
+      
 
     (testing "between literals and forms"
       (is (= (trees "( a )") (trees "( a)") (trees "(a )") (trees "(a)")
@@ -218,15 +217,15 @@
 
       (is (= (trees ":U'U' :I u():U b")
              '([:EXPR [:SYMBOL ":U"] [:VAR_QUOT "U"] [:SYMBOL ":I"]
-                [:VAR "u"] [:FORM] [:SYMBOL ":U"] [:VAR "b"]])))
+                [:VAR "u"] [:FORM] [:SYMBOL ":U"] [:VAR "b"]])))))
 
-      )
-    )
+      
+    
 
   (testing "Symbols"
     (is (= (trees ":x") '([:EXPR [:SYMBOL ":x"]])))
-    (is (= (trees "[:x]") '([:EXPR [:OPERATOR [:SYMBOL ":x"]]]))))
-  )
+    (is (= (trees "[:x]") '([:EXPR [:OPERATOR [:SYMBOL ":x"]]])))))
+  
 
 (def ->nmui {:sort-code calc/nmui-code})
 
@@ -300,9 +299,9 @@
              [:I :N :U :M  :M :M :U :I  :I :U :M :I  :U :N :I :M
               :N :M :N :M  :M :U :I :N  :U :I :N :I  :U :U :N :M
               :I :I :U :U  :M :U :U :M  :M :M :M :M  :U :I :I :U
-              :N :I :I :M  :U :I :N :M  :N :I :U :U  :U :M :N :I]]))
+              :N :I :I :M  :U :I :N :M  :N :I :U :U  :U :M :N :I]])))
 
-    )
+    
 
   (testing "Correctness of related transformations"
     (testing "of the same type"
@@ -320,9 +319,9 @@
       (is (= (read-expr "[:fdna [a]::NUIM] [:fdna [a]::NUIM]")
              '[:-
                [:fdna ["a"] [:N :U :I :M]]
-               [:fdna ["a"] [:N :U :I :M]]]))
-      )
-    )
+               [:fdna ["a"] [:N :U :I :M]]]))))
+      
+    
 
   (testing "Correctness of nested transformations"
     (testing "of the same type"
@@ -339,8 +338,8 @@
              '[:seq-re :<r
                [:seq-re :<r nil [:seq-re :<r nil] [:seq-re :<r nil nil]]
                [:seq-re :<r [:seq-re :<r nil]]
-               [:seq-re :<r [:seq-re :<r nil] nil nil] nil nil nil]))
-      )
+               [:seq-re :<r [:seq-re :<r nil] nil nil] nil nil nil])))
+      
 
     (testing "of different types"
       (is (= (read-expr "(:U 'x_1' [:fdna ['x_1']::NMUI] /はあ/ {alt|2r|} :2)")
@@ -372,10 +371,10 @@
              '[:seq-re :<..r.
                [:uncl "deeming"]
                [:uncl "telling"]
-               [:uncl "understanding"]]))
+               [:uncl "understanding"]]))))
 
-      )
-    )
+      
+    
 
   (testing "Operator parsing"
     (testing "predefined operators"
@@ -409,9 +408,9 @@
       ;; Expression symbols and Operators need not be known
       (is (= (read-expr ":foo") :foo))
       (is (= (read-expr "[:foo x y]") '[:foo "x" "y"]))
-      (is (= (read-expr "[:x a () [:y]]") '[:x "a" [] [:y]]))
-      ))
-  ) 
+      (is (= (read-expr "[:x a () [:y]]") '[:x "a" [] [:y]])))))
+      
+   
 
 (deftest expr->formula-test
   (testing "Correct formula output"
@@ -439,17 +438,17 @@
       (is (= (print-expr [:seq-re :<r [:- 'a ['b]] [nil] nil [:- nil 'c]])
              "{@ a (b), (), , c}"))
       (is (= (print-expr [:fdna ['a "my var"]
-                       [:M :I :U :N  :I :M :N :U  :U :N :M :I  :N :U :I :M]])
+                          [:M :I :U :N  :I :M :N :U  :U :N :M :I  :N :U :I :M]])
              "[:fdna [a, 'my var'] ::MIUNIMNUUNMINUIM]"))
       (is (= (print-expr [:mem [[['x ['y]] [:- nil [] [['x]]]]] [:- ['x ['y]]]])
              "[:mem (x (y)) = () ((x)) | (x (y))]"))
       (is (= (print-expr [ nil [[:seq-re :<..r' 'a [:seq-re :<r_ nil] 'b]]
-                       [:seq-re :<..r. [:fdna [] [:U]]] ])
+                          [:seq-re :<..r. [:fdna [] [:U]]]])
              "(({..@~ a, {@_ }, b}) {..@. [:fdna [] ::U]})"))
       (is (= (print-expr [:- [[:mem [] [:mem [["foo" "bar"] ["bar" :M]] nil]]
-                           [:mem [[[:seq-re :<r nil] nil]] [:uncl "hey x"]]]])
-             "([:mem  | [:mem foo = bar, bar = :M | ]] [:mem {@ } =  | [:uncl hey x]])"))
-      )
+                              [:mem [[[:seq-re :<r nil] nil]] [:uncl "hey x"]]]])
+             "([:mem  | [:mem foo = bar, bar = :M | ]] [:mem {@ } =  | [:uncl hey x]])")))
+      
 
     (testing "input validation"
       ;; Expression symbols and Operators need not be known

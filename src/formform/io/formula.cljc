@@ -4,7 +4,7 @@
 ;;   `src/formform/io/formula.ebnf`
 ;; and then execute the dedicated task in `bb.edn` to re-generate this file.
 
-(ns ^:no-doc formform.io.formula
+(ns formform.io.formula
   (:require #?(:clj  [instaparse.core :as insta :refer [defparser]]
                :cljs [instaparse.core :as insta :refer-macros [defparser]])))
 
@@ -26,10 +26,16 @@ VAR_QUOT    = <'\"'> TEXT <'\"'> | <\"'\"> TEXT <\"'\">;
 SYMBOL      = !(SEQRE_SYM | FDNA_SYM | MEMORY_SYM)
               #':[^ \\(\\)\\[\\]\\{\\}\\,\\.;:⁘\\`\\'\\\"@~]+';
 OPERATOR    = <'['> (OP_SPEC | SYMBOL [LITERAL] CTX) <']'>;
-<OP_SPEC>   = SEQRE_SYM SEQRE_SPEC | FDNA_SYM FDNA_SPEC | MEMORY_SYM MEMORY_SPEC
+<OP_SPEC>   = SEQRE_SYM SEQRE_SPEC 
+            | FDNA_SYM FDNA_SPEC 
+            | MEMORY_SYM MEMORY_SPEC
+            | UNCLEAR_SYM UNCLEAR_SPEC
 (* UNPARSED  = #'.*?' *)
 
+UNCLEAR_SYM = ':uncl';
 UNCLEAR     = <'/'> TEXT <'/'>;
+(* UNCLEAR_LBL = TEXT; *)
+<UNCLEAR_SPEC> = <#'\\s+'> TEXT;
 
 SEQRE       = <'{'> SEQRE_SPEC <'}'>;
 SEQRE_SYM   = ':seq-re';

@@ -4,7 +4,8 @@
             [formform.calc.specs :as sp]
             [formform.utils :as utils]
             [clojure.spec.alpha :as s]
-            [clojure.spec.gen.alpha :as gen]))
+            [clojure.spec.gen.alpha :as gen]
+            #_[orchestra.spec.test :as stest]))
 
 
 ;; ? common specs
@@ -101,35 +102,35 @@
 ;; Convert constants
 
 (s/fdef digit->const
-  :args (s/alt :ar1 (s/cat :int ::sp/const-int?)
+  :args (s/alt :ar1 ::sp/const-int?
                :ar2 (s/cat :sort-code ::sp/sort-code
                            :int ::sp/const-int?))
   :ret  ::sp/const?)
 (defn digit->const
   "Converts a digit to its corresponding constant representation."
-  ([n] (digit->const nuim-code n))
+  ([n] (core/digit->const nuim-code n))
   ([sort-code n]
    (core/digit->const sort-code n)))
 
 (s/fdef char->const
-  :args (s/alt :ar1 (s/cat :char ::sp/const-char?)
+  :args (s/alt :ar1 ::sp/const-char?
                :ar2 (s/cat :sort-code ::sp/sort-code
                            :char (s/nonconforming ::sp/const-char?)))
   :ret  ::sp/const?)
 (defn char->const
   "Coerces a `char` to a corresponding `constant`."
-  ([c] (char->const nuim-code c))
+  ([c] (core/char->const nuim-code c))
   ([sort-code c]
    (core/char->const sort-code c)))
 
 (s/fdef const->digit
-  :args (s/alt :ar1 (s/cat :const ::sp/const)
+  :args (s/alt :ar1 ::sp/const
                :ar2 (s/cat :sort-code ::sp/sort-code
                            :const ::sp/const))
   :ret  ::sp/const-int?)
 (defn const->digit
   "Converts a `constant` to a `digit` corresponding to an optional `sort-code` or the default `nuim-code`."
-  ([c] (const->digit nuim-code c))
+  ([c] (core/const->digit nuim-code c))
   ([sort-code c]
    (core/const->digit sort-code c)))
 
