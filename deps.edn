@@ -7,7 +7,7 @@
         instaparse/instaparse {:mvn/version "1.4.12"}}
  :aliases
  {:neil
-  {:project {:name formsandlines/formform
+  {:project {:name eu.formsandlines/formform
              :version "0.1.0"}}
 
   :dev
