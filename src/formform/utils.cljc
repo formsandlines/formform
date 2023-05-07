@@ -97,21 +97,6 @@
          (fnode [x])
          (fnode (concat [x] [(nest-right fnode fx r)])))))))
 
-;; !! deprecated
-(defmacro defapi
-  "Defines an alias for the API that retains the metadata of the implementation with an optional docstring replacement."
-  ([impl-sym] `(defapi ~impl-sym nil))
-  ([impl-sym docstring]
-   (let [name-     (-> impl-sym name symbol)
-         api-sym   (symbol (str *ns*) (name name-))
-         meta-sym  (gensym "m")]
-     `(alter-meta!
-       (def ~name- @#'~impl-sym)
-       (constantly (let [~meta-sym (meta #'~impl-sym)]
-                     ~(if docstring
-                        `(assoc ~meta-sym :doc ~docstring)
-                        meta-sym)))))))
-
 (defn list-fn-specs [ns-root]
   (for [[k _] (s/registry)
         :when (and (symbol? k)
