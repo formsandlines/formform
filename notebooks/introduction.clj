@@ -1,4 +1,5 @@
-(ns formform.introduction
+(ns introduction
+  {:nextjournal.clerk/toc true}
   (:require [nextjournal.clerk :as clerk]
             [formform.calc :as calc]
             [formform.expr :as expr :refer :all]
@@ -175,32 +176,176 @@
 
 ;; If you do not feel comfortable with the signature notation, you can also let the constructor generate it by providing an options map like this:
 
-(make :seq-re {:parity :odd, :open? true, :interpr :rec-instr} 'a 'b)
+(make :seq-re {:parity :odd, :open? true, :interpr :rec-ident} 'a 'b)
 
 
 ;; #### Unclear FORMs
 
+;; The *unclear FORM* is also represented as an operator in formform:
 
-;; ### Parsing formula notation
+(def uncl (make :uncl "foo" "bar"))
 
-;; Even though formform has a pretty lightweight data model to represent expressions, it is hard to understand for non-programmers and not very elegant to write.
+;; Its interpretation is aligned with the definition in uFORM iFORM:
 
-;; To be more accessible to user interfaces, formform provides a *formula notation*, that I specified based on the popular parentheses notation for simple binary FORMs, but extended to work with all expressions in formform.
+(interpret uncl)
 
-;; To parse the notation, require the `formform.io` module and use `read-expr`:
 
-(io/read-expr "(((a) b) 'black cat 🐈‍⬛')")
+;; #### Other operators
 
-(io/read-expr ":N (:U) (:I (:M))")
+;; There are two more predefined operators in formform (the *memory FORM* and the *formDNA expression*) and you can even define your own, but this is outside of the scope of this introduction, which should merely give you an idea on how to work with familiar concepts from uFORM iFORM in formform.
 
-;; Expression data can be converted back to formula strings using `print-expr`:
+
+;; ## Simplification
+
+;; Simplifying expressions will (try to) reduce them to their most primitive FORM. All deductions in the algorithm are justified by the axioms of FORM logic:
+
+(simplify [:- [] []])
+
+(simplify [[]])
+
+;; Of course, variables cannot be simplified on their own:
+
+(simplify 'a)
+
+(simplify [:- 'a ['a ['a 'a]]])
+
+;; But they can still be dominated by the mark (via deduction rules):
+
+(simplify ['a ['a] 'b])
+
+;; `simplify` can take an _environment_ to interpret variables directly:
+
+(simplify ['a ['b]] {'a :U 'b :I})
+
+;; As you can see, `:U` cannot be further simplified, since it is a primitive value, just like _mn_ (‘m’ on top of ‘n’) in uFORM iFORM:
+
+^{::clerk/visibility {:code :hide :result :show}}
+(clerk/table {:nextjournal.clerk/width :prose}
+             (clerk/use-headers
+              (into [["" "Constant" "Simplification"]]
+                    (let [vals [:N :M :U :I]]
+                      (apply map vector
+                             [["Unmarked" "Marked" "Undetermined" "Imaginary"]
+                              vals
+                              (map simplify vals)])))))
+
+(simplify [:seq-re :<r nil nil])
+
+;; > To keep things simple, I have chosen `:U` to represent the _uFORM_ aka ‘mn’ and `:I` for the _iFORM_ aka ‘(mn)’, but there is an alias `:mn` for `:U`, if you want to use this symbol instead.
+
+;; Arrangements using the `:-` operator will be simplified to either merge into the parent expression (if possible) or become double marked FORMs:
+
+(simplify [:- 'a [:- 'b 'c] 'd])
+
+;; Simplifying the _unclear_ operator results in a *formDNA expression*, which is essentially a value structure (which I call *formDNA*) wrapped inside an expression:
+
+(simplify [:uncl "love"])
+
+;; Looking at the value table in evaluation (which we will get to in the next section) reveals this correspondence:
+
+^{::clerk/visibility {:code :hide :result :show}}
+(let [m (eval-all [:uncl "love"])]
+  (clerk/table
+   {::clerk/width :prose}
+   (cons [(first (:varorder m)) "result"]
+         (map (fn [[i r]] [(first i) r]) (:results m)))))
+
+;; > Remember that this is the result expected from interpreting the unclear FORM as `[:seq-re :<r "love" "love"]`.
+
+
+;; ## Evaluation
+
+;; Evaluation of expressions in formform depends on a prior simplification step, which is ultimately needed to evaluate self-equivalent re-entry FORMs (which cannot be determined arithmetically, as we know from uFORM iFORM).
+
+;; This means that it uses the same algorithm as `simplify`, but interprets the simpilfied expression as a value constant instead:
+
+(evaluate [:- [] []])
+
+(evaluate [[]])
+
+;; If the simplified expression cannot be determined to a constant, it will be returned as is:
+
+(evaluate [:uncl "love"])
+
+;; However, just like with `simplify`, you can provide an environment to interpret variables and determine the result:
+
+(evaluate [:uncl "love"] {"love" :M})
+
+;; Or you can use `eval-all` to evaluate the expression with all possible interpretation of all variables. The `:results` are provided as key-value pairs, where the key is a list of interpretations for each variable in the order specified by `:varorder`.
+
+(eval-all [:uncl "love"])
+
+(eval-all [['a] 'b])
+
+
+;; ## *formula notation*
+
+;; Even though formform has a pretty lightweight data model to represent and easily manipulate expressions, it is hard to understand for non-programmers and not very elegant to write.
+
+;; To be more accessible to user interfaces, formform provides the *formula notation*, that I have designed based on the common parentheses notation for simple binary FORMs, but extended to work with all expressions in formform.
+
+
+;; ### Reading formulas
+
+;; To parse _formulas_, require the `formform.io` module and call `read-expr`:
+
+(io/read-expr "(((a) b) cat)")
+
+;; As you can see, any word beginning with an alphabetic letter (upper- or lowercase) is a variable. But if you sorround them with (single or double) quotes, they may contain spaces and unicode characters (but no brackets of any kind):
+
+(io/read-expr "'black cat 🐈‍⬛' \"e^π👁️ + 1 = 0\"")
+
+;; Constants and other expression symbols are written just like in Clojure:
+
+(io/read-expr ":M :U :mn")
+
+;; Note that without the colon prefix, constants are interpreted as variables instead. This is by design, to be able to distinguish constants (and expression symbols in general) from variables more easily.
+
+;; You can also use digits to represent constants, but keep in mind that the default interpretation is in “nuim-code” (`n=0`, `u=1`, `i=2`, `m=3`), which you can change by specifying a different `:sort-code`:
+
+calc/nuim-code
+calc/nmui-code
+
+(=> (io/read-expr ":1"))
+(=> (io/read-expr {:sort-code calc/nmui-code} ":1"))
+
+;; > I encourage you to stick with letters instead of digits – they always have an unambiguous interpretation in the calculus that can be easily understood and remembered by anyone without the need for decoding.
+
+;; There is no explicit notation for “emptyness”/`nil`, but the empty formula is equivalent to it:
+
+(io/read-expr "")
+
+;; Self-equivalent re-entry FORMs have a short notation with curly brackets, where each nested space is separated by a comma:
+
+(io/read-expr "{}")
+(io/read-expr "{a, (b {,}) {:M,}, c}")
+
+;; As you can see, the default signature is `:<r`, but of course, you can provide your own:
+
+(io/read-expr "{..@~._ a,b}")
+
+;; Or use option parameters (separated by pipes):
+
+(io/read-expr "{2r+1|open|alt| a,b}")
+
+;; Unclear FORMs also have a special syntax and can wrap any text, just like quoted variable names:
+
+(io/read-expr "/👁️ 👄 👁️/")
+
+
+;; ### Printing as formula
+
+;; Expression data can be converted (back) to formula strings using `print-expr`:
 
 (io/print-expr [[["a"] "b"] "black cat 🐈‍⬛"])
 
 (io/print-expr [:- :N [:U] [:I [:M]]])
 
+;; > Note that a formula that is being read and then printed from this data may not result in the same formula string (e.g. some whitespace may be added or removed), but structure and semantics should still be equal.
 
-;; ### Simplification of expressions
 
-;; ### Evaluation of expressions
+;; ## More information
+
+;; * [source repository](https://github.com/formsandlines/formform)
+;; * [API documentation](https://formform.dev/docs)
 

@@ -1,4 +1,4 @@
-(ns formform.symbolic-expressions
+(ns symbolic-expressions
   (:require [nextjournal.clerk :as clerk]
             [formform.expr :as expr :refer :all]))
 

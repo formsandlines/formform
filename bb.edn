@@ -13,7 +13,16 @@
   docs 
   {:doc "Generate docs and call a (private) script to upload to server"
    :task (do (run 'codox:gen)
-             (shell {:dir ".."} "./deploy-docs.sh"))}
+           (shell {:dir ".."} "./deploy-docs.sh"))}
+
+  clerk:build
+  {:doc "Build notebooks with Clerk"
+   :task (clojure "-X:clerk")}
+
+  notes 
+  {:doc "Generate notebooks and call a (private) script to upload to server"
+   :task (do (run 'clerk:build)
+             (shell {:dir ".."} "./deploy-notes.sh"))}
 
   instafix
   {:doc "formula.ebnf -> formula.cljc (instaparse fix for ClojureScript)"

@@ -5,7 +5,7 @@
         org.clojure/core.match {:mvn/version "1.0.0"}
         orchestra/orchestra {:mvn/version "2021.01.01-1"}
         meander/epsilon {:mvn/version "0.0.650"}
-        io.github.nextjournal/clerk {:mvn/version "0.12.707"}
+        io.github.nextjournal/clerk {:mvn/version "0.13.842"}
         instaparse/instaparse {:mvn/version "1.4.12"}}
  :aliases
  {:neil
@@ -19,7 +19,7 @@
    :main-opts ["-m" "cognitect.test-runner"]
    :exec-fn cognitect.test-runner.api/test}
 
-  :codox 
+  :codox
   {:extra-deps {codox/codox {:mvn/version "0.10.8"}}
    :exec-fn codox.main/generate-docs
    :exec-args {:name "formform"
@@ -34,6 +34,12 @@
                           :doc "FIXME: write docs"}
                :source-uri "https://github.com/formsandlines/formform/blob/main/{filepath}#L{line}"
                :source-paths ["src"]}}
+
+  :clerk
+  {:exec-fn nextjournal.clerk/build!
+   :exec-args {:paths ["notebooks/*"]
+               :index "index.clj"
+               :out-path "../formform-www"}}
 
   :build ;; added by neil
   {:deps {io.github.clojure/tools.build {:git/tag "v0.9.4" :git/sha "76b78fe"}

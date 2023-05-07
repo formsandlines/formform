@@ -4,7 +4,8 @@
 
 **formform** is a modular Clojure/ClojureScript library all about the 4-valued logic of cognition first introduced 2017 by Ralf Peyn in [uFORM iFORM](https://uformiform.info). In its core, the purpose of the library is to enable the representation, evaluation and algebraic simplification of all (undetermined, imaginary, unclear, …) FORMs that have been introduced in the book. 
 
-[API Docs](https://formform.dev/docs/)
+- [Introduction](https://formform.dev/notebooks/)
+- [API Docs](https://formform.dev/notebooks/introduction.html)
 
 ---
 
