@@ -8,7 +8,7 @@
  :aliases
  {:neil
   {:project {:name formsandlines/formform
-             :version "0.0.1"}}
+             :version "0.1.0"}}
 
   :dev
   {:extra-paths ["dev" "test" "notebooks"]
