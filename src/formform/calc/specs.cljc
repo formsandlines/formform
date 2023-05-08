@@ -1,8 +1,11 @@
 (ns formform.calc.specs
-  (:require [formform.calc.core :as core]
-            [formform.utils :as utils]
-            [clojure.spec.alpha :as s]
-            [clojure.spec.gen.alpha :as gen]))
+  (:require
+    [formform.calc.core :as core]
+    [formform.utils :as utils]
+    [clojure.spec.alpha :as s]
+    [clojure.spec.gen.alpha :as gen])
+  #?(:cljs (:require-macros
+            [formform.calc.specs :refer [spec--dna-args spec--dna-seq-args]])))
 
 ;;-------------------------------------------------------------------------
 ;; constant

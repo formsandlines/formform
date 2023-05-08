@@ -1,6 +1,12 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [Unreleased]
+
+### Fixed
+
+- Macros not recognized in ClojureScript
+
 ## [0.1.0] - 2023-05-07
 
 First alpha release of the rewrite on Clojars. I advice against using it in any serious manner just yet, as there are still some rough edges, missing tests, unresolved issues, undecided questions and maybe also some outdated documentation.

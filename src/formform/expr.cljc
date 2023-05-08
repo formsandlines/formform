@@ -1,14 +1,16 @@
 (ns formform.expr
   "API for the `expr` module of `formform`."
   (:require
-   [formform.calc.specs :as calc-sp]
-   [formform.expr.specs :as sp]
-   [formform.expr.symexpr :as symx]
-   [formform.expr.core :as core]
-   [formform.expr.operators :as ops]
-   [formform.utils :as utils]
-   [clojure.spec.alpha :as s]
-   #_[clojure.spec.gen.alpha :as gen]))
+    [formform.calc.specs :as calc-sp]
+    [formform.expr.specs :as sp]
+    [formform.expr.symexpr :as symx]
+    [formform.expr.core :as core]
+    [formform.expr.operators :as ops]
+    [formform.utils :as utils]
+    [clojure.spec.alpha :as s]
+    #_[clojure.spec.gen.alpha :as gen])
+  #?(:cljs (:require-macros
+             [formform.expr :refer [defoperator defsymbol]])))
 
 
 (s/def :opts/ordered? boolean?)
