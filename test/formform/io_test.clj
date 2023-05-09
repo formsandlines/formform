@@ -68,6 +68,7 @@
       (is (fail? (tree "\"a/b\"/"))))
 
     (testing "valid match"
+      (is (= (tree "") [:EXPR]))
       (is (= (tree "'a'") [:EXPR [:VAR_QUOT "a"]]))
       (is (= (tree "\"a\"") [:EXPR [:VAR_QUOT "a"]]))
       (is (= (tree "/a/") [:EXPR [:UNCLEAR "a"]]))
@@ -86,9 +87,6 @@
              '([:EXPR [:VAR_QUOT "x_1"] [:VAR_QUOT "…"]
                 [:VAR_QUOT "x_2|v|+1"]])))))
       
-
-    
-
   (testing "Parentheses"
     (testing "incomplete match"
       (is (fail? (tree "("))) (is (fail? (tree ")")))
@@ -98,13 +96,11 @@
       (is (fail? (tree ")(")))
       (is (fail? (tree "][")))
       (is (fail? (tree "}{"))))
-      
 
     (testing "invalid term"
       ;; ? maybe this has a use-case
       (is (fail? (tree "[]"))))
       
-
     (testing "interfering matches"
       (is (fail? (tree "([)]")))
       (is (fail? (tree "[(])")))
@@ -113,15 +109,12 @@
       (is (fail? (tree "[{]}")))
       (is (fail? (tree "[(])"))))
 
-      
-
     (testing "valid empty pairs"
       (is (= (trees "()") [[:EXPR [:FORM]]]))
       (is (= (trees "{}") [[:EXPR [:SEQRE [:EXPR]]]]))
 
       (is (= (trees "(){}") [[:EXPR [:FORM] [:SEQRE [:EXPR]]]])))
       
-
     (testing "valid nested pairs"
       (is (= (trees "(())") [[:EXPR [:FORM [:FORM]]]]))
       (is (= (trees "(((()))()(()))()(()())")
@@ -140,9 +133,6 @@
                       [:SEQRE [:EXPR [:FORM]]]]
                [:FORM] [:SEQRE [:EXPR [:FORM] [:SEQRE [:EXPR]]]]]]))))
       
-
-    
-
   (testing "Allowed spacing"
     (testing "between literals"
       (is (= (trees ":1") (trees " :1") (trees ":1 ")
@@ -185,7 +175,6 @@
       (is (= (trees ":MM") '([:EXPR [:SYMBOL ":MM"]])))
       (is (= (trees ":NUIM") '([:EXPR [:SYMBOL ":NUIM"]]))))
       
-
     (testing "between literals and forms"
       (is (= (trees "( a )") (trees "( a)") (trees "(a )") (trees "(a)")
              '([:EXPR [:FORM [:VAR "a"]]])))
@@ -218,9 +207,6 @@
       (is (= (trees ":U'U' :I u():U b")
              '([:EXPR [:SYMBOL ":U"] [:VAR_QUOT "U"] [:SYMBOL ":I"]
                 [:VAR "u"] [:FORM] [:SYMBOL ":U"] [:VAR "b"]])))))
-
-      
-    
 
   (testing "Symbols"
     (is (= (trees ":x") '([:EXPR [:SYMBOL ":x"]])))
@@ -301,8 +287,6 @@
               :I :I :U :U  :M :U :U :M  :M :M :M :M  :U :I :I :U
               :N :I :I :M  :U :I :N :M  :N :I :U :U  :U :M :N :I]])))
 
-    
-
   (testing "Correctness of related transformations"
     (testing "of the same type"
       (is (= (read-expr "()()") '[:- () ()]))
@@ -321,8 +305,6 @@
                [:fdna ["a"] [:N :U :I :M]]
                [:fdna ["a"] [:N :U :I :M]]]))))
       
-    
-
   (testing "Correctness of nested transformations"
     (testing "of the same type"
       (is (= (read-expr "(())") '(())))
@@ -340,7 +322,6 @@
                [:seq-re :<r [:seq-re :<r nil]]
                [:seq-re :<r [:seq-re :<r nil] nil nil] nil nil nil])))
       
-
     (testing "of different types"
       (is (= (read-expr "(:U 'x_1' [:fdna ['x_1']::NMUI] /はあ/ {alt|2r|} :2)")
              '(:U "x_1" [:fdna ["x_1"] [:N :M :U :I]] [:uncl "はあ"]
@@ -372,9 +353,6 @@
                [:uncl "deeming"]
                [:uncl "telling"]
                [:uncl "understanding"]]))))
-
-      
-    
 
   (testing "Operator parsing"
     (testing "predefined operators"
@@ -410,7 +388,6 @@
       (is (= (read-expr "[:foo x y]") '[:foo "x" "y"]))
       (is (= (read-expr "[:x a () [:y]]") '[:x "a" [] [:y]])))))
       
-   
 
 (deftest expr->formula-test
   (testing "Correct formula output"
@@ -449,7 +426,6 @@
                               [:mem [[[:seq-re :<r nil] nil]] [:uncl "hey x"]]]])
              "([:mem  | [:mem foo = bar, bar = :M | ]] [:mem {@ } =  | [:uncl hey x]])")))
       
-
     (testing "input validation"
       ;; Expression symbols and Operators need not be known
       (is (= (print-expr :foo) ":foo"))

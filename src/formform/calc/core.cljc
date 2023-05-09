@@ -247,6 +247,15 @@
       dna
       (throw (ex-info "invalid dna length" {:dna dna})))))
 
+(defn rand-dna
+  ([dim] (rand-dna dim nil))
+  ([dim elems]
+   (let [len    (apply * (repeat dim 4))
+         gen-fn #(rand-nth (if (and (some? elems) (<= (count elems) 4))
+                             elems
+                             nuim-code))]
+     (vec (repeatedly len gen-fn)))))
+
 
 (defn filter-dna-seq
   [dna-seq depth-selections]
@@ -391,6 +400,20 @@
   [dna]
   (vdict->vmap nil (dna->vdict {} dna)))
 
+(defn vmap-dimension
+  [vmap]
+  (loop [vmap   vmap
+         cached (:dim (meta vmap))
+         dim    0]
+    (cond
+      (some? cached)  cached
+      (keyword? vmap) dim
+      :else           (let [vmap-part (:N vmap)]
+                        (recur vmap-part
+                               (:dim (meta vmap-part))
+                               (inc dim))))))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; formDNA arithmetic
 
@@ -436,6 +459,8 @@
 
 
 (comment)
+  
+      
   ; (set! *print-length* 50)
   ; (require '[criterium.core :as crt])
 

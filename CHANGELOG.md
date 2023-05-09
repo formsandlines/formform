@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
+### Added
+
+- `vmap-dimension` to calculate the dimension of vmaps (like `dna-dimension`) or get it from meta `:dim` cached by a vmap constructor (not for zero-dimension vmaps)
+
 ### Fixed
 
 - Macros not recognized in ClojureScript

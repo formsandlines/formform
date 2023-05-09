@@ -180,13 +180,9 @@
   :ret  ::sp/dna-seq)
 (defn rand-dna
   "Generates a random formDNA/`dna-seq` of dimension `dim`. A vector of 4 custom elements can be provided as a second argument."
-  ([dim] (rand-dna dim nil))
+  ([dim] (core/rand-dna dim nil))
   ([dim elems]
-   (let [len    (apply * (repeat dim 4))
-         gen-fn #(rand-nth (if (and (some? elems) (<= (count elems) 4))
-                             elems
-                             nuim-code))]
-     (vec (repeatedly len gen-fn)))))
+   (core/rand-dna dim elems)))
 
 
 ;; Sort formDNA
@@ -484,6 +480,14 @@ Note that `nuim-code` is the default ordering. If a different `sort-code` is spe
 (defn dna->vmap
   [dna]
   (core/dna->vmap dna))
+
+(s/fdef vmap-dimension
+  :args (s/cat :vmap ::sp/vmap)
+  :ret  int?)
+(defn vmap-dimension
+  "Returns the dimension of a vmap (equivalent to `dna-dimension` of the corresponding formDNA)."
+  [vmap]
+  (core/vmap-dimension vmap))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -483,6 +483,20 @@
                          [:I :N] :M, [:I :U] :N, [:I :I] :U, [:I :M] :I,
                          [:M :N] :I, [:M :U] :U, [:M :I] :M, [:M :M] :N})))))
 
+(deftest vmap-dimension-test
+  (testing "Cached dimension in vmap meta"
+    (is (= 5 (vmap-dimension (dna->vmap (rand-dna 5))))))
+         
+  (testing "Matching dimension for vmaps without meta"
+    (is (= 0 (vmap-dimension :N)))
+    (is (= 0 (vmap-dimension :U)))
+    (is (= 1 (vmap-dimension {:N :M, :U :I, :I :U, :M :N})))
+    (is (= 2 (vmap-dimension
+              {:N {:N :N, :U :M, :I :U, :M :U},
+               :U {:N :I, :U :I, :I :I, :M :M},
+               :I {:N :M, :U :N, :I :U, :M :I},
+               :M {:N :I, :U :U, :I :M, :M :N}}))))) 
+
 (deftest rel-test
   (testing "Correctness of relation"
     (is (= :N (rel) (rel :N) (rel :N :N)))
