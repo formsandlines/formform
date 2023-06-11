@@ -1,16 +1,17 @@
 (ns formform.expr
   "API for the `expr` module of `formform`."
   (:require
-    [formform.calc.specs :as calc-sp]
-    [formform.expr.specs :as sp]
-    [formform.expr.symexpr :as symx]
-    [formform.expr.core :as core]
-    [formform.expr.operators :as ops]
-    [formform.utils :as utils]
-    [clojure.spec.alpha :as s]
-    #_[clojure.spec.gen.alpha :as gen])
+   [formform.calc.specs :as calc-sp]
+   [formform.expr.specs :as sp]
+   [formform.expr.symexpr :as symx]
+   [formform.expr.core :as core]
+   [formform.expr.operators :as ops]
+   [formform.utils :as utils]
+   [clojure.math.combinatorics :as combo]
+   [clojure.spec.alpha :as s]
+   #_[clojure.spec.gen.alpha :as gen])
   #?(:cljs (:require-macros
-             [formform.expr :refer [defoperator defsymbol]])))
+            [formform.expr :refer [defoperator defsymbol]])))
 
 
 (s/def :opts/ordered? boolean?)
@@ -134,6 +135,14 @@
   "Given an expression, returns the corresponding constant value."
   [expr]
   (symx/expr->const expr))
+
+(s/fdef permute-vars
+  :args (s/cat :varorder ::sp/varorder)
+  :ret  (s/every ::sp/varorder))
+(defn permute-vars
+  "Generates all permutations of a variable order (a sequence of variables)."
+  [varorder]
+  (combo/permutations varorder))
 
 
 ;;=========================================================================

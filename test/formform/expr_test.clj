@@ -1458,6 +1458,15 @@
     (is (equiv (seq-re :<r '(()) '(())) :U))))
 
 
+(deftest permute-vars-test
+  (testing "Correct permutations"
+    (is (= (permute-vars '[a b c])
+           '[[a b c]
+             [a c b]
+             [b a c]
+             [b c a]
+             [c a b]
+             [c b a]])))) 
 
 
 
