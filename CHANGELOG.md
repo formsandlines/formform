@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file. This change
 ### Fixed
 
 - Macros not recognized in ClojureScript
+- `permute-dna-seq`, which had an incorrect implementation and lack of testing
 
 ## [0.1.0] - 2023-05-07
 
