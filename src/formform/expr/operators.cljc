@@ -20,7 +20,7 @@
              :refer [op-get op-data op-symbol valid-op? make-op
                      interpret-op simplify-op]
              :refer-macros [defoperator]])
-   [formform.expr.core :as core :refer [make form]]))
+   [formform.expr.core :as core :refer [make form permute-vars]]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -424,6 +424,15 @@
   :constructor construct-formDNA
   :predicate formDNA?
   :reducer simplify-formDNA)
+
+(defn formDNA-perspectives [fdna]
+  (let [{:keys [dna varorder]} (op-data fdna)
+        perms (permute-vars varorder)]
+    (apply make
+           (map (fn [varorder [_ dna]]
+                  (make :fdna varorder dna))
+                perms
+                (calc/dna-perspectives dna)))))
 
 
 (comment

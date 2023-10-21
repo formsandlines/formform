@@ -5,13 +5,14 @@ All notable changes to this project will be documented in this file. This change
 
 ### Added
 
-- `vmap-dimension` to calculate the dimension of vmaps (like `dna-dimension`) or get it from meta `:dim` cached by a vmap constructor (not for zero-dimension vmaps)
-- `permute-vars` to generate all permutations of a variable ordering
+- `calc/vmap-dimension` to calculate the dimension of vmaps (like `dna-dimension`) or get it from meta `:dim` cached by a vmap constructor (not for zero-dimension vmaps)
+- `expr/permute-vars` to generate all permutations of a variable ordering
+- `expr/formDNA-perspectives` as a complement to `calc/dna-perspectives` which does the same thing but while transforming a formDNA expressions into an arrangement of formDNA expressions as its perspectives (keeping variable names)
 
 ### Fixed
 
 - Macros not recognized in ClojureScript
-- `permute-dna-seq`, which had an incorrect implementation and lack of testing
+- `calc/permute-dna-seq`, which had an incorrect implementation and lack of testing
 
 ## [0.1.0] - 2023-05-07
 

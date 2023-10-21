@@ -1468,6 +1468,13 @@
              [c a b]
              [c b a]])))) 
 
+(deftest formDNA-perspectives-test
+  (testing "Correct perspectives"
+    (let [dna [:N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :N :U :N :U :U :U :U :U :N :U :N :U :I :I :I :I :I :I :I :I :N :N :I :I :N :N :I :I :M :M :M :M :I :M :I :M :U :U :M :M :N :U :I :M]]
+      (is (= (formDNA-perspectives (make :fdna '[a b c] dna))
+             (apply make
+                    (map (fn [varorder [_ dna]]
+                           (make :fdna varorder dna))
+                         '[[a b c] [a c b] [b a c] [b c a] [c a b] [c b a]]
+                         (calc/dna-perspectives dna))))))))
 
-
-(comment)

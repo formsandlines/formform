@@ -7,7 +7,6 @@
    [formform.expr.core :as core]
    [formform.expr.operators :as ops]
    [formform.utils :as utils]
-   [clojure.math.combinatorics :as combo]
    [clojure.spec.alpha :as s]
    #_[clojure.spec.gen.alpha :as gen])
   #?(:cljs (:require-macros
@@ -142,7 +141,7 @@
 (defn permute-vars
   "Generates all permutations of a variable order (a sequence of variables)."
   [varorder]
-  (combo/permutations varorder))
+  (core/permute-vars varorder))
 
 
 ;;=========================================================================
@@ -332,6 +331,14 @@
 ;; → _operator_ to construct _calc/formDNA_ _expressions_
 
 (def formDNA? (partial s/valid? ::sp/formDNA))
+
+(s/fdef formDNA-perspectives
+  :args (s/cat :fdna ::sp/formDNA)
+  :ret  ::sp/arrangement) ;; ? be more specific
+(defn formDNA-perspectives
+  "Takes a formDNA expression and returns its formDNA perspective group."
+  [fdna]
+  (ops/formDNA-perspectives fdna))
 
 
 ;;=========================================================================

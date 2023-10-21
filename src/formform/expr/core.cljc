@@ -7,6 +7,7 @@
   (:require
    [clojure.set :as set]
    [clojure.walk :as walk]
+   [clojure.math.combinatorics :as combo]
    [formform.calc :as calc]
    [formform.expr.common :refer [tag_arrangement tag_formDNA]]
    [formform.expr.symexpr :as symx]
@@ -501,6 +502,10 @@
                                 :else (butlast simpl-chain))
                   (empty? r) simpl-chain
                   :else (recur r env simpl-chain)))))))))
+
+(defn permute-vars
+  [varorder]
+  (combo/permutations varorder))
 
 
 (comment
