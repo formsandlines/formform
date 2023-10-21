@@ -302,17 +302,44 @@
       (let [int->quat-str (fn [n] (utils/pad-left (utils/int->nbase n 4)
                                                   dim "0"))
             dim-ns (range dim)
-            perm-dna-seq
-            (mapv (fn [i]
-                    (let [qtn-key  (mapv (comp edn/read-string str)
-                                         (int->quat-str i))
-                          perm-key (apply str "4r"
-                                          (map #(qtn-key (perm-order %))
-                                               dim-ns))
-                          i-perm   (edn/read-string perm-key)]
-                      (dna-vec i-perm)))
-                  (range (count dna-seq)))]
-        [perm-order perm-dna-seq]))))
+            ; perm-dna-seq
+            ; (mapv (fn [i]
+            ;         (let [qtn-key  (mapv (comp edn/read-string str)
+            ;                              (int->quat-str i))
+            ;               perm-key (apply str "4r"
+            ;                               (map #(qtn-key (perm-order %))
+            ;                                    dim-ns)) ;; ? just map perm-order
+            ;               i-perm   (edn/read-string perm-key)]
+            ;           (dna-vec i-perm)))
+            ;       (range (count dna-seq)))
+            ;; ? make this platform-agnostic
+            perm-dna-arr #?(:clj  (make-array clojure.lang.Keyword
+                                              (count dna-seq))
+                            :cljs (js/Array. (count dna-seq)))]
+        (dotimes [i (count dna-seq)]
+          (let [qtn-key  (mapv (comp edn/read-string str)
+                               (int->quat-str i))
+                perm-key (apply str "4r"
+                                (map #(qtn-key (perm-order %))
+                                     dim-ns)) ;; ? just map perm-order
+                i-perm   (edn/read-string perm-key)]
+            (aset perm-dna-arr i-perm (dna-vec i))))
+        [perm-order (vec perm-dna-arr)]))))
+
+(comment
+  (def int->quat-str (fn [n] (utils/pad-left (utils/int->nbase n 4)
+                                             3 "0")))
+  (let [perm [1 2 0]
+        qtns (map #(mapv (comp edn/read-string str) (int->quat-str %)) 
+                  (range (utils/pow-nat 4 3)))]
+    (map #(vector % (mapv % perm)) qtns))
+
+  (mapv (comp edn/read-string str)
+        (int->quat-str 24))
+
+  (dotimes [i 10]
+    (println i))
+  )
 
 (defn dna-seq-perspectives
   [{:keys [limit?] :or {limit? true}} dna-seq]
@@ -460,6 +487,7 @@
 
 (comment)
   
+  (inv :M)
       
   ; (set! *print-length* 50)
   ; (require '[criterium.core :as crt])

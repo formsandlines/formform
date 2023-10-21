@@ -15,6 +15,14 @@
    :extra-deps {orchestra/orchestra {:mvn/version "2021.01.01-1"}
                 io.github.nextjournal/clerk {:mvn/version "0.13.842"}}}
 
+  :debug  ;; flow-storm (merge with :dev?)
+  {:classpath-overrides {org.clojure/clojure nil} ;; for disabling the official compiler
+   :extra-deps {com.github.jpmonettas/clojure {:mvn/version "1.11.1-7"}
+                com.github.jpmonettas/flow-storm-dbg {:mvn/version "3.6.10"}}
+   :jvm-opts [; "-Dflowstorm.startRecording=true"
+              "-Dclojure.storm.instrumentEnable=true"
+              "-Dclojure.storm.instrumentOnlyPrefixes=formform,user"]} ; ,user
+
   ; :test ;; added by neil
   ; {:extra-paths ["test"]
   ;  :extra-deps {io.github.cognitect-labs/test-runner

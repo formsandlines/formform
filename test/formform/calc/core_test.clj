@@ -108,7 +108,25 @@
     (is (= (permute-dna-seq
             {}
             [:M :M :M :M :I :I :I :I :U :U :U :U :N :N :N :N] [1 0])
-           [[1 0] [:M :I :U :N :M :I :U :N :M :I :U :N :M :I :U :N]]))))
+           [[1 0] [:M :I :U :N :M :I :U :N :M :I :U :N :M :I :U :N]])))
+  (testing "Correctness of a complete set of permutations"
+    (let [perms
+          [;; a b c
+           [[0 1 2] [:N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :N :U :N :U :U :U :U :U :N :U :N :U :I :I :I :I :I :I :I :I :N :N :I :I :N :N :I :I :M :M :M :M :I :M :I :M :U :U :M :M :N :U :I :M]]
+            ;; a c b
+           [[0 2 1] [:N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :N :U :N :U :U :U :U :U :N :U :N :U :U :U :U :I :I :N :N :I :I :N :N :I :I :I :I :I :I :I :I :M :I :U :N :M :M :U :U :M :I :M :I :M :M :M :M]]
+            ;; b a c
+           [[1 0 2] [:N :N :N :N :U :U :U :U :I :I :I :I :M :M :M :M :N :N :N :N :N :U :N :U :I :I :I :I :I :M :I :M :N :N :N :N :U :U :U :U :N :N :I :I :U :U :M :M :N :N :N :N :N :U :N :U :N :N :I :I :N :U :I :M]]
+            ;; b c a
+           [[1 2 0] [:N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :N :I :I :N :U :I :M :N :N :I :I :N :U :I :M :N :U :N :U :N :U :N :U :N :U :I :M :N :U :I :M :N :N :N :N :N :U :N :U :N :N :I :I :N :U :I :M]]
+            ;; c a b
+           [[2 0 1] [:N :N :N :N :U :N :U :N :I :I :N :N :M :I :U :N :N :N :N :N :U :U :U :U :I :I :N :N :M :M :U :U :N :N :N :N :U :N :U :N :I :I :I :I :M :I :M :I :N :N :N :N :U :U :U :U :I :I :I :I :M :M :M :M]]
+            ;; c b a
+           [[2 1 0] [:N :U :I :M :N :N :I :I :N :U :N :U :N :N :N :N :N :U :I :M :N :U :I :M :N :U :N :U :N :U :N :U :N :U :I :M :N :N :I :I :N :U :I :M :N :N :I :I :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M]]]]
+      (doseq
+       [[porder dna :as p] perms]
+        (is (= (permute-dna-seq {} (second (first perms)) porder)
+               p))))))
 
 
 (deftest dna-seq-perspectives-test
@@ -117,5 +135,18 @@
             {}
             [:M :M :M :M :I :I :I :I :U :U :U :U :N :N :N :N])
            [[[0 1] [:M :M :M :M :I :I :I :I :U :U :U :U :N :N :N :N]]
-            [[1 0] [:M :I :U :N :M :I :U :N :M :I :U :N :M :I :U :N]]]))))
+            [[1 0] [:M :I :U :N :M :I :U :N :M :I :U :N :M :I :U :N]]])))
+  (testing "Expected permutation properties"
+    (let [psps (dna-seq-perspectives ;; (a (b (c))) , a → b → c
+                {}
+                [:N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N
+                 :U :U :U :U :N :U :N :U :U :U :U :U :N :U :N :U
+                 :I :I :I :I :I :I :I :I :N :N :I :I :N :N :I :I
+                 :M :M :M :M :I :M :I :M :U :U :M :M :N :U :I :M])]
+      ;; expected value ordering
+      (is (= (map first psps)
+             [[0 1 2] [0 2 1] [1 0 2] [1 2 0] [2 0 1] [2 1 0]]))
+      ;; every permutation should have the same value frequencies
+      (is (= #{{:N 25, :U 15, :I 15, :M 9}}
+             (into #{} (map (comp frequencies second) psps)))))))
 
