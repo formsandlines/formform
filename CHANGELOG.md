@@ -8,6 +8,11 @@ All notable changes to this project will be documented in this file. This change
 - `calc/vmap-dimension` to calculate the dimension of vmaps (like `dna-dimension`) or get it from meta `:dim` cached by a vmap constructor (not for zero-dimension vmaps)
 - `expr/permute-vars` to generate all permutations of a variable ordering
 - `expr/formDNA-perspectives` as a complement to `calc/dna-perspectives` which does the same thing but while transforming a formDNA expressions into an arrangement of formDNA expressions as its perspectives (keeping variable names)
+- `io/print-dna` and `io/print-const` functions such that formDNA and constants not wrapped in expressions can be printed properly in formula notation
+
+### Changed
+
+- `=>*` aka `eval->expr-all` does now return formDNA as a proper vector that is already reversed at creation-time instead of adding performance cost with an `rseq`
 
 ### Fixed
 

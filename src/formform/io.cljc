@@ -36,6 +36,20 @@
   "Given an expression, returns a string of its representation in `formula` notation."
   [expr] (core/expr->formula expr))
 
+(s/fdef print-const
+  :args (s/cat :const ::calc-sp/const)
+  :ret  string?)
+(defn print-const
+  "Given a constant, returns a string of its representation in `formula` notation."
+  [const] (core/const->formula const))
+
+(s/fdef print-dna
+  :args (s/cat :dna ::calc-sp/dna-seq)
+  :ret  string?)
+(defn print-dna
+  "Given a formDNA, returns a string of its representation in `formula` notation."
+  [dna] (core/dna->formula dna))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Uniform expressions (JSON-like)

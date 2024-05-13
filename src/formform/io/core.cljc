@@ -133,6 +133,9 @@
   (let [form (apply expr/form form)]
     (str "(" (ctx->formula form) ")")))
 
+(defn const->formula
+  [c]
+  (str c))
 
 (defn variable->formula
   [v]
@@ -160,10 +163,14 @@
   (str "{" (seq-reentry-sign->formula sign) " "
        (ctx-seq->formula nested-exprs) "}"))
 
+(defn dna->formula
+  [dna]
+  (str "::" (str/join "" (map name dna))))
+
 (defn formDNA->formula
   [[op-k varorder dna]]
   (str "[" op-k " [" (str/join ", " (map variable->formula varorder)) "] "
-      (str "::" (str/join "" (map name dna))) "]"))
+      (dna->formula dna) "]"))
 
 (defn memory->formula
   [[op-k rems expr]]
@@ -193,6 +200,7 @@
   (condp #(%1 %2) expr
     nil?           ""
     expr/variable? (variable->formula expr)
+    ;; calc/const?    (const->formula expr) ;; ? uncomment for differentiation
     keyword?       (str expr)
     expr/operator? (operator->formula expr)
     expr/form?     (form->formula expr)

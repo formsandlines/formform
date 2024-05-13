@@ -388,6 +388,22 @@
       (is (= (read-expr "[:foo x y]") '[:foo "x" "y"]))
       (is (= (read-expr "[:x a () [:y]]") '[:x "a" [] [:y]])))))
       
+(deftest const->formula-test
+  (testing "Correct formula output"
+    (is (= (print-const :M) ":M"))
+    (is (thrown? clojure.lang.ExceptionInfo (print-const :P)))))
+
+(deftest dna->formula-test
+  (testing "Correct formula output"
+    (is (= (print-dna [:N :U :I :M]) "::NUIM"))
+    (is (thrown? clojure.lang.ExceptionInfo (print-dna [])))
+    (is (thrown? clojure.lang.ExceptionInfo (print-dna [:N :I :M])))
+    ;; Still valid according to spec:
+    ;; ? should the spec be stricter
+    (is (= (print-dna [:N :A :I :M]) "::NAIM"))
+    ;; However, this throws, although still spec-valid:
+    ;; ? should this be allowed
+    (is (thrown? java.lang.ClassCastException (print-dna [0 1 2 3])))))
 
 (deftest expr->formula-test
   (testing "Correct formula output"

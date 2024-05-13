@@ -374,11 +374,16 @@
      :env env
      :val result}))
 
+(def nuim-code-reversed ((comp vec reverse) calc/nuim-code))
+
 ;; ? check for validity of varorder
 (defn eval-simplified*
-  [{:keys [varorder only-vals?]} expr global-env]
+  [{:keys [varorder only-vals? reverse-results?]} expr global-env]
   (let [vars (if (nil? varorder) (find-vars expr {:ordered? true}) varorder)
-        vspc (calc/vspace (count vars))
+        vspc (calc/vspace (if reverse-results?
+                            nuim-code-reversed
+                            calc/nuim-code)
+                          (count vars))
         envs (mapv (comp (partial merge global-env)
                          (partial apply hash-map)
                          (partial interleave vars)) vspc)
@@ -402,9 +407,9 @@
   ([expr env] (=>* {} expr env)) ;; ?? why was this (=>* {} expr {})
   ([opts expr env]
    (let [{:keys [varorder results]}
-         (eval-simplified* (merge opts {:only-vals? true}) expr env)]
-     [tag_formDNA varorder (rseq results)])))
-
+         (eval-simplified*
+          (merge opts {:only-vals? true :reverse-results? true}) expr env)]
+     [tag_formDNA varorder results])))
 
 (defn equal
   [& exprs]
