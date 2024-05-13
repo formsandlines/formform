@@ -261,19 +261,25 @@
   [dna-seq depth-selections]
   (let [dim (dna-dimension dna-seq)]
     (if (== dim (count depth-selections))
-      (let [f (fn [pos depth] (* pos (utils/pow-nat 4 (- dim depth))))
-            depth-offsets (map (fn [pos depth]
-                                 (if (== pos -1)
-                                   (map #(f % depth) (range 0 4))
-                                   (list (f pos depth))))
-                               depth-selections (drop 1 (range)))
-            idxs (set (map #(apply + %)
-                           (apply combo/cartesian-product depth-offsets)))
-            n (dec (count dna-seq))]
-        (->> dna-seq
-             (mapv vector (range))
-             (filterv (fn [[i c]] (idxs (- n i))))
-             (mapv second)))
+      (if (every? nat-int? depth-selections)
+        ;; for fully determined selections, use an efficient quaternary index
+        ((comp vector (vec dna-seq))
+         (- (count dna-seq) 1 (edn/read-string
+                               (apply str "4r" depth-selections))))
+        ;; otherwise, we need more machinery
+        (let [f (fn [pos depth] (* pos (utils/pow-nat 4 (- dim depth))))
+              depth-offsets (map (fn [pos depth]
+                                   (if (== pos -1)
+                                     (map #(f % depth) (range 0 4))
+                                     (list (f pos depth))))
+                                 depth-selections (drop 1 (range)))
+              idxs (set (map #(apply + %)
+                             (apply combo/cartesian-product depth-offsets)))
+              n (dec (count dna-seq))]
+          (->> dna-seq
+               (mapv vector (range))
+               (filterv (fn [[i _]] (idxs (- n i))))
+               (mapv second))))
       (throw
        (ex-info "Size of selection vector must be equal to dna-seq dimension!"
                 {:expected dim :actual (count depth-selections)})))))

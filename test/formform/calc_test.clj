@@ -413,6 +413,16 @@
                                     :M :I :I :M
                                     :I :I :M :I]))))
 
+(deftest dna-get-test
+  ;; is just filter-dna without the vector and no holes in vpoint allowed
+  (testing "IO shape"
+    (is (= (dna-get [:M :M :M :I  :M :N :M :I  :N :U :N :U  :N :U :U :I]
+                    [:M :N])
+           :I))
+    (is (thrown? clojure.lang.ExceptionInfo
+                 (dna-get [:M :M :M :I  :M :N :M :I  :N :U :N :U  :N :U :U :I]
+                          [:M :_])))))
+
 
 (deftest dna-perspectives-test
   (testing "Correctness of permutations"

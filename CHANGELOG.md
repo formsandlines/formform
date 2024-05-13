@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file. This change
 - `expr/permute-vars` to generate all permutations of a variable ordering
 - `expr/formDNA-perspectives` as a complement to `calc/dna-perspectives` which does the same thing but while transforming a formDNA expressions into an arrangement of formDNA expressions as its perspectives (keeping variable names)
 - `io/print-dna` and `io/print-const` functions such that formDNA and constants not wrapped in expressions can be printed properly in formula notation
+- `calc/dna-get` as a convenience function to quickly get a specific value from a dna (also because it isn’t straightforward that `filter-dna` can do the same thing with a little more effort)
 
 ### Changed
 

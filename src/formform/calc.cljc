@@ -294,6 +294,17 @@ Note: `dna-seq` can have any type of elements (not only constants)"
   [dna vpoint]
   (core/filter-dna dna vpoint))
 
+(s/fdef dna-get
+  :args (s/and (s/cat :dna    ::sp/dna
+                      :vpoint (s/every ::sp/const
+                                       :kind sequential?))
+               #(== (core/dna-dimension (-> % :dna))
+                    (count (-> % :vpoint))))
+  :ret  ::sp/const)
+(defn dna-get
+  "Extracts a single value from a `dna` according to a given `vpoint` index, which is a sequence of constants corresponding to each term→value association."
+  [dna vpoint]
+  ((comp first core/filter-dna) dna vpoint))
 
 ;; Convert to/from formDNA
 
