@@ -11,7 +11,12 @@
 (defn geom-seq [k r] (map (fn [n] (* k (pow-nat r n))) (range)))
 
 ;; ? might not be worth it - performance diff. to split-at minimal
-(defn splitv-at [i v]
+;; (unused by now)
+(defn splitv-atv
+  "Alternative to `clojure.core/splitv-at` that only takes vector input.
+
+* performance improvement might be minimal."
+  [i v]
   (vector (into [] (subvec v 0 i))
           (into [] (subvec v i (count v)))))
 
