@@ -19,6 +19,7 @@ All notable changes to this project will be documented in this file. This change
 
 - Macros not recognized in ClojureScript
 - `calc/permute-dna-seq`, which had an incorrect implementation and lack of testing
+- `calc/filter-dna` to handle the edge-case where formDNA dimension is 0, i.e. the dna is equivalent to a constant
 
 ## [0.1.0] - 2023-05-07
 

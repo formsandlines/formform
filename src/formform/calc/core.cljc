@@ -265,7 +265,8 @@
         ;; for fully determined selections, use an efficient quaternary index
         ((comp vector (vec dna-seq))
          (- (count dna-seq) 1 (edn/read-string
-                               (apply str "4r" depth-selections))))
+                               (apply str "4r" (if (empty? depth-selections)
+                                                 [0] depth-selections)))))
         ;; otherwise, we need more machinery
         (let [f (fn [pos depth] (* pos (utils/pow-nat 4 (- dim depth))))
               depth-offsets (map (fn [pos depth]

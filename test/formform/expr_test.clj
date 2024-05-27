@@ -882,6 +882,7 @@
 (deftest simplify-op-test
   (testing "formDNA"
     (testing "Basic functionality"
+      (is (= (simplify-op (make :fdna [] [:N]) {}) :N))
       (is (= (simplify-op (make :fdna ['a] [:N :U :I :M]) {'a :U}) :I))
       (is (= (simplify-op (make :fdna ['a 'b] [:N :U :I :M
                                                :U :I :M :I

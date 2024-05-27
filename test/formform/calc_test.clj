@@ -402,6 +402,9 @@
 
 (deftest filter-dna-test
   (testing "Correctness of transformation"
+    (is (= (filter-dna [:N] []) [:N]))
+    (is (= (filter-dna [:I] []) [:I]))
+    (is (= (filter-dna [:N :M :U :I] [:_]) [:N :M :U :I]))
     (is (= (filter-dna [:N :M :U :I] [:U]) [:U]))
     (is (= (filter-dna [:N :M :U :I] [:M]) [:N]))
     (is (= (filter-dna [:N :U :I :M  :U :I :M :I  :I :M :I :U  :M :I :U :N
