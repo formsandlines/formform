@@ -1,10 +1,10 @@
 {:paths ["src"]
  :deps {org.clojure/clojure {:mvn/version "1.11.1"}
-        org.clojure/math.combinatorics {:mvn/version "0.1.6"}
-        org.clojure/core.match {:mvn/version "1.0.0"}
+        org.clojure/math.combinatorics {:mvn/version "0.3.0"}
+        org.clojure/core.match {:mvn/version "1.1.0"}
         org.clojure/test.check {:mvn/version "1.1.1"}
         ; meander/epsilon {:mvn/version "0.0.650"}
-        instaparse/instaparse {:mvn/version "1.4.12"}}
+        instaparse/instaparse {:mvn/version "1.5.0"}}
  :aliases
  {:neil
   {:project {:name eu.formsandlines/formform

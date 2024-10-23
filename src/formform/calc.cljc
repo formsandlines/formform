@@ -3,6 +3,7 @@
   (:require [formform.calc.core :as core]
             [formform.calc.specs :as sp]
             [formform.utils :as utils]
+            [clojure.test.check.generators]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]))
 
