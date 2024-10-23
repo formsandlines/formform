@@ -62,10 +62,6 @@ As soon as I was able to automate calculation with undetermined FORMs, I saw tha
 
 A first application that I have developed in parallel from the beginning was the [**FORM tricorder**](https://tricorder.formform.dev) – a swiss army knife for FORM calculation, representation and visualization. In September 2019 I was finally able to develop a new [cellular automaton for FORM logic SelFis](https://plotter.formform.dev) with *formform* that is much more user-friendly and much more versatile than what I have done two years earlier. My experimentation with rule extraction by bitmasking in CAs led me to a code format I call [**formDNA**](https://observablehq.com/@formsandlines/the-dna-of-4-valued-forms) that is an abstraction of the value table. It not only made my CA faster and more flexible, it also inspired me to create the **vmap**: a recursive variable/value map to visualize formDNA, that has great potential for pattern recognition in FORMs.
 
-Driven by my own curiosity and some helpful suggestions from users, I continuously work on implementing new ideas and features into the library. Some of these ideas have been prototyped in my [Observable notebooks](https://observablehq.com/@formsandlines) (although I am not using this platform anymore since it does not allow me to privately work on notebooks for free) and announce new developments, bugfixes and changes on my [Twitter account](https://twitter.com/diagramaniac) (which will hopefully be more active again as I come closer to the release of the formform rewrite).
-
-In the near future I want to rewrite my CA for SelFis as a more professional standalone application and also develop other CAs for [decisionFORMs, lifeFORMs and mindFORMs](https://www.carl-auer.de/magazin/systemzeit/how-does-system-function-operate-5). I also want to find a way to algorithmically generate spirals for circular re-entry FORMs, to have a more iconic representation closer to Ralfs notation in uFORM iFORM. There are many more ideas in the pipeline, that I hope to realize as time and other resources allow.
-
 <br/>
 
 ## Support
@@ -74,6 +70,6 @@ If you want to support my work, consider [buying me a coffee](https://www.buymea
 
 ---
 
-(c) 2018–2023 by Peter Hofmann
+(c) 2018–2024 by Peter Hofmann
 
 License: MIT
