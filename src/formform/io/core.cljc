@@ -29,6 +29,9 @@
                  (calc/digit->const sort-code)
                  (calc/const->digit)
                  str)
+            s)
+        s (if (#{"n" "u" "i" "m"} s) ;; !TEMP
+            (str/upper-case s)
             s)]
     (keyword s)))
 
@@ -41,7 +44,10 @@
 (defn parse-fdna
   [sort-code prefixed-s]
   (let [s       (subs prefixed-s 2)
-        digits? (case (first s) (\N \U \I \M) false true)]
+        digits?
+        (case (first s) (\n \u \i \m) false true) ;; !TEMP
+        ;; (case (first s) (\N \U \I \M) false true)
+        ]
     (if digits?
       ;; ? allow numeric formDNA
       (calc/digits->dna sort-code (mapv (comp clojure.edn/read-string str) s))
@@ -112,6 +118,10 @@
   [opts s]
   (parse-tree opts (parser s)))
 
+(comment
+  (formula->expr {} "::nuim")
+  (formula->expr {} ":i")
+  ,)
 
 ;;-------------------------------------------------------------------------
 ;; print formula notation
