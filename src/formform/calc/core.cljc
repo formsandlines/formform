@@ -352,11 +352,13 @@
   [{:keys [limit?] :or {limit? true}} dna-seq]
   (let [dim (dna-dimension dna-seq)]
     (if (and limit? (> dim 6))
-       ;; fast-ish for up to 5 dimensions, have not tested beyond 6.
+      ;; fast-ish for up to 5 dimensions, have not tested beyond 6.
       (throw (ex-info "Aborted: operation too expensive for dimensions greater than 6. Set `:limit?` to false to proceed, but be aware that the combinatorial space explodes quickly!" {:input dna-seq}))
-      (let [dna-vec (vec dna-seq)]
-        (map (partial permute-dna-seq {} dna-vec)
-             (combo/permutations (range dim)))))))
+      (let [dna-vec (vec dna-seq)
+            perms (combo/permutations (range dim))]
+        (with-meta
+          (map (partial permute-dna-seq {} dna-vec) perms)
+          {:sorted-keys perms})))))
 
 
 (def equal-dna =)

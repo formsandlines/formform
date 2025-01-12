@@ -419,6 +419,8 @@
 (deftest dna-get-test
   ;; is just filter-dna without the vector and no holes in vpoint allowed
   (testing "IO shape"
+    (is (= (dna-get [:U] [])
+           :U))
     (is (= (dna-get [:M :M :M :I  :M :N :M :I  :N :U :N :U  :N :U :U :I]
                     [:M :N])
            :I))
@@ -509,6 +511,24 @@
                :U {:N :I, :U :I, :I :I, :M :M},
                :I {:N :M, :U :N, :I :U, :M :I},
                :M {:N :I, :U :U, :I :M, :M :N}}))))) 
+
+(deftest vmap-perspectives-test
+  (testing "Correct output shape"
+    (is (= {[0 1] {:M {:M :U, :I :I, :U :M, :N :N}
+                   :I {:M :U, :I :I, :U :M, :N :N}
+                   :U {:M :U, :I :I, :U :M, :N :N}
+                   :N {:M :U, :I :I, :U :M, :N :N}}
+            [1 0] {:M {:M :U, :I :U, :U :U, :N :U}
+                   :I {:M :I, :I :I, :U :I, :N :I}
+                   :U {:M :M, :I :M, :U :M, :N :M}
+                   :N {:M :N, :I :N, :U :N, :N :N}}}
+           (vmap-perspectives
+            {[0 1] [:U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N],
+             [1 0] [:U :U :U :U :I :I :I :I :M :M :M :M :N :N :N :N]}))))
+  (testing "Retains dna-perspectives metadata"
+    (is (= '([0 1 2 3] [0 1 3 2] [0 2 1 3] [0 2 3 1] [0 3 1 2] [0 3 2 1] [1 0 2 3] [1 0 3 2] [1 2 0 3] [1 2 3 0] [1 3 0 2] [1 3 2 0] [2 0 1 3] [2 0 3 1] [2 1 0 3] [2 1 3 0] [2 3 0 1] [2 3 1 0] [3 0 1 2] [3 0 2 1] [3 1 0 2] [3 1 2 0] [3 2 0 1] [3 2 1 0])
+           (:sorted-keys
+            (meta (vmap-perspectives (dna-perspectives (rand-dna 4)))))))))
 
 (deftest rel-test
   (testing "Correctness of relation"

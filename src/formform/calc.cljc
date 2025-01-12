@@ -305,7 +305,9 @@ Note: `dna-seq` can have any type of elements (not only constants)"
 (defn dna-get
   "Extracts a single value from a `dna` according to a given `vpoint` index, which is a sequence of constants corresponding to each term→value association."
   [dna vpoint]
-  ((comp first core/filter-dna) dna vpoint))
+  (let [subdna (core/filter-dna dna vpoint)]
+    (when (= 1 (count subdna))
+      (first subdna))))
 
 ;; Convert to/from formDNA
 
@@ -379,7 +381,10 @@ Note that `nuim-code` is the default ordering. If a different `sort-code` is spe
   "Given a formDNA, generates all of its permutations and returns a map from permuted term order to the corresponding formDNA."
   ([dna] (dna-perspectives {} dna))
   ([opts dna]
-   (into {} (core/dna-seq-perspectives opts dna))))
+   (let [dna-seq-psps (core/dna-seq-perspectives opts dna)]
+     (with-meta (into {} dna-seq-psps)
+       ;; retains key order from metadata (if available)
+       (meta dna-seq-psps)))))
 
 
 ;;-------------------------------------------------------------------------
@@ -500,6 +505,15 @@ Note that `nuim-code` is the default ordering. If a different `sort-code` is spe
   "Returns the dimension of a vmap (equivalent to `dna-dimension` of the corresponding formDNA)."
   [vmap]
   (core/vmap-dimension vmap))
+
+;; ? is this a good name
+(s/fdef vmap-perspectives
+  :args (s/cat :dna-psps ::sp/dna-perspective-group)
+  :ret  ::sp/vmap-perspective-group)
+(defn vmap-perspectives
+  "Given a group of all perspectives from a formDNA, returns these perspectives as vmaps."
+  [dna-psps]
+  (update-vals dna-psps dna->vmap))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

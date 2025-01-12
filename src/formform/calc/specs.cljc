@@ -131,6 +131,12 @@
                         :count 4)
         :res ::const))
 
+(s/def ::vmap-perspective
+  (s/cat :perm-order ::permutation-order
+         :vmap       ::vmap))
+
+(s/def ::vmap-perspective-group
+  (s/map-of ::permutation-order ::vmap))
 
 ;;-------------------------------------------------------------------------
 ;; function specs (impl)
