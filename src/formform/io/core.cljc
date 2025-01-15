@@ -43,7 +43,8 @@
 
 (defn parse-fdna
   [sort-code prefixed-s]
-  (let [s       (subs prefixed-s 2)
+  (let [s       (-> (subs prefixed-s 2)
+                    str/reverse) ;; !TEMP
         digits?
         (case (first s) (\n \u \i \m) false true) ;; !TEMP
         ;; (case (first s) (\N \U \I \M) false true)
@@ -120,6 +121,7 @@
 
 (comment
   (formula->expr {} "::nuim")
+  (formula->expr {} "[:fdna [a] ::nuim]")
   (formula->expr {} ":i")
   ,)
 

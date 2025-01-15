@@ -494,12 +494,10 @@
   ([a & xs] (inv (apply rel (cons a xs)))))
 
 
-(comment)
+(comment
   
   (inv :M)
-      
-  ; (set! *print-length* 50)
-  ; (require '[criterium.core :as crt])
-
   
-
+  ;; (set! *print-length* 50)
+  ;; (require '[criterium.core :as crt])
+  ,)
