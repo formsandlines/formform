@@ -309,6 +309,7 @@ Note: `dna-seq` can have any type of elements (not only constants)"
     (when (= 1 (count subdna))
       (first subdna))))
 
+
 ;; Convert to/from formDNA
 
 (s/fdef digits->dna

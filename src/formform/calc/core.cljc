@@ -4,8 +4,7 @@
 ;; ========================================================================
 
 (ns ^:no-doc formform.calc.core
-  (:require [clojure.edn :as edn]
-            [clojure.math :as math]
+  (:require [clojure.math :as math]
             [clojure.math.combinatorics :as combo]
             [formform.utils :as utils]))
 
@@ -38,14 +37,17 @@
      (\i \I) :I
      (\m \M) :M
      \_      var-const
-     (when-let [n (edn/read-string (str c))]
+     (when-let [n (utils/parse-int-maybe (str c))]
        (digit->const sort-code n)))))
 
 (defn const->digit
   ([c] (const->digit nuim-code c))
   ([sort-code c]
-   {:pre [(consts c)]}
-   ((zipmap sort-code (range)) c)))
+   ;; {:pre [(consts c)]}
+   (condp = sort-code
+     nuim-code (case c :N 0 :U 1 :I 2 :M 3)
+     nmui-code (case c :N 0 :M 1 :U 2 :I 3)
+     ((zipmap sort-code (range)) c))))
 
 (defn const?->digit
   ([c] (const?->digit nuim-code c))
@@ -55,13 +57,13 @@
      (const->digit sort-code c))))
 
 (defn consts->quaternary
-  "Converts a sequence of constants to a corresponding quaternary number (as a string, prefixed by '4r'). Used for comparison.
+  "Converts a sequence of constants to a corresponding quaternary number (as a string). Used for comparison.
 
   * use `read-string` to obtain the decimal value as a BigInt"
   [consts]
   (if (seq consts)
     (let [digits (map const->digit consts)]
-      (apply str "4r" digits))
+      (apply str digits))
     (throw (ex-info "Must contain at least one element." {:arg consts}))))
 
 (defn make-compare-consts
@@ -74,11 +76,9 @@
                         ;;   parse BigInt here
                         ;;   -> maybe use interop with js/BigInt
                         ;;   or a different approach
-                        ; (dna? x)   (edn/read-string (consts->quaternary x))
-                        (sequential? x) (edn/read-string
-                                         (consts->quaternary x))
+                        (sequential? x) (utils/parse-int
+                                         (consts->quaternary x) 4)
                         (const? x) (sort-map x)
-                        ; (coll? x)  (mapv convert x)
                         :else (throw (ex-info "Incompatible type: " {:x x}))))]
       (if (and (map-entry? a) (map-entry? b))
         (compare (convert (first a)) (convert (first b)))
@@ -264,9 +264,9 @@
       (if (every? nat-int? depth-selections)
         ;; for fully determined selections, use an efficient quaternary index
         ((comp vector (vec dna-seq))
-         (- (count dna-seq) 1 (edn/read-string
-                               (apply str "4r" (if (empty? depth-selections)
-                                                 [0] depth-selections)))))
+         (let [qtn (apply str (if (empty? depth-selections)
+                                [0] depth-selections))]
+           (- (count dna-seq) 1 (utils/parse-int qtn 4))))
         ;; otherwise, we need more machinery
         (let [f (fn [pos depth] (* pos (utils/pow-nat 4 (- dim depth))))
               depth-offsets (map (fn [pos depth]
@@ -287,8 +287,9 @@
 
 (defn filter-dna
   [dna vpoint]
-  (filter-dna-seq dna (map const?->digit vpoint)))
-
+  ;; ! mapping vpoint to digits seems to drag down performance in CAs
+  ;;   so either not use for CA rules or …?
+  (filter-dna-seq dna (mapv const?->digit vpoint)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; formDNA perspectives
@@ -324,29 +325,12 @@
                                               (count dna-seq))
                             :cljs (js/Array. (count dna-seq)))]
         (dotimes [i (count dna-seq)]
-          (let [qtn-key  (mapv (comp edn/read-string str)
-                               (int->quat-str i))
-                perm-key (apply str "4r"
-                                (map #(qtn-key (perm-order %))
-                                     dim-ns)) ;; ? just map perm-order
-                i-perm   (edn/read-string perm-key)]
+          (let [qtn-key  (mapv (comp utils/parse-int str) (int->quat-str i))
+                perm-key (apply str (map #(qtn-key (perm-order %))
+                                         dim-ns)) ;; ? just map perm-order
+                i-perm   (utils/parse-int perm-key 4)]
             (aset perm-dna-arr i-perm (dna-vec i))))
         [perm-order (vec perm-dna-arr)]))))
-
-(comment
-  (def int->quat-str (fn [n] (utils/pad-left (utils/int->nbase n 4)
-                                             3 "0")))
-  (let [perm [1 2 0]
-        qtns (map #(mapv (comp edn/read-string str) (int->quat-str %)) 
-                  (range (utils/pow-nat 4 3)))]
-    (map #(vector % (mapv % perm)) qtns))
-
-  (mapv (comp edn/read-string str)
-        (int->quat-str 24))
-
-  (dotimes [i 10]
-    (println i))
-  )
 
 (defn dna-seq-perspectives
   [{:keys [limit?] :or {limit? true}} dna-seq]

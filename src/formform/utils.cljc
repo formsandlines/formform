@@ -29,12 +29,33 @@
          (rseq xs)
          (reverse xs))))
 
+;; because edn/read-string is too slow
+(defn parse-int
+  "Parses an integer from a string with an optional base, using the implementation function of the respective host language."
+  ([s] (parse-int nil))
+  ([s base]
+   (if base
+     #?(:clj  (. Integer parseInt s base)
+        :cljs (js/parseInt s base))
+     #?(:clj  (. Integer parseInt s)
+        :cljs (js/parseInt s)))))
+
+(defn parse-int-maybe
+  "Like `parse-int`, but return `nil` on invalid input instead of throwing an exception."
+  ([s] (parse-int nil))
+  ([s base]
+   (if base
+     #?(:clj  (try (. Integer parseInt s base) (catch Exception _ nil))
+        :cljs (try (js/parseInt s base) (catch js/Error _ nil)))
+     #?(:clj  (try (. Integer parseInt s) (catch Exception _ nil))
+        :cljs (try (js/parseInt s) (catch js/Error _ nil))))))
+
 ;; -> see https://stackoverflow.com/questions/26082594/converting-a-number-from-base-10-to-another-base-in-clojure for other suggestions
-(defn int->nbase [n base]
-  #?(:clj
-     (Integer/toString n base)
-     :cljs
-     (.toString n base)))
+(defn int->nbase
+  "Converts an integer to a string of that number in the given base."
+  [n base]
+  #?(:clj  (Integer/toString n base)
+     :cljs (.toString n base)))
 
 ;;-------------------------------------------------------------------------
 ;; Modified from source:
