@@ -383,6 +383,16 @@
       (is (= (read-expr "[:mem a = ((a) (b)), ((a) (b)) = :U | a]")
              '[:mem [["a" [["a"] ["b"]]] [[["a"] ["b"]] :U]] "a"]))
 
+      (is (= (read-expr "[:tsds 011010 a,b,c]")
+             '[:tsds [0 1 1 0 1 0] "a" "b" "c"]))
+      (is (fail? (read-expr "[:tsds 011010 a,c]")))
+      (is (fail? (read-expr "[:tsds 011010 a,b,c,d]")))
+      (is (fail? (read-expr "[:tsds 01100 a,b,c]")))
+      (is (fail? (read-expr "[:tsds 0110001 a,b,c]")))
+      (is (fail? (read-expr "[:tsds 012100 a,b,c]")))
+      (is (= (read-expr "[:tsds 000000 :u,b c,(() c)]")
+             '[:tsds [0 0 0 0 0 0] :U [:- "b" "c"] [[] "c"]]))
+
       ;; Expression symbols and Operators need not be known
       (is (= (read-expr ":foo") :foo))
       (is (= (read-expr "[:foo x y]") '[:foo "x" "y"]))

@@ -84,6 +84,10 @@
                         [{} (cons x nodes)])]
     (apply expr/seq-re specs terms)))
 
+(defn parse-binary-selection
+  [& strs]
+  (mapv utils/parse-int strs))
+
 (defn parse-tree
   [{:keys [sort-code] :or {sort-code calc/nuim-code}} tree]
   (insta/transform
@@ -112,7 +116,11 @@
 
     :MEMORY_SYM (partial parse-symbol sort-code)
     :REMLIST   vector
-    :REM       vector}
+    :REM       vector
+
+    :TSDS_SYM  (partial parse-symbol sort-code)
+    :BIN_SEL6  parse-binary-selection
+    }
    tree))
 
 (defn formula->expr
@@ -327,7 +335,8 @@
 
 (comment
   (formula->expr {} "(a)b")
-
+  (formula->expr {} "[:tsds 000000 :u,b c,(() c)]")
+  
   (expr/seq-reentry-signature? {:parity :even, :open? false, :interpr :rec-instr})
   (expr/seq-reentry-opts? {:parity :even, :open? false, :interpr :rec-instr})
 

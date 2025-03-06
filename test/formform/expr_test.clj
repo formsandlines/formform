@@ -1479,3 +1479,20 @@
                          '[[a b c] [a c b] [b a c] [b c a] [c a b] [c b a]]
                          (calc/dna-perspectives dna))))))))
 
+(deftest tsds-op-test
+  (testing "Correct re-entry selection in interpretation of tsds"
+    (is (= '[:-]
+           (interpret (make :tsds [0 0 0 0 0 0] 'l 'e 'r))))
+    (is (= '[:-
+             [:seq-re :<r l e r] [:seq-re :<r r e l] [:seq-re :<r e r l]
+             [:seq-re :<r l r e] [:seq-re :<r r l e] [:seq-re :<r e l r]]
+           (interpret (make :tsds [1 1 1 1 1 1] 'l 'e 'r))))
+    (is (= '[:- [:seq-re :<r r e l] [:seq-re :<r e r l] [:seq-re :<r r l e]]
+           (interpret (make :tsds [0 1 1 0 1 0] 'l 'e 'r)))))
+  (testing "Consistent expressions in interpretation of tsds"
+    (is (= '[:-
+             [:seq-re :<r "apple" [:- x y] (((a) b) c)]
+             [:seq-re :<r [:- x y] "apple" (((a) b) c)]]
+           (interpret (make :tsds [1 0 0 0 0 1]
+                            "apple" [:- 'x 'y] '(((a) b) c)))))))
+

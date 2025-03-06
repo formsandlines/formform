@@ -660,6 +660,11 @@
 
 
 (comment
+  (interpret (make :tsds [0 1 1 0 1 0] 'l 'e 'r))
+
+  ,)
+
+(comment
   ;; ? should `::sp/expression` spec `::sp/operator` instead of `::sp/generic-operator`
   (s/conform ::sp/expression [:uncl "ä"]) ;=> [:operator {:tag :uncl, :label "ä"}]
 

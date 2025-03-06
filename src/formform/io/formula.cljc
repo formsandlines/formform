@@ -23,13 +23,14 @@ FORM        = <'('> [LITERAL] CTX <')'>;
 VAR         = #'[a-zA-Z]\\w*';
 VAR_QUOT    = <'\"'> TEXT <'\"'> | <\"'\"> TEXT <\"'\">;
 <TEXT>      = #'[^\\(\\)\\[\\]\\{\\}\\/\\`\\'\\\"]+';
-SYMBOL      = !(SEQRE_SYM | FDNA_SYM | MEMORY_SYM)
+SYMBOL      = !(SEQRE_SYM | FDNA_SYM | MEMORY_SYM | UNCLEAR_SYM | TSDS_SYM)
               #':[^ \\(\\)\\[\\]\\{\\}\\,\\.;:⁘\\`\\'\\\"@~]+';
 OPERATOR    = <'['> (OP_SPEC | SYMBOL [LITERAL] CTX) <']'>;
 <OP_SPEC>   = SEQRE_SYM SEQRE_SPEC 
             | FDNA_SYM FDNA_SPEC 
             | MEMORY_SYM MEMORY_SPEC
             | UNCLEAR_SYM UNCLEAR_SPEC
+	    | TSDS_SYM TSDS_SPEC
 (* UNPARSED  = #'.*?' *)
 
 UNCLEAR_SYM = ':uncl';
@@ -44,7 +45,7 @@ RE_SIGN     = #'@~?_?' | #'\\.\\.@~?\\.?_?';
 RE_OPTS     = RE_OPT {<'|'> RE_OPT};
 <RE_OPT>    = #'2r(\\+1)?' | 'alt' | 'open';
 
-FDNA        = #'::[nuim]+' | #'::[0123]+';
+FDNA        = #'::[nuim]+' | #'::[0123]+'; (* !TEMP *)
 FDNA_LIT    = FDNA;
 FDNA_SYM    = ':fdna';
 <FDNA_SPEC> = VARLIST FDNA;
@@ -55,5 +56,9 @@ MEMORY_SYM  = ':mem';
 REMLIST     = [REM {<','> REM}] <'|'>;
 REM         = EXPR <'='> EXPR;
 (* REM         = <'['> (VAR | VAR_QUOT) EXPR <']'>; *)
+
+TSDS_SYM    = ':tsds';
+<TSDS_SPEC> = BIN_SEL6 EXPR <','> EXPR <','> EXPR;
+BIN_SEL6    = #'[01]' #'[01]' #'[01]' #'[01]' #'[01]' #'[01]';
 "
   :auto-whitespace :standard)

@@ -32,12 +32,12 @@
 ;; because edn/read-string is too slow
 (defn parse-int
   "Parses an integer from a string with an optional base, using the implementation function of the respective host language."
-  ([s] (parse-int nil))
+  ([s] (parse-int s nil))
   ([s base]
    (if base
-     #?(:clj  (. Integer parseInt s base)
+     #?(:clj  (Integer/parseInt s base)
         :cljs (js/parseInt s base))
-     #?(:clj  (. Integer parseInt s)
+     #?(:clj  (Integer/parseInt s)
         :cljs (js/parseInt s)))))
 
 (defn parse-int-maybe
@@ -129,4 +129,11 @@
                    (string/starts-with? (namespace k) ns-root))]
     k))
 
+(defn lazy-seq? [x]
+  #?(:clj  (instance? clojure.lang.LazySeq x)
+     :cljs (instance? cljs.core.LazySeq x)))
+
+(defn iterate? [x]
+  #?(:clj  (instance? clojure.lang.Iterate x)
+     :cljs (instance? cljs.core.Iterate x)))
 

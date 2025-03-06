@@ -309,6 +309,23 @@
   [specs & nested-exprs]
   (apply construct-seq-reentry tag_seq-reentry specs nested-exprs))
 
+
+(def tsds? #(and (symx/operator? %)
+                 (= :tsds (op-symbol %))
+                 (= 6 (count (op-get % :selection)))
+                 (set/subset? #{:l :e :r} (symx/op-data %))))
+
+;; Triple-selective decision system (see p. 90 (appendix) in uFORM iFORM)
+(defoperator :tsds [selection l e r]
+  (->> [[l e r] [r e l] [e r l] [l r e] [r l e] [e l r]]
+       (mapv (fn [b exprs] (when-not (zero? b)
+                            (apply seq-re :<r exprs)))
+             selection)
+       (filterv some?)
+       (into [:-]))
+  :predicate tsds?)
+
+
 ;;-------------------------------------------------------------------------
 ;; Compound expressions
 

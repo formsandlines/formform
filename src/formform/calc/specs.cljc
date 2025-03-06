@@ -113,10 +113,10 @@
                     :min-count 1
                     :distinct true)
          (fn [vspc] (let [vs-dim (core/dna-dimension (seq vspc))
-                          vp-dim (count (first vspc))]
-                      (and (some? vs-dim)
-                           (== vs-dim vp-dim)
-                           (every? #(== vp-dim (count %)) vspc))))))
+                         vp-dim (count (first vspc))]
+                     (and (some? vs-dim)
+                          (== vs-dim vp-dim)
+                          (every? #(== vp-dim (count %)) vspc))))))
 ;; ? add spec ordered-vspace
 
 ;;-------------------------------------------------------------------------
