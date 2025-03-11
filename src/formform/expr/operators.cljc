@@ -364,6 +364,45 @@
              (form (apply make (map second all-selections))
                    (form tag_seq-reentry :<r)))))))
 
+;; TODO
+#_
+(defoperator :sel [selections & exprs]
+  (let [xs (mapv (comp selector zipmap)
+                 (repeat (count selections) exprs) selections)]
+    (apply make xs)))
+
+(comment
+  (selector {'a :U 'b :N 'c :M})
+  '[:- [a [b] c [[:seq-re :<..r nil]]] [[a] [b] c [[:seq-re :<r nil]]]]
+
+  (selector {'a :M [['a] 'b] :N})
+
+  [:sel ['a :M] ['b :N] ['c :U]]
+
+  [:sel ['a 'b 'c] [:M :N :U] [:U :M :N] [:U :U :I]]
+
+  "[:sel [a,b,c] mnu umn uui]"
+
+  "[:sel mnu a,b,c] [:sel umn a,b,c] [:sel uui a,b,c]"
+
+  "[:mem [a [[x] y]] [b {@.. x,z}] ([:sel [a,b] mu] [:sel [a,b] ni])]"
+
+  [:sel [[:M :N :U] [:U :M :N] [:U :U :I]] ['a 'b 'c]]
+  "[:sel [mnu umn uui] a,b,c]"
+
+  (let [selections [[:M :N :U] [:U :M :N] [:U :U :I]]
+        exprs ['a 'b 'c]]
+    (let [xs (mapv (comp selector zipmap)
+                   (repeat (count selections) exprs) selections)]
+      (apply make xs)))
+  '[:-
+    [a [b] c [[:seq-re :<..r nil]]] [a [b] [c] [[:seq-re :<r nil]]]
+    [a b [c] [[:seq-re :<..r nil]]] [[a] b [c] [[:seq-re :<r nil]]]
+    [a b [c] [[:seq-re :<..r nil]]] [[a] [b] c [[:seq-re :<r nil]]]]
+
+  "[:sel [mnu] a,b,c]"
+
+  ,)
 
 ;; Logical spaces
 
