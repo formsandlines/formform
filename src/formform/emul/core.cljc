@@ -19,7 +19,7 @@
     :rand (calc/rand-const)
     v))
 
-(defn get-resolution
+(defn get-resolution-from-generation
   [gen]
   (loop [xs  gen
          res [(count gen)]]
@@ -135,7 +135,7 @@
 
 (defmethod get-umwelt :default
   [gen cell umwelt-spec]
-  (let [res (get-resolution gen)]
+  (let [res (get-resolution-from-generation gen)]
     (get-umwelt res gen cell umwelt-spec)))
 
 (defmethod get-umwelt :select-ltr
@@ -282,7 +282,304 @@
     (iterate (partial sys-next res rule-spec umwelt-spec) gen1)))
 
 
+(defprotocol PCellularAutomaton
+  (step [this] "Advances the automaton by one generation.")
+  (restart [this] "Resets the automaton to its initial state.")
+  (get-resolution [this] "Returns the resolution of the automaton.")
+  (get-evolution [this] "Returns an immutable copy of the current evolution."))
+
+(deftype CellularAutomaton
+    #?(:cljs [res initial-state ^:mutable evolution ^:mutable iterator]
+       :clj  [res initial-state ^:unsynchronized-mutable evolution
+              ^:unsynchronized-mutable iterator])
+  PCellularAutomaton
+  (step [_]
+    (set! iterator (rest iterator))
+    (conj! evolution (first iterator)))
+  (restart [_]
+    (set! iterator (rest initial-state))
+    (set! evolution (transient [(first initial-state)])))
+  (get-resolution [_]
+    res)
+  (get-evolution [_]
+    (let [^clojure.lang.PersistentVector v (persistent! evolution)]
+      (set! evolution (transient v))
+      v)))
+
+;; because direct method access for deftype JS objects is weird
+;; remember to turn dashes into underscores for method names!
+#?(:cljs (extend-type CellularAutomaton
+           Object
+           (step [_this] (step _this))
+           (restart [_this] (restart _this))
+           (get_resolution [_this] (get-resolution _this))
+           (get_evolution [_this] (get-evolution _this))))
+
+(defn create-ca
+  [initial-state]
+  (let [gen1 (first initial-state)
+        res (get-resolution-from-generation gen1)
+        iterator (rest initial-state)
+        evolution [gen1]]
+    (->CellularAutomaton res initial-state (transient evolution) iterator)))
+
+
 (comment
-  (get-resolution [[[1 1 1] [1 1 1]]])
+  
+  (get-resolution-from-generation [[[1 1 1] [1 1 1]]])
+
+  (def foo (atom []))
+
+  (def ca (create-ca (make-selfi [10] (calc/rand-dna 2) [:random])))
+  ca
+
+  (get-resolution ca)
+  (get-evolution ca)
+  (step ca)
+  (restart ca)
+
+  (.get-resolution ca)
+  (.get-evolution ca)
+  (.step ca)
+  (.restart ca)
+
+  
+  #_
+  (let [ca (automaton (make-selfi [10] (calc/rand-dna 2) [:random])
+                      [10])]
+    (println ((ca :get-evolution)))
+    ((:step! ca)) ;; yields next gen
+    (println ((ca :get-evolution)))
+    ((:step! ca)) ;; yields next gen
+    (println ((ca :get-evolution)))
+    ((:reset! ca)) ;; clears evolution, resets ca to init
+    (println ((ca :get-evolution)))
+    (println (ca :get-resolution)) ;; returns resolution
+    )
+
+  
+  ,)
+
+
+#_
+(comment
+  (defn make-automaton
+    [ca]
+    (let [res (get-resolution-from-generation (first ca))
+          ca-state (atom (rest ca))
+          evolution (atom [(first ca)])
+          step! (fn []
+                  (swap! ca-state rest)
+                  (swap! evolution conj (first @ca-state)))
+          reset! (fn []
+                   (reset! ca-state (rest ca))
+                   (reset! evolution [(first ca)]))
+          get-resolution res
+          get-evolution (fn [] @evolution)]
+      (defrecord )))
+
+  (defn automaton
+    [ca res]
+    (let [ca-state (atom (rest ca))
+          evolution (atom [(first ca)])
+          ;; _ (reset! ca-state (rest ca))
+          ;; _ (reset! evolution [(first ca)])
+          step! (fn []
+                  (swap! ca-state rest)
+                  (swap! evolution conj (first @ca-state)))
+          reset! (fn []
+                   (reset! ca-state (rest ca))
+                   (reset! evolution [(first ca)]))
+          get-evolution (fn [] @evolution)
+          get-generation (fn [] (first @evolution))]
+      {:step! step!
+       :reset! reset!
+       :get-resolution res
+       :get-evolution get-evolution
+       :get-generation get-generation})))
+
+#_
+(comment
+  (defrecord CellularAutomaton [res init !iterator !evolution]
+    ICellularAutomaton
+    (step! [this]
+      (swap! !iterator rest)
+      (swap! !evolution conj (first @!iterator)))
+    (restart! [this]
+      (reset! !iterator (rest init))
+      (reset! !evolution [(first init)]))
+    (get-resolution [this]
+      res)
+    (get-evolution [this]
+      @!evolution)
+    (toString [this]
+      "test"))
+
+  ;; (defmethod print-method CellularAutomaton [record ^java.io.Writer writer]
+  ;;   (.write writer "#MyRecord{...}"))
+
+  ;; Platform-specific print method implementations
+  (let [ca->str (fn [ca]
+                  (let [res (str ":res " (:res ca))
+                        init (str ":init #clojure.lang.Iterate(" (first (:init ca)) " …)")]
+                    (str "#CellularAutomaton{" res ", " init "}")))]
+    #?(:clj
+       (defmethod print-method CellularAutomaton [record ^java.io.Writer writer]
+         (.write writer (ca->str record))))
+    #?(:cljs
+       (extend-protocol IPrintWithWriter
+         CellularAutomaton
+         (-pr-writer [record writer _opts]
+           (write-all writer (ca->str record))))))
+
+  (defn automaton!
+    [generator]
+    (let [gen1 (first generator)
+          res (get-resolution-from-generation gen1)
+          !iterator (atom (rest generator))
+          !evolution (atom [gen1])]
+      (->CellularAutomaton res generator !iterator !evolution))))
+
+
+#_
+(comment
+  (defprotocol ICellularAutomaton
+    (step! [this] "Advances the automaton by one generation.")
+    (restart! [this] "Resets the automaton to its initial state.")
+    (get-resolution [this] "Returns the resolution of the automaton.")
+    (get-evolution [this] "Returns an immutable copy of the current evolution."))
+
+  (defn create-ca
+    [initial-state]
+    (let [gen1 (first initial-state)
+          res (get-resolution-from-generation gen1)
+          !iterator (atom (rest initial-state))
+          !evolution (atom [gen1])]
+      (reify ICellularAutomaton
+        (step! [_]
+          (swap! !iterator rest)
+          (swap! !evolution conj (first @!iterator)))
+        (restart! [_]
+          (reset! !iterator (rest initial-state))
+          (reset! !evolution [(first initial-state)]))
+        (get-resolution [_]
+          res)
+        (get-evolution [_]
+          @!evolution)))))
+
+#_
+(comment
+
+  (defprotocol ICellularAutomaton
+    (step! [this] "Advances the automaton by one generation.")
+    (restart! [this] "Resets the automaton to its initial state.")
+    (get-resolution [this] "Returns the resolution of the automaton.")
+    (get-evolution [this] "Returns an immutable copy of the current evolution."))
+
+  (defrecord CellularAutomaton [res initial-state !iterator !evolution]
+    ICellularAutomaton
+    (step! [_]
+      (swap! !iterator rest)
+      (swap! !evolution conj (first @!iterator)))
+    (restart! [_]
+      (reset! !iterator (rest initial-state))
+      (reset! !evolution [(first initial-state)]))
+    (get-resolution [_]
+      res)
+    (get-evolution [_]
+      @!evolution))
+
+  (defmulti execute-command
+    "Execute a command on a CellularAutomaton."
+    (fn [ca command & args] command))
+
+  (defmethod execute-command :step
+    [ca _]
+    (step! ca))
+
+  (defmethod execute-command :restart
+    [ca _]
+    (restart! ca))
+
+  (defmethod execute-command :get-resolution
+    [ca _]
+    (get-resolution ca))
+
+  (defmethod execute-command :get-evolution
+    [ca _]
+    (get-evolution ca))
+
+  #?(:clj (extend-type CellularAutomaton
+            clojure.lang.IFn
+            (invoke [this command & args]
+              (apply execute-command this command args)))
+     :cljs (extend-type CellularAutomaton
+             cljs.core.IFn
+             (invoke [this command & args]
+               (apply execute-command this command args))))
+
+  )
+
+#_
+(comment
+  (defprotocol PAutomaton
+    (make-rule [this args])
+    (make-umwelt [this args])
+    (make-ini [this args]))
+
+  (defrecord Automaton [type rule umwelt ini]
+    PAutomaton
+    (make-rule [_ [dna]]
+      [rule dna])
+    (make-umwelt [_ [dna]]
+      [umwelt (calc/dna-dimension dna)])
+    (make-ini [_ ini-spec]
+      ini-spec))
+
+  (def selfi (->Automaton :1d :match :select-ltr nil))
+  (def mindform (->Automaton :2d :match :self-select-ltr nil))
+  (def lifeform (->Automaton :2d :life :moore :random))
+  (def decisionform (->Automaton :2d :life :moore :rand-center))
+
+
+  ,)
+
+
+#_
+(comment
+  (defprotocol PCellularAutomaton
+    (step [this] "Advances the automaton by one generation.")
+    (restart [this] "Resets the automaton to its initial state.")
+    (get-resolution [this] "Returns the resolution of the automaton.")
+    (get-evolution [this] "Returns an immutable copy of the current evolution."))
+
+  (deftype CellularAutomaton
+      #?(:cljs [res initial-state ^:mutable evolution ^:mutable iterator]
+         :clj  [res initial-state ^:unsynchronized-mutable evolution
+                ^:unsynchronized-mutable iterator])
+    PCellularAutomaton
+    (step [_]
+      (set! iterator (rest iterator))
+      (conj! evolution (first iterator)))
+    (restart [_]
+      (set! iterator (rest initial-state))
+      (set! evolution (transient [(first initial-state)])))
+    (get-resolution [_]
+      res)
+    (get-evolution [_]
+      (let [^clojure.lang.PersistentVector v (persistent! evolution)]
+        (set! evolution (transient v))
+        v)))
+
+  ;; because direct method access for deftype JS objects is weird
+  ;; remember to turn dashes into underscores for method names!
+  #?(:cljs (extend-type CellularAutomaton
+             Object
+             (step [_this] (step _this))
+             (restart [_this] (restart _this))
+             (get_resolution [_this] (get-resolution _this))
+             (get_evolution [_this] (get-evolution _this))))
+
+
 
   ,)

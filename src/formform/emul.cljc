@@ -66,7 +66,7 @@
 (defn make-selfi
   "Initializes a ‘SelFi’: a 1D 4-valued cellular automaton. Takes a resolution `width`, a formDNA (as the rule function) and initial parameters.
 
-  Returns a lazy seq that iteratively computes the next generation. Each generation consists of constants arranged in a 2D (nested) vector. Optionally, the last argument can be a number to just get the first `n` steps of evolution."
+  Returns a lazy seq that iteratively computes the next generation. Each generation consists of constants arranged in a 2D (nested) vector. Optionally, the last argument can be a number to just get the first `n` steps of customizableevolution."
   ([res dna ini-spec]
    (core/make-selfi res dna ini-spec))
   ([res dna ini-spec steps]
@@ -154,6 +154,12 @@
    (take steps (core/make-decisionform
                 res (conform-tsds-dna-or-sel dna-or-sel) init-size))))
 
+(def create-ca core/create-ca)
+
+(comment
+  (def ca-1 (create-ca (make-mindform [40 40] (calc/rand-dna 2) [:rand-center 10])))
+  (.get-resolution ca-1)
+  ,)
 
 (comment
   (do (require '[clojure.pprint :refer [pprint]])
