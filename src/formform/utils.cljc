@@ -137,3 +137,15 @@
   #?(:clj  (instance? clojure.lang.Iterate x)
      :cljs (instance? cljs.core.Iterate x)))
 
+(defn kebab->camel
+  "Converts a kebab-case string to camelCase.
+   Example: 'hello-world' -> 'helloWorld'"
+  ([kebab-str capitalize?]
+   (if (or (nil? kebab-str) (empty? kebab-str))
+     ""
+     (let [parts (clojure.string/split kebab-str #"-")]
+       (if capitalize?
+         (apply str (map clojure.string/capitalize parts))
+         (apply str (first parts) 
+                (map clojure.string/capitalize (rest parts)))))))
+  ([kebab-str] (kebab->camel kebab-str false)))

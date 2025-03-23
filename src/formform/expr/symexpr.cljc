@@ -131,6 +131,34 @@
   (apply defoperator-impl k args interpretation params))
 
 
+(comment
+  ;; redesign wip
+  #_
+  (defoperator :mem [rems ctx]
+    "MemoryFORM."
+    (let [eqs (apply make
+                     (map (fn [[k v]] (form (form k v)
+                                           (form (form k) (form v))))
+                          rems))]
+      (form eqs (apply form ctx)))
+
+    (valid-op?
+     [_]
+     (and (symx/operator? %)
+          (= tag_memory (op-symbol %))
+          (rem-pairs? (second %))))
+
+    (simplify-op
+     [_ env]
+     (let [[rems env] (simplify-rems (op-get mem :rems) env)
+           ctx  (core/simplify-context (op-get mem :ctx) env)
+           rems (filter-rems rems ctx)]
+       (if (empty? rems)
+         (apply make ctx)
+         (apply make-op tag_memory rems ctx))))
+    )
+  ,)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Symbol methods
 

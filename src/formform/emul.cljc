@@ -3,43 +3,64 @@
   (:require [formform.calc :as calc]
             [formform.expr :as expr]
             [formform.emul.core :as core]
+            [formform.emul.interfaces :as i]
             [formform.calc.specs :as calc-sp]
             [formform.emul.specs :as sp]
             [formform.utils :as utils]
             [clojure.spec.alpha :as s]
             #_[clojure.spec.gen.alpha :as gen]))
 
+(def !types i/!types)
+
+(defn get-in-types
+  [ks]
+  (let [types @!types]
+    (when-not ((set (keys types)) (first ks))
+      (throw (ex-info (str "Unknown category `" (first ks) "`.")
+                      {:keys ks})))
+    (get-in types ks)))
+
+(defn docs
+  [cat-k type-k]
+  (get-in-types [cat-k type-k :docs]))
+
+(defn params
+  [cat-k type-k]
+  (get-in-types [cat-k type-k :params]))
+
+(defn make-instance
+  [cat-k type-k & args]
+  (let [{:keys [constructor params] :as m} (get-in-types [cat-k type-k])
+        spec-k (keyword (str (name cat-k) "/" (name type-k)))]
+    (when-not m
+      (throw (ex-info (str "Type `" type-k "` is unknown in " cat-k ".")
+                      {:type-key type-k})))
+    (when-not (= (count params) (count args))
+      (throw (ex-info (str "Wrong number of arguments. Expects: " params)
+                      {:args args})))
+    (when (and (s/get-spec spec-k) (not (s/valid? spec-k args)))
+      (throw (ex-info (str "Invalid arguments for " (name cat-k)
+                           " `" type-k "`.")
+                      {:args args
+                       :spec-error (s/explain-data spec-k args)})))
+    (apply constructor args)))
+
+(def make-ini (partial make-instance :ini))
+(def make-umwelt (partial make-instance :umwelt))
+(def make-rule (partial make-instance :rule))
+(def make-species (partial make-instance :species))
+
+
 (s/fdef sys-ini
-  :args (s/cat :resolution ::sp/resolution
-               :ini-spec   ::sp/ini-spec)
+  :args (s/alt :ar1 (s/cat :ini-spec ::sp/ini-spec
+                           :res-w    pos-int?)
+               :ar2 (s/cat :ini-spec ::sp/ini-spec
+                           :res-w    pos-int?
+                           :res-h    pos-int?))
   :ret  ::sp/generation)
 (def sys-ini
-  "Multimethod that returns a generation from a registered ini-pattern, given a resolution (which defines the CA dimension) and an ini-spec.
-  - the ini-spec must be a vector of the pattern type (keyword) and 0 or more arguments, as specified by the pattern
-  - you may register a custom pattern by defining a new method on `sys-ini`"
+  "Returns a (initial) generation given an ini specification (via `make-ini`) and, depending on the arities it supports, one or two resolutions."
   core/sys-ini)
-
-(s/fdef get-umwelt
-  :args (s/cat :generation  ::sp/generation
-               :cell        ::sp/cell
-               :umwelt-spec ::sp/umwelt-spec)
-  :ret  ::sp/umwelt)
-(def get-umwelt
-  "Multimethod that returns a ‘umwelt’ (vector of neighbor cell values) from a registered umwelt-pattern, given a generation, the current cell and an umwelt-spec.
-  - the umwelt-spec must be a vector of the pattern type (keyword) and 0 or more arguments, as specified by the pattern
-  - you may register a custom pattern by defining a new method on `get-umwelt`"
-  core/get-umwelt)
-
-(s/fdef apply-rule
-  :args (s/cat :umwelt    ::sp/umwelt
-               :cell-val  ::calc-sp/const?
-               :rule-spec ::sp/rule-spec)
-  :ret  ::calc-sp/const?)
-(def apply-rule
-  "Multimethod that returns a cell value from a registered rule, given an ‘umwelt’ (see `get-umwelt`), the current cell value and a rule-spec.
-  - the rule-spec must be a vector of the rule type (keyword) and 0 or more arguments, as specified by the rule
-  - you may register a custom rule by defining a new method on `apply-rule`"
-  core/apply-rule)
 
 (s/fdef sys-next
   :args (s/cat :rule-spec   ::sp/rule-spec
@@ -47,57 +68,52 @@
                :generation  ::sp/generation)
   :ret  ::sp/generation)
 (defn sys-next
-  "Given a ‘rule-spec’, an ‘umwelt-spec’ and a generation, returns the next generation, computed from the rule and umwelt specifications."
-  ([rule-spec umwelt-spec generation]
-   (core/sys-next (core/get-resolution generation)
-                  rule-spec umwelt-spec generation)))
+  "Computes and returns the next generation given a rule specification (via `make-rule`), an umwelt specification (via `make-umwelt`) and a generation."
+  [rule-spec umwelt-spec gen]
+  (let [res (core/get-resolution-from-generation gen)]
+    (core/sys-next res rule-spec umwelt-spec gen)))
 
 
-(s/fdef make-selfi
-  :args (s/alt :ar1 (s/cat :resolution ::sp/resolution
-                           :dna        ::calc-sp/dna
-                           :ini-spec   ::sp/ini-spec)
-               :ar2 (s/cat :resolution ::sp/resolution
-                           :dna        ::calc-sp/dna
-                           :ini-spec   ::sp/ini-spec
-                           :steps      pos-int?))
-  :ret  (s/or ::sp/automaton-1d
-              ::sp/evolution-1d))
-(defn make-selfi
-  "Initializes a ‘SelFi’: a 1D 4-valued cellular automaton. Takes a resolution `width`, a formDNA (as the rule function) and initial parameters.
+(s/fdef observe-umwelt
+  :args (s/alt :ar1 (s/cat :umwelt-spec ::sp/umwelt-spec
+                           :generation  ::sp/generation
+                           :cell        ::sp/cell))
+  :ret  ::sp/umwelt)
+(defn observe-umwelt
+  "Returns a ‘umwelt’ given an umwelt specification (via `make-umwelt`), a generation and the current cell."
+  [this gen cell]
+  (let [res (core/get-resolution-from-generation gen)]
+    (apply i/observe-umwelt this gen cell res)))
 
-  Returns a lazy seq that iteratively computes the next generation. Each generation consists of constants arranged in a 2D (nested) vector. Optionally, the last argument can be a number to just get the first `n` steps of customizableevolution."
-  ([res dna ini-spec]
-   (core/make-selfi res dna ini-spec))
-  ([res dna ini-spec steps]
-   (take steps (core/make-selfi res dna ini-spec))))
+(s/fdef apply-rule
+  :args (s/alt :ar1 (s/cat :rule-spec ::sp/rule-spec
+                           :umwelt    ::sp/umwelt
+                           :self-val  ::calc-sp/const?
+                           :res-w     pos-int?)
+               :ar2 (s/cat :rule-spec ::sp/rule-spec
+                           :umwelt    ::sp/umwelt
+                           :self-val  ::calc-sp/const?
+                           :res-w     pos-int?
+                           :res-h     pos-int?))
+  :ret  ::calc-sp/const?)
+(def apply-rule
+  "Returns a cell value given a rule specification (via `make-rule`), a ‘umwelt’ (via `get-umwelt`), the current cell value and, depending on the arities the rule spec. supports, one or two resolutions."
+  i/apply-rule)
 
-(s/fdef make-mindform
-  :args (s/alt :ar1 (s/cat :resolution ::sp/resolution
-                           :dna        ::calc-sp/dna
-                           :ini-spec   ::sp/ini-spec)
-               :ar2 (s/cat :resolution ::sp/resolution
-                           :dna        ::calc-sp/dna
-                           :ini-spec   ::sp/ini-spec
-                           :steps      pos-int?))
-  :ret  (s/or ::sp/automaton-2d
-              ::sp/evolution-2d))
-(defn make-mindform
-  "Initializes a ‘mindFORM’: a 2D 4-valued cellular automaton. Takes a resolution `[width height]`, a formDNA (as the rule function) and initial parameters.
-
-  Returns a lazy seq that iteratively computes the next generation. Each generation consists of constants arranged in a 2D (nested) vector. Optionally, the last argument can be a number to just get the first `n` steps of evolution."
-  ([res dna ini-spec]
-   (core/make-mindform res dna ini-spec))
-  ([res dna ini-spec steps]
-   (take steps (core/make-mindform res dna ini-spec))))
+(s/fdef specify-ca
+  :args (s/alt :ar1 (s/cat :species-spec ::sp/species-spec
+                           :res-w        pos-int?)
+               :ar2 (s/cat :species-spec ::sp/species-spec
+                           :res-w        pos-int?
+                           :res-h        pos-int?))
+  :ret  ::sp/ca-spec)
+(def specify-ca
+  "Returns a specification for a cellular automaton given a specification of its ‘species’ (via `make-species`) and, depending on the arities it supports, one or two resolutions."
+  i/specify-ca)
 
 
 (s/def ::tsds-selection
   (s/coll-of #{0 1} :kind vector? :count 6))
-
-(comment
-  (s/conform ::tsds-selection [0 1 1 0 1 0])
-  ,)
 
 (defn- tsds-sel->dna
   [selection]
@@ -112,81 +128,223 @@
     :else (throw
            (ex-info "Input must be either a formDNA of dimension 3 or a 6-element binary selection vector." {:input dna-or-sel}))))
 
-(s/fdef make-lifeform
-  :args (s/alt :ar1 (s/cat :resolution ::sp/resolution
-                           :dna-or-sel (s/or ::calc-sp/dna
-                                             ::tsds-selection))
-               :ar2 (s/cat :resolution ::sp/resolution
-                           :dna-or-sel (s/or ::calc-sp/dna
-                                             ::tsds-selection)
-                           :steps      pos-int?))
-  :ret  (s/or ::sp/automaton-2d
-              ::sp/evolution-2d))
-(defn make-lifeform
-  "Initializes a ‘lifeFORM’: a 2D 4-valued cellular automaton. Takes a resolution `[width height]` and either a formDNA of dimension 3 or a 6-element vector of binary digits (for a ‘triple-selective decision system’). The initial generation is fully randomized.
-  
-  Returns a lazy seq that iteratively computes the next generation. Each generation consists of constants arranged in a 2D (nested) vector. Optionally, the last argument can be a number to just get the first `n` steps of evolution."
-  ([res dna-or-sel]
-   (core/make-lifeform res (conform-tsds-dna-or-sel dna-or-sel)))
-  ([res dna-or-sel steps]
-   (take steps (core/make-lifeform
-                res (conform-tsds-dna-or-sel dna-or-sel)))))
+(defn- exprs->dna
+  [& exprs]
+  (expr/op-get (expr/=>* (apply expr/make exprs)) :dna))
 
-(s/fdef make-decisionform
-  :args (s/alt :ar1 (s/cat :resolution ::sp/resolution
-                           :dna-or-sel (s/or ::calc-sp/dna
-                                             ::tsds-selection)
-                           :init-size  pos-int?)
-               :ar2 (s/cat :resolution ::sp/resolution
-                           :dna-or-sel (s/or ::calc-sp/dna
-                                             ::tsds-selection)
-                           :init-size  pos-int?
-                           :steps      pos-int?))
-  :ret  (s/or ::sp/automaton-2d
-              ::sp/evolution-2d))
-(defn make-decisionform
-  "Initializes a ‘decisionFORM’: a 2D 4-valued cellular automaton. Takes a resolution `[width height]`, either a formDNA of dimension 3 or a 6-element vector of binary digits (for a ‘triple-selective decision system’) and the size of the initial square of random cell values. This square on a background of unmarked values sets up the initial generation.
-  
-  Returns a lazy seq that iteratively computes the next generation. Each generation consists of constants arranged in a 2D (nested) vector. Optionally, the last argument can be a number to just get the first `n` steps of evolution."
-  ([res dna-or-sel init-size]
-   (core/make-decisionform res (conform-tsds-dna-or-sel dna-or-sel) init-size))
-  ([res dna-or-sel init-size steps]
-   (take steps (core/make-decisionform
-                res (conform-tsds-dna-or-sel dna-or-sel) init-size))))
+(def common-specimen
+  "Common specimen to create cellular automata from (via `specify-ca`). Lists all the SelFis introduced by Ralf Peyn in ‘uFORM iFORM’."
+  (let [selfi (partial make-species :selfi)
+        ini-ball (make-ini :ball)
+        ini-rand (make-ini :random)
+        l 'a, e 'b, r 'c]
+    {:Mark1
+     (selfi (tsds-sel->dna [1 0 0 1 0 0]) ini-ball)
+     :StripesD100000
+     (selfi (tsds-sel->dna [1 0 0 0 0 0]) ini-rand)
+     :StripesL000100
+     (selfi (tsds-sel->dna [0 0 0 1 0 0]) ini-rand)
+     :Mono000101
+     (selfi (tsds-sel->dna [0 0 0 1 0 1]) ini-rand)
+     :Rhythm101101
+     (selfi (tsds-sel->dna [1 0 1 1 0 1]) ini-rand)
+     :NewSense
+     (selfi (tsds-sel->dna [1 1 0 1 0 0]) ini-rand)
+     :Slit
+     (selfi (exprs->dna [[l] r] [[r] l]) ini-ball)
+     :xor4vRnd
+     (selfi (exprs->dna [[l] r] [[r] l]) ini-rand)
+     :or4v
+     (selfi (exprs->dna l r) ini-ball)
+     :xorReId
+     (selfi (exprs->dna (expr/seq-re :<r' l, r)
+                        (expr/seq-re :<r' r, l)) ini-ball)
+     :xorReIdRnd
+     (selfi (exprs->dna (expr/seq-re :<r' l, r)
+                        (expr/seq-re :<r' r, l)) ini-rand)
+     :Rule4v30
+     (selfi (exprs->dna [[l] e r] [[e] l] [[r] l]) ini-ball)
+     :Rule4v111
+     (selfi (exprs->dna [[[l] e] r] [[[l] r] e] [[[e] r] l]) ini-ball)
+     :Structure111Re
+     (selfi (tsds-sel->dna [1 0 1 1 0 0]) ini-ball)
+     :CoOneAnother
+     (selfi (tsds-sel->dna [1 0 1 1 0 0]) ini-rand)
+     :Rule4v110
+     (selfi (exprs->dna [[e] r] [[r] e] [[r] l]) ini-ball)
+     :uniTuringReRnd
+     (selfi (exprs->dna [[(tsds-sel->dna [1 0 1 1 0 0])] [l e r]]) ini-rand)}))
 
-(def create-ca core/create-ca)
+
+(s/fdef ca-iterator
+  :args (s/or :ar1 (s/cat :ca-spec ::sp/ca-spec)
+              :ar2 (s/cat :ca-spec ::sp/ca-spec
+                          :steps   pos-int?))
+  :ret  ::sp/iterator)
+(defn ca-iterator
+  "Returns a lazy seq that iteratively computes the next generation for the given cellular automaton specification (via `specify-ca`). Optionally, the last argument can be a number to just get the first `n` steps in its evolution."
+  ([ca-spec]
+   (core/ca-iterator ca-spec))
+  ([ca-spec steps]
+   (take steps (core/ca-iterator ca-spec))))
+
+(s/fdef step
+  :args (s/cat :ca-obj ::sp/automaton)
+  :ret  any?)
+(defn step
+  "Given a stateful `CellularAutomaton` object, computes its next generation and appends it to its evolution state."
+  [ca-obj]
+  (i/step ca-obj))
+
+(s/fdef restart
+  :args (s/cat :ca-obj ::sp/automaton)
+  :ret  any?)
+(defn restart
+  "Given a stateful `CellularAutomaton` object, resets its evolution to the initial generation."
+  [ca-obj]
+  (i/restart ca-obj))
+
+(s/fdef get-evolution
+  :args (s/cat :ca-obj ::sp/automaton)
+  :ret  ::sp/evolution)
+(defn get-evolution
+  "Given a stateful `CellularAutomaton` object, returns an immutable copy of its current evolution state."
+  [ca-obj]
+  (i/get-evolution ca-obj))
+
+(s/fdef get-resolution
+  :args (s/cat :ca-obj ::sp/automaton)
+  :ret  ::sp/resolution)
+(defn get-resolution
+  "Given a stateful `CellularAutomaton` object, returns its resolution."
+  [ca-obj]
+  (i/get-resolution ca-obj))
+
+(s/fdef create-ca
+  :args (s/cat :ca-spec ::sp/ca-spec)
+  :ret  ::sp/automaton)
+(defn create-ca
+  "Returns a stateful `CellularAutomaton` object for the given cellular automaton specification (via `specify-ca`). Callable methods are:
+  - `step` to compute the next generation which gets added to the evolution
+  - `restart` to re-initialize the CA with its first generation
+  - `get-evolution` to obtain an immutable copy of the current evolution
+  - `get-resolution` to obtain the resolution of the CA"
+  [ca-spec]
+  (core/create-ca ca-spec))
+
 
 (comment
-  (def ca-1 (create-ca (make-mindform [40 40] (calc/rand-dna 2) [:rand-center 10])))
-  (.get-resolution ca-1)
+  (keys (get-in-types [:ini]))
+  (params :ini :fill-center)
+
+  (make-ini :fill-center {:res [10 4] :val :U} :M)
+  (make-rule :match (calc/rand-dna 2))
+  (make-instance :rule :match (calc/rand-dna 2))
+  (make-species :selfi (calc/rand-dna 2) (make-ini :random))
+
   ,)
 
 (comment
-  (do (require '[clojure.pprint :refer [pprint]])
-      (pprint (methods sys-ini)))
-  (sys-ini [5] [:fill-all :M])
-  (sys-ini [3 5] [:fill-all :M])
-  (sys-ini [5] [:random])
-  (sys-ini [3 5] [:random])
-  (sys-ini [10] [:rand-center 3])
-  (sys-ini [5 5] [:rand-center 3])
-  (sys-ini [10] [:fill-center {:res 4 :val :rand} :_])
-  (sys-ini [5 5] [:fill-center {:res [3 3] :val :rand} :_])
-  (sys-ini [10] [:fill-center [:U :I :M] :_])
-  (sys-ini [5 5] [:fill-center [[:U :I :M] [:M :N :I] [:I :U :M]] :_])
-  (sys-ini [17] [:ball])
-  (sys-ini [13 13] [:ball])
-  (sys-ini [5] nil)
+  (docs :species :selfi)
+  (docs :rule :match)
+  (take 6 (ca-iterator (specify-ca (common-specimen :Mark1) 10)))
+  ,)
+
+(comment
+  (def ca (create-ca
+           (specify-ca (make-species :mindform
+                                     (calc/rand-dna 2)
+                                     (make-ini :rand-center 10))
+                       40 40)))
+  (.get-resolution ca)
+  (step ca)
+  (get-evolution ca)
+  (restart ca)
+  ,)
+
+(comment
+  (sys-ini (make-ini :random) 10)
+  (sys-ini (make-ini :random) 10 10)
+  (sys-ini (make-ini :rand-center 2) 10)
+  (sys-ini (make-ini :rand-center 2) 10 10)
+  (sys-ini (make-ini :ball) 10)
+  (sys-ini (make-ini :ball) 10 10)
+  (sys-ini (make-ini :fill-all :N) 10)
+  (sys-ini (make-ini :fill-all :N) 10 4)
+  (sys-ini (make-ini :fill-center {:res [4] :val :U} :_) 10)
+  (sys-ini (make-ini :fill-center {:res [4 3] :val :rand} :_) 10 10)
+  (sys-ini (make-ini :fill-center [:U :I :M] :_) 10)
+  (sys-ini (make-ini :fill-center [[:U :I :M] [:M :N :I] [:I :U :M]] :_) 5 5)
+
+  (apply-rule (make-rule :match [:N :N :N :N
+                                 :N :N :N :N
+                                 :N :M :N :N
+                                 :N :N :N :N])
+              (observe-umwelt (make-umwelt :select-ltr 2)
+                              (sys-ini (make-ini :fill-center
+                                                 [:U :N :I] :N) 5)
+                              ;;=> [:N :U :N :I :N]
+                              [[2] :_]) ;;=> [:U :I]
+              :_) ;;=> :M
+  
+  ,)
+
+(comment
+  (sys-ini ((:constructor (get-in @!types [:ini :fill-all])) :U) 10 3)
+  (make-ini :fill-all :I)
+  (docs :ini :fill-all)
+  (params :ini :fill-all)
+  ,)
+
+(comment
+  (def selfi (specify-ca (make-species :selfi
+                                       (calc/rand-dna 2)
+                                       (make-ini :random))
+                         40))
+  (meta selfi)
+  
+  (take 3 (ca-iterator selfi))
+  (def ca (create-ca selfi))
+  (get-resolution ca)
+  (get-evolution ca)
+  (step ca)
+  (restart ca)
+
+  (.get-resolution ca)
+  (.get-evolution ca)
+  (.step ca)
+  (.restart ca)
+  (type ca)
+  
+  (def slit (i/specify-ca (common-specimen :Slit)
+                          20))
+  (meta slit)
+  (take 10 (ca-iterator slit))
+  '([:N :N :N :N :N :N :N :N :I :U :M :U :I :N :N :N :N :N :N :N]
+    [:N :N :N :N :N :N :N :I :U :U :N :U :U :I :N :N :N :N :N :N]
+    [:N :N :N :N :N :N :I :U :M :U :N :U :M :U :I :N :N :N :N :N]
+    [:N :N :N :N :N :I :U :U :N :M :N :M :N :U :U :I :N :N :N :N]
+    [:N :N :N :N :I :U :M :U :I :N :N :N :I :U :M :U :I :N :N :N]
+    [:N :N :N :I :U :U :N :U :U :I :N :I :U :U :N :U :U :I :N :N]
+    [:N :N :I :U :M :U :N :U :M :U :N :U :M :U :N :U :M :U :I :N]
+    [:N :I :U :U :N :M :N :M :N :M :N :M :N :M :N :M :N :U :U :I]
+    [:N :U :M :U :I :N :N :N :N :N :N :N :N :N :N :N :I :U :M :U]
+    [:N :M :N :U :U :I :N :N :N :N :N :N :N :N :N :I :U :U :N :M])
+  (assoc slit :label "Slit")
   ,)
 
 (comment
   
-  (get-umwelt [:N :M :U :I :N :M :I] [[3] :U] [:select-ltr 3])
-  (get-umwelt [[:N :I :N :U :I]
-               [:U :M :N :I :M]
-               [:M :N :I :M :U]
-               [:N :N :U :I :M]
-               [:M :U :I :I :N]] [[2 2] :I] [:self-select-ltr 3])
+  (observe-umwelt (make-umwelt :select-ltr 3)
+                  [:N :M :U :I :N :M :I]
+                  [[3] :U])
+  (observe-umwelt (make-umwelt :self-select-ltr 3)
+                  [[:N :I :N :U :I]
+                   [:U :M :N :I :M]
+                   [:M :N :I :M :U]
+                   [:N :N :U :I :M]
+                   [:M :U :I :I :N]]
+                  [[2 2] :I])
 
   (let [gen [:N :M :U :I :N :M :I]
         cell [[3] :U]
@@ -194,15 +352,16 @@
              :N :U :I :M  :N :U :I :M  :N :U :N :U  :N :U :N :U
              :N :U :I :M  :N :N :I :I  :N :U :I :M  :N :N :I :I
              :N :U :I :M  :N :U :I :M  :N :U :I :M  :N :U :I :M]
-        env (get-umwelt gen cell [:select-ltr 3])]
-    (apply-rule env (last cell) [:match dna]))
+        env (observe-umwelt (make-umwelt :select-ltr 3) gen cell)]
+    (apply-rule (make-rule :match dna) env (last cell)))
 
   (let [dna [:N :U :I :M  :N :N :I :I  :N :U :N :U  :N :N :N :N
              :N :U :I :M  :N :U :I :M  :N :U :N :U  :N :U :N :U
              :N :U :I :M  :N :N :I :I  :N :U :I :M  :N :N :I :I
              :N :U :I :M  :N :U :I :M  :N :U :I :M  :N :U :I :M]]
-    (sys-next [:match dna] [:select-ltr 3]
-              (sys-ini [7] [:fill-center {:res 1 :val :M} :N])))
+    (sys-next (make-rule :match dna)
+              (make-umwelt :select-ltr 3)
+              (sys-ini (make-ini :fill-center {:res [1] :val :M} :N) 7)))
   ;; ini: [:N :N :N :M :N :N :N]
   ;;=>    [:M :M :N :M :N :M :M]
 
@@ -210,8 +369,11 @@
              :N :U :I :M  :N :U :I :M  :N :U :N :U  :N :U :N :U
              :N :U :I :M  :N :N :I :I  :N :U :I :M  :N :N :I :I
              :N :U :I :M  :N :U :I :M  :N :U :I :M  :N :U :I :M]
-        selfi (make-selfi [7] dna [:fill-center {:res 1 :val :M} :N])]
-    (take 5 selfi))
+        selfi (specify-ca
+               (make-species :selfi dna
+                             (make-ini :fill-center {:res [1] :val :M} :N))
+               7)]
+    (take 5 (ca-iterator selfi)))
   '([:N :N :N :M :N :N :N]
     [:M :M :N :M :N :M :M]
     [:N :M :N :M :N :N :N]
@@ -219,6 +381,7 @@
     [:N :M :N :M :N :N :M])
   ,)
 
+#_
 (comment
   (require '[clojure.string :as string])
   (require '[clojure.pprint :refer [pprint]])
