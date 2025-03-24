@@ -1,5 +1,8 @@
 (ns ^:no-doc formform.emul.interfaces
-  (:require [formform.utils :as utils]))
+  (:require [formform.utils :as utils])
+  #?(:cljs (:require-macros
+            [formform.emul.interfaces
+             :refer [defini defumwelt defrule defspecies]])))
 
 (defprotocol Ini
   (make-gen
@@ -45,9 +48,10 @@
           rec-def `(defrecord ~rec-sym ~fields
                      ~protocol
                      ~@methods)
-          constr-sym (symbol (str *ns* "/->" rec-sym))]
+          constr-sym (symbol (str *ns* "/->" rec-sym))
+          register-type-sym 'formform.emul.interfaces/register-type!]
       `(do ~rec-def
-           ~(list register-type!
+           ~(list register-type-sym
                   cat-k type-k constr-sym
                   (mapv (comp keyword str) fields)
                   doc-string)))))

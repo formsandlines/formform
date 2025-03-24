@@ -3,8 +3,9 @@
             [formform.utils :as utils]
             [clojure.spec.alpha :as s]
             ;; [clojure.spec.gen.alpha :as gen]
-            [formform.emul.interfaces :as i])
-  (:import [formform.emul.core CellularAutomaton]))
+            [formform.emul.interfaces :as i]
+            #?(:cljs [formform.emul.core :refer [CellularAutomaton]]))
+  #?(:clj (:import [formform.emul.core CellularAutomaton])))
 
 (s/def ::cell
   (s/cat :coords (s/coll-of int? :kind vector?)
@@ -42,16 +43,16 @@
 
 
 (s/def ::umwelt-spec
-  (partial satisfies? i/Umwelt))
+  #(satisfies? i/Umwelt %))
 
 (s/def ::ini-spec
-  (partial satisfies? i/Ini))
+  #(satisfies? i/Ini %))
 
 (s/def ::rule-spec
-  (partial satisfies? i/Rule))
+  #(satisfies? i/Rule %))
 
 (s/def ::species-spec
-  (partial satisfies? i/Specifier))
+  #(satisfies? i/Specifier %))
 
 
 (s/def ::val (s/or :random #{:rand}
@@ -84,7 +85,7 @@
   (s/keys :req-un [::resolution ::rule-spec ::umwelt-spec ::ini-spec]))
 
 (s/def ::ca-constructor
-  (partial satisfies? i/Specifier))
+  #(satisfies? i/Specifier %))
 
 
 (binding [clojure.spec.alpha/*coll-check-limit* 3]

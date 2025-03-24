@@ -6,8 +6,10 @@
 (ns ^:no-doc formform.emul.core
   (:require [formform.calc :as calc]
             ;; [formform.expr :as expr]
-            [formform.emul.interfaces :as i
-             :refer [defini defumwelt defrule defspecies]]
+            #?(:clj  [formform.emul.interfaces :as i
+                      :refer [defini defumwelt defrule defspecies]]
+               :cljs [formform.emul.interfaces :as i
+                      :refer-macros [defini defumwelt defrule defspecies]])
             ;; [formform.utils :as utils]
             ))
 

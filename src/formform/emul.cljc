@@ -8,7 +8,25 @@
             [formform.emul.specs :as sp]
             [formform.utils :as utils]
             [clojure.spec.alpha :as s]
-            #_[clojure.spec.gen.alpha :as gen]))
+            #_[clojure.spec.gen.alpha :as gen])
+  #?(:cljs (:require-macros
+            [formform.emul :refer [defini defumwelt defrule defspecies]])))
+
+(defmacro defini
+  [type-k fields doc-string? & methods]
+  (apply i/defini-impl type-k fields doc-string? methods))
+
+(defmacro defumwelt
+  [type-k fields doc-string? & methods]
+  (apply i/defumwelt-impl type-k fields doc-string? methods))
+
+(defmacro defrule
+  [type-k fields doc-string? & methods]
+  (apply i/defrule-impl type-k fields doc-string? methods))
+
+(defmacro defspecies
+  [type-k fields doc-string? & methods]
+  (apply i/defspecies-impl type-k fields doc-string? methods))
 
 (def !types i/!types)
 
