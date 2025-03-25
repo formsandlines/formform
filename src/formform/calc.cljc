@@ -37,6 +37,9 @@
 ;; ```
 ;; Make sure you convert to/from `nuim-code` when using different codes!
 
+(def nuim-code core/nuim-code)
+(def nmui-code core/nmui-code)
+
 (def consts
   "Set of all 4 constants"
   core/consts)
@@ -51,15 +54,12 @@
 
 (def rand-const
   "Generates a random constant."
-  #(gen/generate (s/gen ::sp/const)))
+  #(rand-nth nuim-code))
 
 
 ;; Compare constants
 
 (def sort-code? (partial s/valid? ::sp/sort-code))
-
-(def nuim-code core/nuim-code)
-(def nmui-code core/nmui-code)
 
 ;; for some reason, spec/orchestra needs a custom generator for `map-entry?`
 (s/def ::const-map-entry

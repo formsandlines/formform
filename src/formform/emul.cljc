@@ -12,19 +12,36 @@
   #?(:cljs (:require-macros
             [formform.emul :refer [defini defumwelt defrule defspecies]])))
 
+
 (defmacro defini
+  "Defines a new type of ini pattern, to be specified with `make-ini`. Takes a keyword identifier, fields for data the user needs to provide, an optional docstring (to describe the fields and the pattern) and one or more implementations of:
+  - `(make-gen [this w] …)` for a 1D pattern
+  - `(make-gen [this w h] …)` for a 2D pattern"
   [type-k fields doc-string? & methods]
   (apply i/defini-impl type-k fields doc-string? methods))
 
 (defmacro defumwelt
+  "Defines a new type of umwelt pattern, to be specified with `make-umwelt`. Takes a keyword identifier, fields for data the user needs to provide, an optional docstring (to describe the fields and the pattern) and one or more implementations of:
+  - `(observe-umwelt [this gen cell w] …)` for a 1D pattern
+  - `(observe-umwelt [this gen cell w h] …)` for a 2D pattern
+  - `gen` is a vector of the current generation (flat in 1D, nested in 2D)
+  - `cell` is a vector `[[x …] v]` of the current cell coordinates and value"
   [type-k fields doc-string? & methods]
   (apply i/defumwelt-impl type-k fields doc-string? methods))
 
 (defmacro defrule
+  "Defines a new type of rule pattern, to be specified with `make-rule`. Takes a keyword identifier, fields for data the user needs to provide, an optional docstring (to describe the fields and the pattern) and one or more implementations of:
+  - `(apply-rule [this umwelt self-v w] …)` for a 1D pattern
+  - `(apply-rule [this umwelt self-v w h] …)` for a 2D pattern
+  - `umwelt` is an ‘umwelt’ as provided by `observe-umwelt`
+  - `self-v` is the value of the current cell"
   [type-k fields doc-string? & methods]
   (apply i/defrule-impl type-k fields doc-string? methods))
 
 (defmacro defspecies
+  "Defines a new type of species pattern, to be specified with `make-species`. Takes a keyword identifier, fields for data the user needs to provide, an optional docstring (to describe the fields and the pattern) and one or more implementations of:
+  - `(specify-ca [this w] …)` for a 1D pattern
+  - `(specify-ca [this w h] …)` for a 2D pattern"
   [type-k fields doc-string? & methods]
   (apply i/defspecies-impl type-k fields doc-string? methods))
 
@@ -88,8 +105,8 @@
 (defn sys-next
   "Computes and returns the next generation given a rule specification (via `make-rule`), an umwelt specification (via `make-umwelt`) and a generation."
   [rule-spec umwelt-spec gen]
-  (let [res (core/get-resolution-from-generation gen)]
-    (core/sys-next res rule-spec umwelt-spec gen)))
+  (let [[w h :as res] (core/get-resolution-from-generation gen)]
+    (core/sys-next res (range w) (when h (range h)) rule-spec umwelt-spec gen)))
 
 
 (s/fdef observe-umwelt
@@ -222,6 +239,7 @@
   [ca-obj]
   (i/restart ca-obj))
 
+#_#_
 (s/fdef get-evolution
   :args (s/cat :ca-obj ::sp/automaton)
   :ret  ::sp/evolution)
@@ -229,6 +247,14 @@
   "Given a stateful `CellularAutomaton` object, returns an immutable copy of its current evolution state."
   [ca-obj]
   (i/get-evolution ca-obj))
+
+(s/fdef get-current-generation
+  :args (s/cat :ca-obj ::sp/automaton)
+  :ret  ::sp/generation)
+(defn get-current-generation
+  "Given a stateful `CellularAutomaton` object, returns its current generation."
+  [ca-obj]
+  (i/get-current-generation ca-obj))
 
 (s/fdef get-resolution
   :args (s/cat :ca-obj ::sp/automaton)
@@ -259,6 +285,7 @@
   (make-rule :match (calc/rand-dna 2))
   (make-instance :rule :match (calc/rand-dna 2))
   (make-species :selfi (calc/rand-dna 2) (make-ini :random))
+  (make-species :lifeform (calc/rand-dna 2))
 
   ,)
 
@@ -276,7 +303,7 @@
                        40 40)))
   (.get-resolution ca)
   (step ca)
-  (get-evolution ca)
+  (get-current-generation ca)
   (restart ca)
   ,)
 
@@ -324,7 +351,7 @@
   (take 3 (ca-iterator selfi))
   (def ca (create-ca selfi))
   (get-resolution ca)
-  (get-evolution ca)
+  (seq (get-current-generation ca))
   (step ca)
   (restart ca)
 

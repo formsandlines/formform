@@ -4,18 +4,21 @@
 ;; ========================================================================
 
 (ns ^:no-doc formform.emul.core
-  (:require [formform.calc :as calc]
+  (:require [formform.calc.core :as calc-core]
             ;; [formform.expr :as expr]
             #?(:clj  [formform.emul.interfaces :as i
-                      :refer [defini defumwelt defrule defspecies]]
+                      :refer [defini defumwelt defrule defspecies
+                              UmweltOptimized RuleOptimized]]
                :cljs [formform.emul.interfaces :as i
+                      :refer [UmweltOptimized RuleOptimized]
                       :refer-macros [defini defumwelt defrule defspecies]])
-            ;; [formform.utils :as utils]
-            ))
+            [formform.utils :as utils])
+  ;; #?(:clj (:import [formform.emul.interfaces UmweltOptimized RuleOptimized]))
+  )
 
 (defn- val-or-rand [v]
   (case v
-    :rand (calc/rand-const)
+    :rand (rand-nth calc-core/nuim-code)
     v))
 
 (defn get-resolution-from-generation
@@ -137,6 +140,21 @@
        3 [(g -1) (g  0) (g  1)]
        4 [(g -2) (g -1) (g  1) (g  2)]
        5 [(g -2) (g -1) (g  0) (g  1) (g  2)]
+       (throw (ex-info "Unsupported neighbourhood size" {:size size})))))
+
+  UmweltOptimized
+  (observe-umwelt--fast
+   [_ gen1d-arr [[x] _] w]
+   (let [g (fn [dx]
+             (calc-core/const->digit
+              (aget gen1d-arr (wrap-bounds (+ x dx) 0 (dec w)))))]
+     (case size
+       0 ""
+       1 (str (g  0))
+       2 (str (g -1) (g  1))
+       3 (str (g -1) (g  0) (g  1))
+       4 (str (g -2) (g -1) (g  1) (g  2))
+       5 (str (g -2) (g -1) (g  0) (g  1) (g  2))
        (throw (ex-info "Unsupported neighbourhood size" {:size size}))))))
 
 (defumwelt :self-select-ltr [size]
@@ -148,7 +166,7 @@
   (observe-umwelt
    [_ gen2d [[x y] self-v] w h]
    (let [g (fn [dx dy]
-             (get-in gen2d
+             (get-in gen2d ;; -2 fps
                      [(wrap-bounds (+ y dy) 0 (dec h))
                       (wrap-bounds (+ x dx) 0 (dec w))]))]
      (case size
@@ -183,6 +201,48 @@
            :I [(g -2 -1) (g -1 -1) (g  0 -1) (g  1 -1) (g  2 -1)] ;; ↑
            :M [(g  1 -2) (g  1 -1) (g  1  0) (g  1  1) (g  1  2)] ;; →
            )
+       (throw (ex-info "Unsupported neighbourhood size" {:size size})))))
+
+  UmweltOptimized
+  (observe-umwelt--fast
+   [_ gen2d-arr [[x y] self-v] w h]
+   (let [g (fn [dx dy]
+             (calc-core/const->digit
+              (aget gen2d-arr
+                    (wrap-bounds (+ y dy) 0 (dec h))
+                    (wrap-bounds (+ x dx) 0 (dec w)))))]
+     (case size
+       0 ""
+       1 (case self-v
+           :N (str (g -1  0)) ;; ←
+           :U (str (g  0  1)) ;; ↓
+           :I (str (g  0 -1)) ;; ↑
+           :M (str (g  1  0)) ;; →
+           )
+       2 (case self-v
+           :N (str (g -1  1) (g -1 -1)) ;; ←
+           :U (str (g  1  1) (g -1  1)) ;; ↓
+           :I (str (g -1 -1) (g  1 -1)) ;; ↑
+           :M (str (g  1 -1) (g  1  1)) ;; →
+           )
+       3 (case self-v
+           :N (str (g -1  1) (g -1  0) (g -1 -1)) ;; ← (bottom -> top)
+           :U (str (g  1  1) (g  0  1) (g -1  1)) ;; ↓ (right -> left)
+           :I (str (g -1 -1) (g  0 -1) (g  1 -1)) ;; ↑ (left -> right)
+           :M (str (g  1 -1) (g  1  0) (g  1  1)) ;; → (top -> bottom)
+           )
+       4 (case self-v
+           :N (str (g -1  2) (g -1  1) (g -1 -1) (g -1 -2)) ;; ←
+           :U (str (g  2  1) (g  1  1) (g -1  1) (g -2  1)) ;; ↓
+           :I (str (g -2 -1) (g -1 -1) (g  1 -1) (g  2 -1)) ;; ↑
+           :M (str (g  1 -2) (g  1 -1) (g  1  1) (g  1  2)) ;; →
+           )
+       5 (case self-v
+           :N (str (g -1  2) (g -1  1) (g -1  0) (g -1 -1) (g -1 -2)) ;; ←
+           :U (str (g  2  1) (g  1  1) (g  0  1) (g -1  1) (g -2  1)) ;; ↓
+           :I (str (g -2 -1) (g -1 -1) (g  0 -1) (g  1 -1) (g  2 -1)) ;; ↑
+           :M (str (g  1 -2) (g  1 -1) (g  1  0) (g  1  1) (g  1  2)) ;; →
+           )
        (throw (ex-info "Unsupported neighbourhood size" {:size size}))))))
 
 (defumwelt :moore [self?]
@@ -197,7 +257,21 @@
      ;; `self` can be nil! (remove when counting)
      [(g -1 -1) (g  0 -1) (g  1 -1)
       (g -1  0)   self    (g  1  0)
-      (g -1  1) (g  0  1) (g  1  1)])))
+      (g -1  1) (g  0  1) (g  1  1)]))
+
+  UmweltOptimized
+  (observe-umwelt--fast
+   [_ gen2d-arr [[x y] _] w h]
+   (let [g (fn [dx dy]
+             (let [c (calc-core/const->digit
+                      (aget gen2d-arr
+                            (wrap-bounds (+ y dy) 0 (dec h))
+                            (wrap-bounds (+ x dx) 0 (dec w))))]
+               (case c 0 nil c)))
+         self (if self? (g 0 0) nil)]
+     (str (g -1 -1) (g  0 -1) (g  1 -1)
+          (g -1  0)   self    (g  1  0)
+          (g -1  1) (g  0  1) (g  1  1)))))
 
 (defumwelt :von-neumann [self?]
   "In a 2d environment, observes the cell’s direct neighborhood, made up of 4 or 5 (given `self?` is true) cells (corner cells not included)."
@@ -211,14 +285,46 @@
      ;; `self` can be nil! (remove when counting)
      [          (g  0 -1)          
       (g -1  0)   self    (g  1  0)
-      ,         (g  0  1)          ])))
+      ,         (g  0  1)          ]))
 
+  UmweltOptimized
+  (observe-umwelt--fast
+   [_ gen2d-arr [[x y] _] w h]
+   (let [g (fn [dx dy]
+             (let [c (calc-core/const->digit
+                      (aget gen2d-arr
+                            (wrap-bounds (+ y dy) 0 (dec h))
+                            (wrap-bounds (+ x dx) 0 (dec w))))]
+               (case c 0 nil c)))
+         self (if self? (g 0 0) nil)]
+     (str           (g  0 -1)          
+          (g -1  0)   self    (g  1  0)
+          ,         (g  0  1)))))
+
+#_
+(def match-dna (comp first calc-core/filter-dna))
+
+(defn match-dna
+  [dna umwelt]
+  (let [qtn (apply str (mapv calc-core/const?->digit umwelt)) ;; -4 fps
+        idx (- (count dna) 1
+               (utils/parse-int qtn 4))]
+    (dna idx)))
+
+(defn match-dna--fast
+  [dna umwelt-qtn]
+  (dna (- (count dna) 1 (utils/parse-int umwelt-qtn 4))))
 
 (defrule :match [dna]
   "Matches an `umwelt` (of cell values) directly against the given `dna`, which is equivalent to interpreting and calculating a corresponding expression."
   (apply-rule
    [_ umwelt _]
-   (calc/dna-get dna umwelt)))
+   (match-dna dna umwelt))
+
+  RuleOptimized
+  (apply-rule--fast
+   [_ umwelt-qtn _]
+   (match-dna--fast dna umwelt-qtn)))
 
 (defrule :life [dna]
   "Modeled after the rules for the “Game of Life”:
@@ -231,30 +337,16 @@
    (let [alive (vec (remove #(or (= :N %) (nil? %)) umwelt))]
      (case (count alive)
        2 self-v
-       3 (calc/dna-get dna alive)
-       :N))))
+       3 (match-dna dna alive)
+       :N)))
 
-
-(def sys-ini i/make-gen)
-
-(defn sys-next
-  [[w h :as res] rule-spec umwelt-spec gen]
-  (if h
-    (mapv (fn [y]
-            (mapv (fn [x]
-                    (let [[_ v :as cell] [[x y] (get-in gen [y x])]
-                          env (apply i/observe-umwelt umwelt-spec gen cell res)
-                          next-v (i/apply-rule rule-spec env v)]
-                      next-v))
-                  (range w)))
-          (range h))
-    (mapv (fn [x]
-            (let [[_ v :as cell] [[x] (get gen x)]
-                  env (apply i/observe-umwelt umwelt-spec gen cell res)
-                  next-v (i/apply-rule rule-spec env v)]
-              next-v))
-          (range w))))
-
+  RuleOptimized
+  (apply-rule--fast
+   [_ umwelt-qtn self-v]
+   (case (count umwelt-qtn)
+     2 self-v
+     3 (match-dna--fast dna umwelt-qtn)
+     :N)))
 
 (defrecord CASpec [resolution rule-spec umwelt-spec ini-spec])
 
@@ -262,7 +354,7 @@
   "1D cellular automaton. Takes a `dna` for its rule function (type `:match`) and an `ini` type (via `make-ini`). Its ‘umwelt’ is of type `:select-ltr`."
   (specify-ca
    [this w]
-   (let [umwelt-size (calc/dna-dimension dna)]
+   (let [umwelt-size (calc-core/dna-dimension dna)]
      (with-meta
        (map->CASpec {:label       "SelFi"
                      :resolution  [w]
@@ -276,7 +368,7 @@
   "2D cellular automaton. Takes a `dna` for its rule function (type `:match`) and an `ini` type (via `make-ini`). Its ‘umwelt’ is of type `:self-select-ltr`."
   (specify-ca
    [this w h]
-   (let [umwelt-size (calc/dna-dimension dna)]
+   (let [umwelt-size (calc-core/dna-dimension dna)]
      (with-meta
        (map->CASpec {:label       "MindFORM"
                      :resolution  [w h]
@@ -310,28 +402,109 @@
      {:constructor this})))
 
 
-(defn ca-iterator
-  [{:keys [resolution rule-spec umwelt-spec ini-spec]}]
-  (let [gen1 (apply sys-ini ini-spec resolution)]
-    (iterate (partial sys-next resolution rule-spec umwelt-spec) gen1)))
+(def sys-ini i/make-gen)
+
+(defn sys-next
+  [res rng-w rng-h rule-spec umwelt-spec gen]
+  (if rng-h
+    (mapv (fn [y]
+            (mapv (fn [x]
+                    (let [[_ v :as cell] [[x y] (get-in gen [y x])]
+                          umwelt (apply i/observe-umwelt
+                                        umwelt-spec gen cell res)
+                          next-v (i/apply-rule
+                                  rule-spec umwelt v)]
+                      next-v))
+                  rng-w))
+          rng-h)
+    (mapv (fn [x]
+            (let [[_ v :as cell] [[x] (get gen x)]
+                  umwelt (apply i/observe-umwelt umwelt-spec gen cell res)
+                  next-v (i/apply-rule rule-spec umwelt v)]
+              next-v))
+          rng-w)))
+
+
+(defn sys-next--fast
+  "More performant version of `sys-next` that uses native platform arrays instead of vectors for the generations and calls special `--fast` methods that operate on them. Note that these methods must be implemented for the provided `rule-spec` and `umwelt-spec`.
+
+  Always prefer `sys-next` for better compatibility across library functions and maximal flexibility."
+  ([w h rule-spec umwelt-spec gen]
+   (let [compute (fn [x y]
+                   (let [[_ v :as cell] [[x y] (aget gen y x)]
+                         qtn (i/observe-umwelt--fast umwelt-spec gen cell w h)]
+                     (i/apply-rule--fast rule-spec qtn v)))]
+     #?(:clj (let [^"[[Lclojure.lang.Keyword;"
+                   next-gen (make-array clojure.lang.Keyword h w)]
+               (loop [y 0]
+                 (when (< y h)
+                   (loop [x 0]
+                     (when (< x w)
+                       (aset next-gen y x (compute x y))
+                       (recur (inc x))))
+                   (recur (inc y))))
+               next-gen)
+
+        :cljs (let [next-gen #js []]
+                (loop [y 0]
+                  (when (< y h)
+                    (let [js-row #js []]
+                      (.push next-gen js-row)
+                      (loop [x 0]
+                        (when (< x w)
+                          (.push js-row (compute x y))
+                          (recur (inc x))))
+                      (recur (inc y)))))
+                next-gen))))
+
+  ([w rule-spec umwelt-spec gen]
+   (let [compute (fn [x]
+                   (let [[_ v :as cell] [[x] (aget gen x)]
+                         qtn (i/observe-umwelt--fast umwelt-spec gen cell w)]
+                     (i/apply-rule--fast rule-spec qtn v)))]
+     #?(:clj (let [^"[[Lclojure.lang.Keyword;"
+                   next-gen (make-array clojure.lang.Keyword w)]
+               (loop [x 0]
+                 (when (< x w)
+                   (aset next-gen x (compute x))
+                   (recur (inc x))))
+               next-gen)
+
+        :cljs (let [next-gen #js []]
+                (loop [x 0]
+                  (when (< x w)
+                    (.push next-gen (compute x))
+                    (recur (inc x))))
+                next-gen)))))
 
 
 (deftype CellularAutomaton
-    #?(:cljs [res init-evolution next-gen ^:mutable evolution]
-       :clj  [res init-evolution next-gen ^:unsynchronized-mutable evolution])
+    #?(:cljs [res init-evolution calc-next history-limit
+              ^:mutable history
+              ^:mutable curr-idx
+              ^:mutable curr-gen]
+       :clj  [res init-evolution calc-next history-limit
+              ^:unsynchronized-mutable history
+              ^:unsynchronized-mutable curr-idx
+              ^:unsynchronized-mutable curr-gen])
   i/CASystem
   (step [_]
-    (set! evolution
-          (conj! evolution (next-gen
-                            (nth evolution (dec (count evolution)))))))
+    (let [next-idx (inc curr-idx)
+          next-gen (if-let [cached (when (< next-idx (count history))
+                                     (nth history next-idx))]
+                     cached
+                     (calc-next curr-gen))]
+      (set! curr-idx next-idx)
+      (set! curr-gen next-gen)
+      (when (< (dec (count history)) next-idx history-limit)
+        (set! history (conj! history next-gen)))))
   (restart [_]
-    (set! evolution (transient init-evolution)))
+    (set! curr-idx 0)
+    (set! curr-gen (init-evolution 0)))
   (get-resolution [_]
     res)
-  (get-evolution [_]
-    (let [^clojure.lang.PersistentVector v (persistent! evolution)]
-      (set! evolution (transient v))
-      v)))
+  (get-current-generation [_]
+    curr-gen))
 
 ;; because direct method access for deftype JS objects is weird
 ;; remember to turn dashes into underscores for method names!
@@ -340,317 +513,68 @@
            (step [_this] (i/step _this))
            (restart [_this] (i/restart _this))
            (get_resolution [_this] (i/get-resolution _this))
-           (get_evolution [_this] (i/get-evolution _this))))
+           (get_current_generation [_this] (i/get-current-generation _this))))
+
+;; ? use bigint
+(defn calc-generation-cache-limit
+  [resolution cell-limit]
+  (let [cells-per-gen (apply * resolution)]
+    (int (/ cell-limit cells-per-gen))))
 
 (defn create-ca
   [{:keys [resolution rule-spec umwelt-spec ini-spec]}]
+  (let [optimized? (and (satisfies? UmweltOptimized umwelt-spec)
+                        (satisfies? RuleOptimized rule-spec))
+        [w h] resolution
+        gen1 (let [v (apply sys-ini ini-spec resolution)]
+               (if optimized?
+                 (if h
+                   (utils/keywords-to-array-2d v)
+                   (utils/keywords-to-array v))
+                 v))
+        calc-next (if optimized?
+                    (if h
+                      (partial sys-next--fast w h rule-spec umwelt-spec)
+                      (partial sys-next--fast w rule-spec umwelt-spec))
+                    (partial sys-next
+                             resolution (range w) (when h (range h))
+                             rule-spec umwelt-spec))
+        evolution [gen1]
+        hist-limit (calc-generation-cache-limit resolution 8000000)]
+    (->CellularAutomaton resolution evolution calc-next hist-limit
+                         (transient evolution) 0 gen1)))
+
+(defn ca-iterator
+  [{:keys [resolution rule-spec umwelt-spec ini-spec]}]
   (let [gen1 (apply sys-ini ini-spec resolution)
-        next-gen (partial sys-next resolution rule-spec umwelt-spec)
-        evolution [gen1]]
-    (->CellularAutomaton resolution evolution next-gen (transient evolution))))
-
-
-
-#_
-(comment
-  (defn make-automaton
-    [ca]
-    (let [res (get-resolution-from-generation (first ca))
-          ca-state (atom (rest ca))
-          evolution (atom [(first ca)])
-          step! (fn []
-                  (swap! ca-state rest)
-                  (swap! evolution conj (first @ca-state)))
-          reset! (fn []
-                   (reset! ca-state (rest ca))
-                   (reset! evolution [(first ca)]))
-          get-resolution res
-          get-evolution (fn [] @evolution)]
-      (defrecord )))
-
-  (defn automaton
-    [ca res]
-    (let [ca-state (atom (rest ca))
-          evolution (atom [(first ca)])
-          ;; _ (reset! ca-state (rest ca))
-          ;; _ (reset! evolution [(first ca)])
-          step! (fn []
-                  (swap! ca-state rest)
-                  (swap! evolution conj (first @ca-state)))
-          reset! (fn []
-                   (reset! ca-state (rest ca))
-                   (reset! evolution [(first ca)]))
-          get-evolution (fn [] @evolution)
-          get-generation (fn [] (first @evolution))]
-      {:step! step!
-       :reset! reset!
-       :get-resolution res
-       :get-evolution get-evolution
-       :get-generation get-generation})))
-
-#_
-(comment
-  (defrecord CellularAutomaton [res init !iterator !evolution]
-    ICellularAutomaton
-    (step! [this]
-      (swap! !iterator rest)
-      (swap! !evolution conj (first @!iterator)))
-    (restart! [this]
-      (reset! !iterator (rest init))
-      (reset! !evolution [(first init)]))
-    (get-resolution [this]
-      res)
-    (get-evolution [this]
-      @!evolution)
-    (toString [this]
-      "test"))
-
-  ;; (defmethod print-method CellularAutomaton [record ^java.io.Writer writer]
-  ;;   (.write writer "#MyRecord{...}"))
-
-  ;; Platform-specific print method implementations
-  (let [ca->str (fn [ca]
-                  (let [res (str ":res " (:res ca))
-                        init (str ":init #clojure.lang.Iterate(" (first (:init ca)) " …)")]
-                    (str "#CellularAutomaton{" res ", " init "}")))]
-    #?(:clj
-       (defmethod print-method CellularAutomaton [record ^java.io.Writer writer]
-         (.write writer (ca->str record))))
-    #?(:cljs
-       (extend-protocol IPrintWithWriter
-         CellularAutomaton
-         (-pr-writer [record writer _opts]
-           (write-all writer (ca->str record))))))
-
-  (defn automaton!
-    [generator]
-    (let [gen1 (first generator)
-          res (get-resolution-from-generation gen1)
-          !iterator (atom (rest generator))
-          !evolution (atom [gen1])]
-      (->CellularAutomaton res generator !iterator !evolution))))
+        [w h] resolution]
+    (iterate (partial sys-next
+                      resolution (range w) (when h (range h))
+                      rule-spec umwelt-spec) gen1)))
 
 
 #_
 (comment
-  (defprotocol ICellularAutomaton
-    (step! [this] "Advances the automaton by one generation.")
-    (restart! [this] "Resets the automaton to its initial state.")
-    (get-resolution [this] "Returns the resolution of the automaton.")
-    (get-evolution [this] "Returns an immutable copy of the current evolution."))
 
-  (defn create-ca
-    [initial-state]
-    (let [gen1 (first initial-state)
-          res (get-resolution-from-generation gen1)
-          !iterator (atom (rest initial-state))
-          !evolution (atom [gen1])]
-      (reify ICellularAutomaton
-        (step! [_]
-          (swap! !iterator rest)
-          (swap! !evolution conj (first @!iterator)))
-        (restart! [_]
-          (reset! !iterator (rest initial-state))
-          (reset! !evolution [(first initial-state)]))
-        (get-resolution [_]
-          res)
-        (get-evolution [_]
-          @!evolution)))))
-
-#_
-(comment
-
-  (defprotocol ICellularAutomaton
-    (step! [this] "Advances the automaton by one generation.")
-    (restart! [this] "Resets the automaton to its initial state.")
-    (get-resolution [this] "Returns the resolution of the automaton.")
-    (get-evolution [this] "Returns an immutable copy of the current evolution."))
-
-  (defrecord CellularAutomaton [res initial-state !iterator !evolution]
-    ICellularAutomaton
-    (step! [_]
-      (swap! !iterator rest)
-      (swap! !evolution conj (first @!iterator)))
-    (restart! [_]
-      (reset! !iterator (rest initial-state))
-      (reset! !evolution [(first initial-state)]))
+  (deftype CellularAutomaton
+      #?(:cljs [res init-evolution next-gen ^:mutable evolution]
+         :clj  [res init-evolution next-gen ^:unsynchronized-mutable evolution])
+    i/CASystem
+    (step [_]
+      (if (>= (count evolution) 20)
+        (set! evolution
+              (transient [(next-gen (nth evolution (dec (count evolution))))]))
+        (set! evolution
+              (conj! evolution (next-gen
+                                (nth evolution (dec (count evolution))))))))
+    (restart [_]
+      (set! evolution (transient init-evolution)))
     (get-resolution [_]
       res)
     (get-evolution [_]
-      @!evolution))
-
-  (defmulti execute-command
-    "Execute a command on a CellularAutomaton."
-    (fn [ca command & args] command))
-
-  (defmethod execute-command :step
-    [ca _]
-    (step! ca))
-
-  (defmethod execute-command :restart
-    [ca _]
-    (restart! ca))
-
-  (defmethod execute-command :get-resolution
-    [ca _]
-    (get-resolution ca))
-
-  (defmethod execute-command :get-evolution
-    [ca _]
-    (get-evolution ca))
-
-  #?(:clj (extend-type CellularAutomaton
-            clojure.lang.IFn
-            (invoke [this command & args]
-              (apply execute-command this command args)))
-     :cljs (extend-type CellularAutomaton
-             cljs.core.IFn
-             (invoke [this command & args]
-               (apply execute-command this command args))))
+      (let [^clojure.lang.PersistentVector v (persistent! evolution)]
+        (set! evolution (transient v))
+        v)))
 
   )
 
-#_
-(comment
-  (defprotocol PAutomaton
-    (make-rule [this args])
-    (make-umwelt [this args])
-    (make-ini [this args]))
-
-  (defrecord Automaton [type rule umwelt ini]
-    PAutomaton
-    (make-rule [_ [dna]]
-      [rule dna])
-    (make-umwelt [_ [dna]]
-      [umwelt (calc/dna-dimension dna)])
-    (make-ini [_ ini-spec]
-      ini-spec))
-
-  (def selfi (->Automaton :1d :match :select-ltr nil))
-  (def mindform (->Automaton :2d :match :self-select-ltr nil))
-  (def lifeform (->Automaton :2d :life :moore :random))
-  (def decisionform (->Automaton :2d :life :moore :rand-center))
-
-
-  ,)
-
-
-#_
-(comment
-  (defprotocol PCellularAutomaton
-    (step [this] "Advances the automaton by one generation.")
-    (restart [this] "Resets the automaton to its initial state.")
-    (get-resolution [this] "Returns the resolution of the automaton.")
-    (get-evolution [this] "Returns an immutable copy of the current evolution."))
-
-  (deftype CellularAutomaton
-      #?(:cljs [res initial-state ^:mutable evolution ^:mutable iterator]
-         :clj  [res initial-state ^:unsynchronized-mutable evolution
-                ^:unsynchronized-mutable iterator])
-    PCellularAutomaton
-    (step [_]
-      (set! iterator (rest iterator))
-      (conj! evolution (first iterator)))
-    (restart [_]
-      (set! iterator (rest initial-state))
-      (set! evolution (transient [(first initial-state)])))
-    (get-resolution [_]
-      res)
-    (get-evolution [_]
-      (let [^clojure.lang.PersistentVector v (persistent! evolution)]
-        (set! evolution (transient v))
-        v)))
-
-  ;; because direct method access for deftype JS objects is weird
-  ;; remember to turn dashes into underscores for method names!
-  #?(:cljs (extend-type CellularAutomaton
-             Object
-             (step [_this] (step _this))
-             (restart [_this] (restart _this))
-             (get_resolution [_this] (get-resolution _this))
-             (get_evolution [_this] (get-evolution _this))))
-
-
-
-  ,)
-
-
-#_
-(comment
-
-  (defn make-selfi
-    [res dna ini-spec]
-    (let [rule-spec   [:match dna]
-          umwelt-size (calc/dna-dimension dna)
-          umwelt-spec [:select-ltr umwelt-size]
-          gen1 (sys-ini res ini-spec)]
-      (iterate (partial sys-next res rule-spec umwelt-spec) gen1)))
-
-  (defn make-mindform
-    [res dna ini-spec]
-    (let [rule-spec   [:match dna]
-          umwelt-size (calc/dna-dimension dna)
-          umwelt-spec [:self-select-ltr umwelt-size]
-          gen1 (sys-ini res ini-spec)]
-      (iterate (partial sys-next res rule-spec umwelt-spec) gen1)))
-
-  (defn make-lifeform
-    [res dna]
-    (let [rule-spec   [:life dna]
-          umwelt-spec [:moore false]
-          ini-spec    [:random]
-          gen1 (sys-ini res ini-spec)]
-      (iterate (partial sys-next res rule-spec umwelt-spec) gen1)))
-
-  (defn make-decisionform
-    [res dna init-size]
-    (let [rule-spec   [:life dna]
-          umwelt-spec [:moore false]
-          ini-spec    [:rand-center init-size]
-          gen1 (sys-ini res ini-spec)]
-      (iterate (partial sys-next res rule-spec umwelt-spec) gen1)))
-
-
-  (defprotocol PCellularAutomaton
-    (step [this] "Advances the automaton by one generation.")
-    (restart [this] "Resets the automaton to its initial state.")
-    (get-resolution [this] "Returns the resolution of the automaton.")
-    (get-evolution [this] "Returns an immutable copy of the current evolution."))
-
-  (deftype CellularAutomaton
-      #?(:cljs [res initial-state ^:mutable evolution ^:mutable iterator]
-         :clj  [res initial-state ^:unsynchronized-mutable evolution
-                ^:unsynchronized-mutable iterator])
-    PCellularAutomaton
-    (step [_]
-      (set! iterator (rest iterator))
-      (conj! evolution (first iterator)))
-    (restart [_]
-      (set! iterator (rest initial-state))
-      (set! evolution (transient [(first initial-state)])))
-    (get-resolution [_]
-      res)
-    (get-evolution [_]
-      (let [^clojure.lang.PersistentVector v (persistent! evolution)]
-        (set! evolution (transient v))
-        v)))
-
-  ;; because direct method access for deftype JS objects is weird
-  ;; remember to turn dashes into underscores for method names!
-  #?(:cljs (extend-type CellularAutomaton
-             Object
-             (step [_this] (step _this))
-             (restart [_this] (restart _this))
-             (get_resolution [_this] (get-resolution _this))
-             (get_evolution [_this] (get-evolution _this))))
-
-  (defn create-ca
-    [initial-state]
-    (let [gen1 (first initial-state)
-          res (get-resolution-from-generation gen1)
-          iterator (rest initial-state)
-          evolution [gen1]]
-      (->CellularAutomaton res initial-state (transient evolution) iterator)))
-
-
-  ,)

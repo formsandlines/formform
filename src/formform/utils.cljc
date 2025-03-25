@@ -149,3 +149,46 @@
          (apply str (first parts) 
                 (map clojure.string/capitalize (rest parts)))))))
   ([kebab-str] (kebab->camel kebab-str false)))
+
+(defn keywords-to-array
+  "Converts a sequence of keywords to an array, using an optimized implementation for the respective host language."
+  [xs]
+  #?(:clj  (let [n (count xs)
+                 ^"[Lclojure.lang.Keyword;" arr
+                 (make-array clojure.lang.Keyword n)]
+             (dotimes [i n]
+               (aset arr i (nth xs i)))
+             arr)
+     :cljs (let [rows (count xs)
+                 arr #js []]
+             (dotimes [i rows]
+               (.push arr (nth xs i)))
+             arr)))
+
+(defn keywords-to-array-2d
+  "Converts a 2D sequence of keywords to a 2D array, using an optimized implementation for the respective host language."
+  [xxs]
+  #?(:clj  (let [rows (count xxs)
+                 cols (count (first xxs))
+                 ^"[[Lclojure.lang.Keyword;" arr
+                 (make-array clojure.lang.Keyword rows cols)]
+             (dotimes [i rows]
+               (let [row (nth xxs i)]
+                 (dotimes [j cols]
+                   (aset arr i j (nth row j)))))
+             arr)
+     :cljs (let [rows (count xxs)
+                 arr #js []]
+             (dotimes [i rows]
+               (let [row (nth xxs i)
+                     js-row #js []]
+                 (doseq [item row]
+                   (.push js-row item))
+                 (.push arr js-row)))
+             arr)))
+
+(comment
+  (aget (keywords-to-array [:N :U :I :M]) 1)
+  (aget (keywords-to-array-2d [[:N :U] [:I :M]]) 0 1)
+
+  ,)

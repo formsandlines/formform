@@ -14,8 +14,16 @@
     [this gen1d cell w]
     [this gen2d cell w h]))
 
+(defprotocol UmweltOptimized
+  (observe-umwelt--fast
+    [this gen1d-arr cell w]
+    [this gen2d-arr cell w h]))
+
 (defprotocol Rule
   (apply-rule [this umwelt self-v]))
+
+(defprotocol RuleOptimized
+  (apply-rule--fast [this umwelt-qtn self-v]))
 
 (defprotocol Specifier
   (specify-ca
@@ -26,7 +34,9 @@
   (step [this] "Advances the automaton by one generation.")
   (restart [this] "Resets the automaton to its initial state.")
   (get-resolution [this] "Returns the resolution of the automaton.")
-  (get-evolution [this] "Returns an immutable copy of the current evolution."))
+  (get-current-generation [this] "Returns the current generation.")
+  ;; (get-evolution [this] "Returns an immutable copy of the current evolution.")
+  )
 
 (defonce !types (atom {}))
 
