@@ -256,6 +256,22 @@
   [ca-obj]
   (i/get-current-generation ca-obj))
 
+(s/fdef get-system-time
+  :args (s/cat :ca-obj ::sp/automaton)
+  :ret  pos-int?)
+(defn get-system-time
+  "Given a stateful `CellularAutomaton` object, returns its generation index (aka “system-time”)."
+  [ca-obj]
+  (i/get-system-time ca-obj))
+
+(s/fdef get-history-cache-limit
+  :args (s/cat :ca-obj ::sp/automaton)
+  :ret  pos-int?)
+(defn get-history-cache-limit
+  "Given a stateful `CellularAutomaton` object, returns the max. number of generations it caches (stored in its history)."
+  [ca-obj]
+  (i/get-history-cache-limit ca-obj))
+
 (s/fdef get-resolution
   :args (s/cat :ca-obj ::sp/automaton)
   :ret  ::sp/resolution)
@@ -265,7 +281,9 @@
   (i/get-resolution ca-obj))
 
 (s/fdef create-ca
-  :args (s/cat :ca-spec ::sp/ca-spec)
+  :args (s/or :ar1 (s/cat :ca-spec ::sp/ca-spec)
+              :ar2 (s/cat :ca-spec ::sp/ca-spec
+                          :history-cache-limit pos-int?))
   :ret  ::sp/automaton)
 (defn create-ca
   "Returns a stateful `CellularAutomaton` object for the given cellular automaton specification (via `specify-ca`). Callable methods are:
@@ -273,8 +291,10 @@
   - `restart` to re-initialize the CA with its first generation
   - `get-evolution` to obtain an immutable copy of the current evolution
   - `get-resolution` to obtain the resolution of the CA"
-  [ca-spec]
-  (core/create-ca ca-spec))
+  ([ca-spec]
+   (core/create-ca ca-spec nil))
+  ([ca-spec history-cache-limit]
+   (core/create-ca ca-spec history-cache-limit)))
 
 
 (comment

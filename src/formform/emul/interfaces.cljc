@@ -9,6 +9,7 @@
     [this w]
     [this w h]))
 
+;; ? get w/h from generation length
 (defprotocol Umwelt
   (observe-umwelt
     [this gen1d cell w]
@@ -19,6 +20,7 @@
     [this gen1d-arr cell w]
     [this gen2d-arr cell w h]))
 
+;; ? provide cell instead of only val for more flexibility
 (defprotocol Rule
   (apply-rule [this umwelt self-v]))
 
@@ -35,6 +37,8 @@
   (restart [this] "Resets the automaton to its initial state.")
   (get-resolution [this] "Returns the resolution of the automaton.")
   (get-current-generation [this] "Returns the current generation.")
+  (get-system-time [this] "Returns the current generation index.")
+  (get-history-cache-limit [this] "Returns the history cache limit.")
   ;; (get-evolution [this] "Returns an immutable copy of the current evolution.")
   )
 

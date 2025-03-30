@@ -479,11 +479,11 @@
 
 
 (deftype CellularAutomaton
-    #?(:cljs [res init-evolution calc-next history-limit
+    #?(:cljs [res init-evolution calc-next history-cache-limit
               ^:mutable history
               ^:mutable curr-idx
               ^:mutable curr-gen]
-       :clj  [res init-evolution calc-next history-limit
+       :clj  [res init-evolution calc-next history-cache-limit
               ^:unsynchronized-mutable history
               ^:unsynchronized-mutable curr-idx
               ^:unsynchronized-mutable curr-gen])
@@ -496,7 +496,7 @@
                      (calc-next curr-gen))]
       (set! curr-idx next-idx)
       (set! curr-gen next-gen)
-      (when (< (dec (count history)) next-idx history-limit)
+      (when (< (dec (count history)) next-idx history-cache-limit)
         (set! history (conj! history next-gen)))))
   (restart [_]
     (set! curr-idx 0)
@@ -504,7 +504,11 @@
   (get-resolution [_]
     res)
   (get-current-generation [_]
-    curr-gen))
+    curr-gen)
+  (get-system-time [_]
+    curr-idx)
+  (get-history-cache-limit [_]
+    history-cache-limit))
 
 ;; because direct method access for deftype JS objects is weird
 ;; remember to turn dashes into underscores for method names!
@@ -513,7 +517,9 @@
            (step [_this] (i/step _this))
            (restart [_this] (i/restart _this))
            (get_resolution [_this] (i/get-resolution _this))
-           (get_current_generation [_this] (i/get-current-generation _this))))
+           (get_current_generation [_this] (i/get-current-generation _this))
+           (get_system_time [_this] (i/get-system-time _this))
+           (get_history_cache_limit [_this] (i/get-history-cache-limit _this))))
 
 ;; ? use bigint
 (defn calc-generation-cache-limit
@@ -522,7 +528,7 @@
     (int (/ cell-limit cells-per-gen))))
 
 (defn create-ca
-  [{:keys [resolution rule-spec umwelt-spec ini-spec]}]
+  [{:keys [resolution rule-spec umwelt-spec ini-spec]} hist-cache-limit]
   (let [optimized? (and (satisfies? UmweltOptimized umwelt-spec)
                         (satisfies? RuleOptimized rule-spec))
         [w h] resolution
@@ -540,8 +546,9 @@
                              resolution (range w) (when h (range h))
                              rule-spec umwelt-spec))
         evolution [gen1]
-        hist-limit (calc-generation-cache-limit resolution 8000000)]
-    (->CellularAutomaton resolution evolution calc-next hist-limit
+        hist-cache-limit (or hist-cache-limit
+                             (calc-generation-cache-limit resolution 8000000))]
+    (->CellularAutomaton resolution evolution calc-next hist-cache-limit
                          (transient evolution) 0 gen1)))
 
 (defn ca-iterator
