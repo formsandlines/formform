@@ -306,14 +306,18 @@
 
 (defn match-dna
   [dna umwelt]
-  (let [qtn (apply str (mapv calc-core/const?->digit umwelt)) ;; -4 fps
-        idx (- (count dna) 1
-               (utils/parse-int qtn 4))]
-    (dna idx)))
+  (if (== (count dna) 1)
+    (dna 0)
+    (let [qtn (apply str (mapv calc-core/const?->digit umwelt))
+          idx (- (count dna) 1
+                 (utils/parse-int qtn 4))]
+      (dna idx))))
 
 (defn match-dna--fast
   [dna umwelt-qtn]
-  (dna (- (count dna) 1 (utils/parse-int umwelt-qtn 4))))
+  (if (== (count dna) 1)
+    (dna 0)
+    (dna (- (count dna) 1 (utils/parse-int umwelt-qtn 4)))))
 
 (defrule :match [dna]
   "Matches an `umwelt` (of cell values) directly against the given `dna`, which is equivalent to interpreting and calculating a corresponding expression."
