@@ -58,7 +58,9 @@
 (s/def ::val (s/or :random #{:rand}
                    :const? ::calc-sp/const?))
 
-(s/def :ini/fill-all (s/cat :bg ::val))
+(s/def :ini/fill-all (s/cat :pattern (s/or :value ::val
+                                           :explicit ::generation
+                                           :function fn?)))
 (s/def :ini/fill-center
   (s/cat :area (s/or :template (s/keys :req-un [::res ::val])
                      :explicit ::generation)

@@ -187,8 +187,24 @@
                  (.push arr js-row)))
              arr)))
 
+(defn is-array?
+  [coll]
+  #?(:clj  (.isArray (class coll))
+     :cljs (js/Array.isArray coll))) ;; ! test in cljs
+
+(defn array-to-vector
+  [arr]
+  (if (is-array? arr)
+    (mapv array-to-vector arr)
+    arr))
+
 (comment
   (aget (keywords-to-array [:N :U :I :M]) 1)
   (aget (keywords-to-array-2d [[:N :U] [:I :M]]) 0 1)
+
+  (is-array? (keywords-to-array [:N :U :I :M]))
+
+  (array-to-vector (keywords-to-array [:N :U :I :M]))
+  (array-to-vector (keywords-to-array-2d [[:N :U] [:I :M]]))
 
   ,)

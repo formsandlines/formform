@@ -40,8 +40,8 @@
 
 (defmacro defspecies
   "Defines a new type of species pattern, to be specified with `make-species`. Takes a keyword identifier, fields for data the user needs to provide, an optional docstring (to describe the fields and the pattern) and one or more implementations of:
-  - `(specify-ca [this w] …)` for a 1D pattern
-  - `(specify-ca [this w h] …)` for a 2D pattern"
+  - `(specify-ca [this options w] …)` for a 1D pattern
+  - `(specify-ca [this options w h] …)` for a 2D pattern"
   [type-k fields doc-string? & methods]
   (apply i/defspecies-impl type-k fields doc-string? methods))
 
@@ -137,8 +137,10 @@
 
 (s/fdef specify-ca
   :args (s/alt :ar1 (s/cat :species-spec ::sp/species-spec
+                           :options      map?
                            :res-w        pos-int?)
                :ar2 (s/cat :species-spec ::sp/species-spec
+                           :options      map?
                            :res-w        pos-int?
                            :res-h        pos-int?))
   :ret  ::sp/ca-spec)
@@ -150,7 +152,7 @@
 (s/def ::tsds-selection
   (s/coll-of #{0 1} :kind vector? :count 6))
 
-(defn- tsds-sel->dna
+(defn tsds-sel->dna
   [selection]
   (expr/op-get (expr/=>* (expr/make :tsds selection 'a 'b 'c)) :dna))
 
@@ -252,9 +254,17 @@
   :args (s/cat :ca-obj ::sp/automaton)
   :ret  ::sp/generation)
 (defn get-current-generation
-  "Given a stateful `CellularAutomaton` object, returns its current generation."
-  [ca-obj]
-  (i/get-current-generation ca-obj))
+  "Given a stateful `CellularAutomaton` object, returns its current generation either as a native array (if `optimized?` is true) or a vector."
+  [ca-obj optimized?]
+  (i/get-current-generation ca-obj optimized?))
+
+(s/fdef get-cached-history
+  :args (s/cat :ca-obj ::sp/automaton)
+  :ret  ::sp/evolution)
+(defn get-cached-history
+  "Given a stateful `CellularAutomaton` object, returns its cached history/evolution, where all generations are either native arrays (if `optimized?` is true) or vectors."
+  [ca-obj optimized?]
+  (i/get-cached-history ca-obj optimized?))
 
 (s/fdef get-system-time
   :args (s/cat :ca-obj ::sp/automaton)
@@ -312,7 +322,7 @@
 (comment
   (docs :species :selfi)
   (docs :rule :match)
-  (take 6 (ca-iterator (specify-ca (common-specimen :Mark1) 10)))
+  (take 6 (ca-iterator (specify-ca (common-specimen :Mark1) {} 10)))
   ,)
 
 (comment
@@ -320,6 +330,7 @@
            (specify-ca (make-species :mindform
                                      (calc/rand-dna 2)
                                      (make-ini :rand-center 10))
+                       {}
                        40 40)))
   (.get-resolution ca)
   (step ca)
@@ -336,6 +347,18 @@
   (sys-ini (make-ini :ball) 10 10)
   (sys-ini (make-ini :fill-all :N) 10)
   (sys-ini (make-ini :fill-all :N) 10 4)
+  (sys-ini (make-ini :fill-all :rand) 10)
+  (sys-ini (make-ini :fill-all :rand) 10 4)
+  (sys-ini (make-ini :fill-all [:N :U :I :M]) 4)
+  (sys-ini (make-ini :fill-all [[:_ :_ :_ :N]
+                                [:_ :_ :U :_]
+                                [:_ :I :_ :_]
+                                [:M :_ :_ :_]]) 4 4)
+  (sys-ini (make-ini :fill-all (fn [x] (if (= 0 (mod x 3))
+                                        :U :_))) 10)
+  (sys-ini (make-ini :fill-all (fn [x y] (if (and (= 0 (mod x 3))
+                                                 (= 0 (mod y 3)))
+                                          :U :_))) 10 10)
   (sys-ini (make-ini :fill-center {:res [4] :val :U} :_) 10)
   (sys-ini (make-ini :fill-center {:res [4 3] :val :rand} :_) 10 10)
   (sys-ini (make-ini :fill-center [:U :I :M] :_) 10)
@@ -365,6 +388,7 @@
   (def selfi (specify-ca (make-species :selfi
                                        (calc/rand-dna 2)
                                        (make-ini :random))
+                         {}
                          40))
   (meta selfi)
   
@@ -382,6 +406,7 @@
   (type ca)
   
   (def slit (i/specify-ca (common-specimen :Slit)
+                          {}
                           20))
   (meta slit)
   (take 10 (ca-iterator slit))
@@ -437,6 +462,7 @@
         selfi (specify-ca
                (make-species :selfi dna
                              (make-ini :fill-center {:res [1] :val :M} :N))
+               {}
                7)]
     (take 5 (ca-iterator selfi)))
   '([:N :N :N :M :N :N :N]

@@ -30,16 +30,28 @@
         (recur x (conj res (count x)))
         res))))
 
-(defini :fill-all [bg]
-  "Fills a generation with a given `bg` value.
-- `bg`: <const|:rand>"
+(defini :fill-all [pattern]
+  "Fills a generation with a given `pattern`, which can be one of:
+- a constant value (`:N`/`:M`/`:U`/`:I`) or `:rand` to fill random values
+- an explicit n-dimensional vector of constants
+- a function that takes an index and returns a constant"
   (make-gen
    [_ w]
-   (vec (repeatedly w (partial val-or-rand bg))))
+   (cond
+     (keyword? pattern) (vec (repeatedly w (partial val-or-rand pattern)))
+     (sequential? pattern) (vec pattern)
+     :else (mapv pattern (range w))))
 
   (make-gen
    [_ w h]
-   (vec (repeatedly h #(vec (repeatedly w (partial val-or-rand bg)))))))
+   (cond
+     (keyword? pattern) (vec (repeatedly
+                              h #(vec (repeatedly
+                                       w (partial val-or-rand pattern)))))
+     (sequential? pattern) (mapv vec pattern)
+     :else (mapv (fn [y] (mapv (fn [x] (pattern x y))
+                              (range w)))
+                 (range h)))))
 
 (defini :fill-center [area bg]
   "Fills the center of given `area` within a generation otherwise filled with given background value `bg`.
@@ -245,7 +257,7 @@
            )
        (throw (ex-info "Unsupported neighbourhood size" {:size size}))))))
 
-(defumwelt :moore [self?]
+(defumwelt :moore [order self?]
   "In a 2d environment, observes the cell’s direct neighborhood, made up of 8 or 9 (given `self?` is true) cells (corner cells included)."
   (observe-umwelt
    [_ gen2d [[x y] _] w h]
@@ -255,9 +267,23 @@
                       (wrap-bounds (+ x dx) 0 (dec w))]))
          self (if self? (g 0 0) nil)]
      ;; `self` can be nil! (remove when counting)
-     [(g -1 -1) (g  0 -1) (g  1 -1)
-      (g -1  0)   self    (g  1  0)
-      (g -1  1) (g  0  1) (g  1  1)]))
+     (case order
+       :column-first
+       ;; 0 3 5   0 3 6
+       ;; 1 . 6   1 4 7
+       ;; 2 4 7   2 5 8
+       [(g -1 -1) (g -1  0) (g -1  1)
+        (g  0 -1)   self    (g  0  1)
+        (g  1 -1) (g  1  0) (g  1  1)]
+       :row-first
+       ;; 0 1 2   0 1 2
+       ;; 3 . 4   3 4 5
+       ;; 5 6 7   6 7 8
+       [(g -1 -1) (g  0 -1) (g  1 -1)
+        (g -1  0)   self    (g  1  0)
+        (g -1  1) (g  0  1) (g  1  1)]
+       (throw (ex-info "Invalid order for umwelt `:moore`."
+                       {:order order})))))
 
   UmweltOptimized
   (observe-umwelt--fast
@@ -269,11 +295,19 @@
                             (wrap-bounds (+ x dx) 0 (dec w))))]
                (case c 0 nil c)))
          self (if self? (g 0 0) nil)]
-     (str (g -1 -1) (g  0 -1) (g  1 -1)
-          (g -1  0)   self    (g  1  0)
-          (g -1  1) (g  0  1) (g  1  1)))))
+     (case order
+       :column-first
+       (str (g -1 -1) (g -1  0) (g -1  1)
+            (g  0 -1)   self    (g  0  1)
+            (g  1 -1) (g  1  0) (g  1  1))
+       :row-first
+       (str (g -1 -1) (g  0 -1) (g  1 -1)
+            (g -1  0)   self    (g  1  0)
+            (g -1  1) (g  0  1) (g  1  1))
+       (throw (ex-info "Invalid order for umwelt `:moore`."
+                       {:order order}))))))
 
-(defumwelt :von-neumann [self?]
+(defumwelt :von-neumann [order self?]
   "In a 2d environment, observes the cell’s direct neighborhood, made up of 4 or 5 (given `self?` is true) cells (corner cells not included)."
   (observe-umwelt
    [_ gen2d [[x y] _] w h]
@@ -283,9 +317,23 @@
                       (wrap-bounds (+ x dx) 0 (dec w))]))
          self (if self? (g 0 0) nil)]
      ;; `self` can be nil! (remove when counting)
-     [          (g  0 -1)          
-      (g -1  0)   self    (g  1  0)
-      ,         (g  0  1)          ]))
+     (case order
+       :column-first
+       ;;   1       1
+       ;; 0 . 3   0 2 4
+       ;;   2       3
+       [,         (g -1  0)
+        (g  0 -1)   self    (g  0  1)
+        ,         (g  1  0)]
+       :row-first
+       ;;   0       0
+       ;; 1 . 2   1 2 3
+       ;;   3       4
+       [          (g  0 -1)          
+        (g -1  0)   self    (g  1  0)
+        ,         (g  0  1)          ]
+       (throw (ex-info "Invalid order for umwelt `:von-neumann`."
+                       {:order order})))))
 
   UmweltOptimized
   (observe-umwelt--fast
@@ -297,9 +345,19 @@
                             (wrap-bounds (+ x dx) 0 (dec w))))]
                (case c 0 nil c)))
          self (if self? (g 0 0) nil)]
-     (str           (g  0 -1)          
-          (g -1  0)   self    (g  1  0)
-          ,         (g  0  1)))))
+     (case order
+       :column-first
+       (str
+        ,         (g -1  0)
+        (g  0 -1)   self    (g  0  1)
+        ,         (g  1  0))
+       :row-first
+       (str
+        ,         (g  0 -1)          
+        (g -1  0)   self    (g  1  0)
+        ,         (g  0  1))
+       (throw (ex-info "Invalid order for umwelt `:von-neumann`."
+                       {:order order}))))))
 
 #_
 (def match-dna (comp first calc-core/filter-dna))
@@ -352,58 +410,74 @@
      3 (match-dna--fast dna umwelt-qtn)
      :N)))
 
+
+
+
+
 (defrecord CASpec [resolution rule-spec umwelt-spec ini-spec])
 
 (defspecies :selfi [dna ini]
   "1D cellular automaton. Takes a `dna` for its rule function (type `:match`) and an `ini` type (via `make-ini`). Its ‘umwelt’ is of type `:select-ltr`."
   (specify-ca
-   [this w]
-   (let [umwelt-size (calc-core/dna-dimension dna)]
+   [this options w]
+   (let [{:keys [overwrites]} options
+         umwelt-size (calc-core/dna-dimension dna)]
      (with-meta
-       (map->CASpec {:label       "SelFi"
-                     :resolution  [w]
-                     :rule-spec   (->Rule-Match dna)
-                     :umwelt-spec (->Umwelt-SelectLtr umwelt-size)
-                     :ini-spec    ini})
+       (map->CASpec (merge
+                     {:label       "SelFi"
+                      :resolution  [w]
+                      :rule-spec   (->Rule-Match dna)
+                      :umwelt-spec (->Umwelt-SelectLtr umwelt-size)
+                      :ini-spec    ini}
+                     overwrites))
        {:constructor this}))))
 
 
 (defspecies :mindform [dna ini]
   "2D cellular automaton. Takes a `dna` for its rule function (type `:match`) and an `ini` type (via `make-ini`). Its ‘umwelt’ is of type `:self-select-ltr`."
   (specify-ca
-   [this w h]
-   (let [umwelt-size (calc-core/dna-dimension dna)]
+   [this options w h]
+   (let [{:keys [overwrites]} options
+         umwelt-size (calc-core/dna-dimension dna)]
      (with-meta
-       (map->CASpec {:label       "MindFORM"
-                     :resolution  [w h]
-                     :rule-spec   (->Rule-Match dna)
-                     :umwelt-spec (->Umwelt-SelfSelectLtr umwelt-size)
-                     :ini-spec    ini})
+       (map->CASpec (merge
+                     {:label       "MindFORM"
+                      :resolution  [w h]
+                      :rule-spec   (->Rule-Match dna)
+                      :umwelt-spec (->Umwelt-SelfSelectLtr umwelt-size)
+                      :ini-spec    ini}
+                     overwrites))
        {:constructor this}))))
 
 (defspecies :lifeform [dna]
   "2D cellular automaton. Takes a `dna` as part of its rule function, which is of type `:life`. Its ‘umwelt’ is of type `:moore`."
   (specify-ca
-   [this w h]
-   (with-meta
-     (map->CASpec {:label       "LifeFORM"
-                   :resolution  [w h]
-                   :rule-spec   (->Rule-Life dna)
-                   :umwelt-spec (->Umwelt-Moore false)
-                   :ini-spec    (->Ini-Random)})
-     {:constructor this})))
+   [this options w h]
+   (let [{:keys [overwrites]} options]
+     (with-meta
+       (map->CASpec (merge
+                     {:label       "LifeFORM"
+                      :resolution  [w h]
+                      :rule-spec   (->Rule-Life dna)
+                      :umwelt-spec (->Umwelt-Moore :column-first false)
+                      :ini-spec    (->Ini-Random)}
+                     overwrites))
+       {:constructor this}))))
 
 (defspecies :decisionform [dna init-size]
   "2D cellular automaton. Takes a `dna` as part of its rule function, which is of type `:life`, and an initial size for its `:rand-center` type ini. Its ‘umwelt’ is of type `:moore`."
   (specify-ca
-   [this w h]
-   (with-meta
-     (map->CASpec {:label       "DecisionFORM"
-                   :resolution  [w h]
-                   :rule-spec   (->Rule-Life dna)
-                   :umwelt-spec (->Umwelt-Moore false)
-                   :ini-spec    (->Ini-RandCenter init-size)})
-     {:constructor this})))
+   [this options w h]
+   (let [{:keys [overwrites]} options]
+     (with-meta
+       (map->CASpec (merge
+                     {:label       "DecisionFORM"
+                      :resolution  [w h]
+                      :rule-spec   (->Rule-Life dna)
+                      :umwelt-spec (->Umwelt-Moore :column-first false)
+                      :ini-spec    (->Ini-RandCenter init-size)}
+                     overwrites))
+       {:constructor this}))))
 
 
 (def sys-ini i/make-gen)
@@ -507,8 +581,16 @@
     (set! curr-gen (init-evolution 0)))
   (get-resolution [_]
     res)
-  (get-current-generation [_]
-    curr-gen)
+  (get-current-generation [_ optimized?]
+    (if optimized?
+      curr-gen
+      (utils/array-to-vector curr-gen)))
+  (get-cached-history [_ optimized?]
+    (let [^clojure.lang.PersistentVector v (persistent! history)]
+      (set! history (transient v))
+      (if optimized?
+        v
+        (mapv utils/array-to-vector v))))
   (get-system-time [_]
     curr-idx)
   (get-history-cache-limit [_]
@@ -521,7 +603,10 @@
            (step [_this] (i/step _this))
            (restart [_this] (i/restart _this))
            (get_resolution [_this] (i/get-resolution _this))
-           (get_current_generation [_this] (i/get-current-generation _this))
+           (get_current_generation [_this optimized?]
+             (i/get-current-generation _this optimized?))
+           (get_cached_history [_this optimized?]
+             (i/get-cached-history _this optimized?))
            (get_system_time [_this] (i/get-system-time _this))
            (get_history_cache_limit [_this] (i/get-history-cache-limit _this))))
 
@@ -564,28 +649,85 @@
                       rule-spec umwelt-spec) gen1)))
 
 
-#_
 (comment
+  (def dna [:N :U :I :M :U :U :M :M :I :M :I :M :M :M :M :M :N :U :I :M :U :I :M :M :I :M :I :M :M :M :M :M :N :U :I :M :U :U :M :M :I :M :I :M :M :M :M :M :N :U :I :M :U :I :M :M :I :M :I :M :M :M :M :I])
 
-  (deftype CellularAutomaton
-      #?(:cljs [res init-evolution next-gen ^:mutable evolution]
-         :clj  [res init-evolution next-gen ^:unsynchronized-mutable evolution])
-    i/CASystem
-    (step [_]
-      (if (>= (count evolution) 20)
-        (set! evolution
-              (transient [(next-gen (nth evolution (dec (count evolution))))]))
-        (set! evolution
-              (conj! evolution (next-gen
-                                (nth evolution (dec (count evolution))))))))
-    (restart [_]
-      (set! evolution (transient init-evolution)))
-    (get-resolution [_]
-      res)
-    (get-evolution [_]
-      (let [^clojure.lang.PersistentVector v (persistent! evolution)]
-        (set! evolution (transient v))
-        v)))
+  (def rule (->Rule-Life dna))
 
-  )
+  (i/apply-rule rule (i/observe-umwelt (->Umwelt-Moore :column-first false)
+                                       [[:N :N :U]
+                                        [:M :_ :N]
+                                        [:N :N :I]]
+                                       [[1 1] :N]
+                                       3 3)
+                :N)
+  ;;=> 
 
+  (require '[clojure.math.combinatorics :as combo])
+
+  (calc-core/filter-dna dna [:U :M :I])
+  
+  (filter
+   (fn [[p [v]]] (= v :M))
+   (map
+    (fn [p] [p (calc-core/filter-dna dna (vec p))])
+    (combo/permutations [:U :M :I])))
+
+  ,)
+
+(comment
+[[:N :N :U]
+ [:M :_ :N] ;; self: :N
+ [:N :N :I]]
+;;=> :U (should be :M)
+;; solutions:
+;; [:M :U :I] ← ↗ ↘
+;; [:M :I :U] ← ↘ ↗
+
+[[:N :U :N]
+ [:I :_ :N] ;; self: :M
+ [:N :U :N]]
+;;=> :M (should be :I)
+;; solutions:
+;; [:I :U :U] ← ↓ ↑ / ← ↑ ↓
+
+[[:N :I :N]
+ [:N :_ :N] ;; self: :N
+ [:M :M :N]]
+;;=> :N (should be :U)
+;; solutions:
+;; [:M :I :M] ↙ ↑ ↓ / ↓ ↑ ↙
+;; [:M :M :I] ↙ ↓ ↑ / ↓ ↙ ↑
+
+[[:N :N :N]
+ [:N :_ :I] ;; self: :N
+ [:U :N :M]]
+;;=> :I (should be :U)
+;; solutions:
+;; [:U :I :M] ↙ → ↘
+;; [:U :M :I] ↙ ↘ →
+
+[[:N :N :N]
+ [:N :_ :U] ;; self: :M
+ [:I :I :N]]
+;;=> :U (should be :M)
+;; solutions:
+;; [:I :U :I] ↙ → ↓ / ↓ → ↙
+;; [:I :I :U] ↙ ↓ → / ↓ ↙ →
+
+[[:N :N :N]
+ [:N :_ :M] ;; self: :N
+ [:I :M :N]]
+;;=> :U (should be :N)
+;; solutions:
+;; [:I :M :M] ↙ ↓ → / ↙ → ↓
+
+[[:N :N :U]
+ [:I :_ :M] ;; self: :N
+ [:N :N :N]]
+;;=> :U (should be :I)
+;; solutions:
+;; [:I :U :M] ← ↗ →
+;; [:I :M :U] ← → ↗
+
+  ,)

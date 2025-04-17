@@ -29,14 +29,15 @@
 
 (defprotocol Specifier
   (specify-ca
-    [this w]
-    [this w h]))
+    [this options w]
+    [this options w h]))
 
 (defprotocol CASystem
   (step [this] "Advances the automaton by one generation.")
   (restart [this] "Resets the automaton to its initial state.")
   (get-resolution [this] "Returns the resolution of the automaton.")
-  (get-current-generation [this] "Returns the current generation.")
+  (get-current-generation [this optimized?] "Returns the current generation.")
+  (get-cached-history [this optimized?] "Returns the cached history.")
   (get-system-time [this] "Returns the current generation index.")
   (get-history-cache-limit [this] "Returns the history cache limit.")
   ;; (get-evolution [this] "Returns an immutable copy of the current evolution.")
