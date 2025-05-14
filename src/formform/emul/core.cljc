@@ -5,6 +5,7 @@
 
 (ns ^:no-doc formform.emul.core
   (:require [formform.calc.core :as calc-core]
+            [clojure.test.check.random :as random]
             ;; [formform.expr :as expr]
             #?(:clj  [formform.emul.interfaces :as i
                       :refer [defini defumwelt defrule defspecies
@@ -16,11 +17,6 @@
   ;; #?(:clj (:import [formform.emul.interfaces UmweltOptimized RuleOptimized]))
   )
 
-(defn- val-or-rand [v]
-  (case v
-    :rand (rand-nth calc-core/nuim-code)
-    v))
-
 (defn get-resolution-from-generation
   [gen]
   (loop [xs  gen
@@ -30,105 +26,506 @@
         (recur x (conj res (count x)))
         res))))
 
-(defini :fill-all [pattern]
-  "Fills a generation with a given `pattern`, which can be one of:
-- a constant value (`:N`/`:M`/`:U`/`:I`) or `:rand` to fill random values
-- an explicit n-dimensional vector of constants
-- a function that takes an index and returns a constant"
-  (make-gen
-   [_ w]
-   (cond
-     (keyword? pattern) (vec (repeatedly w (partial val-or-rand pattern)))
-     (sequential? pattern) (vec pattern)
-     :else (mapv pattern (range w))))
+(defn make-rng
+  ([] (make-rng nil))
+  ([seed] (if seed
+            (random/make-random seed)
+            (random/make-random))))
 
-  (make-gen
-   [_ w h]
-   (cond
-     (keyword? pattern) (vec (repeatedly
-                              h #(vec (repeatedly
-                                       w (partial val-or-rand pattern)))))
-     (sequential? pattern) (mapv vec pattern)
-     :else (mapv (fn [y] (mapv (fn [x] (pattern x y))
-                              (range w)))
-                 (range h)))))
+(defn rng-select
+  [rng coll]
+  (let [n (mod (random/rand-long rng) 4)]
+    (coll n)))
 
-(defini :fill-center [area bg]
-  "Fills the center of given `area` within a generation otherwise filled with given background value `bg`.
-- `area`: either a concrete value vector or a map `{:res [<x> <?y>] :val <const|:rand>}
-- `bg`: <const|:rand>"
-  (make-gen [_ w]
-    (let [explicit? (vector? area)
-          cw (if explicit? (count area) (first (:res area)))
-          cx (quot w 2)
-          cpoints (into {} (for [x (range cw)
-                                 :let [v (if explicit?
-                                           (get area x)
-                                           (val-or-rand (:val area)))
-                                       coords (- (+ x cx) (quot cw 2))]]
-                             [coords v]))]
-      (mapv (fn [x]
-              (if-let [v (cpoints x)]
-                v
-                (val-or-rand bg)))
-            (range w))))
+(defn transduce-ini
+  ([{:keys [no-rng? seed]} xform w]
+   (into [] (comp (map-indexed (fn [i rng']
+                                 {:rng rng'
+                                  :i i
+                                  :w w
+                                  :x i}))
+                  xform
+                  (map :v))
+         (if no-rng?
+           (repeat w nil)
+           (random/split-n (make-rng seed) w))))
 
-  (make-gen [_ w h]
-    (let [explicit? (vector? area)
-          [cw ch] (if explicit?
-                    [(count (first area)) (count area)]
-                    (:res area))
-          cx (quot w 2)
-          cy (quot h 2)
-          cpoints (into {} (for [y (range ch)
-                                 x (range cw)
-                                 :let [v (if explicit?
-                                           (get-in area [y x])
-                                           (val-or-rand (:val area)))
-                                       coords [(- (+ x cx) (quot cw 2))
-                                               (- (+ y cy) (quot ch 2))]]]
-                             [coords v]))]
-      (mapv (fn [y]
-              (mapv (fn [x]
-                      (if-let [v (cpoints [x y])]
-                        v
-                        (val-or-rand bg)))
-                    (range w)))
-            (range h)))))
+  ([{:keys [no-rng? seed]} xform w h]
+   (into [] (comp (map-indexed (fn [i rng']
+                                 {:rng rng'
+                                  :w w
+                                  :h h
+                                  :i i
+                                  :x (mod i w)
+                                  :y (quot i w)}))
+                  xform
+                  (map :v)
+                  (partition-all w))
+         (if no-rng?
+           (repeat (* w h) nil)
+           (random/split-n (make-rng seed) (* w h))))))
 
-(defini :random []
+(defn- ini-transducer?
+  [ini]
+  (and (record? ini) (satisfies? i/IniTransducer ini)))
+
+(defn- validate-ini-transducer
+  [ini]
+  (if (ini-transducer? ini)
+    ini
+    (throw (ex-info "Ini must be a record and satisfy the `formform.emul.interfaces.IniTransducer` protocol." {:ini ini}))))
+
+(defini :constant [-opts const]
+  "Fills a generation with a given constant (`:N`/`:M`/`:U`/`:I`)."
+  (make-gen [this w] (transduce-ini -opts (i/ini-xform1d this) w))
+  (make-gen [this w h] (transduce-ini -opts (i/ini-xform2d this) w h))
+
+  i/IniTransducer
+  (ini-xform1d [_] (map #(assoc % :v const)))
+  (ini-xform2d [this] (i/ini-xform1d this)))
+
+
+(defn val-random
+  [{:keys [rng]}]
+  (rng-select rng calc-core/nuim-code))
+
+(defini :random [-opts]
   "Fills a generation with random values."
-  (make-gen
-   [_ w]
-   (i/make-gen (->Ini-FillAll :rand) w))
+  (make-gen [this w] (transduce-ini -opts (i/ini-xform1d this) w))
+  (make-gen [this w h] (transduce-ini -opts (i/ini-xform2d this) w h))
 
-  (make-gen
-   [_ w h]
-   (i/make-gen (->Ini-FillAll :rand) w h)))
+  i/IniTransducer
+  (ini-xform1d [_] (map #(assoc % :v (val-random %))))
+  (ini-xform2d [this] (i/ini-xform1d this)))
 
-(defini :rand-center [size]
-  "Fills the center of given `size` within a generation with random values."
-  (make-gen
-   [_ w]
-   (i/make-gen (->Ini-FillCenter {:res size :val :rand} :N) w))
 
-  (make-gen
-   [_ w h]
-   (i/make-gen (->Ini-FillCenter {:res [size size] :val :rand} :N) w h)))
+(defn make-val-cycle [pattern]
+  (fn [{:keys [y x]}]
+    (pattern (mod (+ x (or y 0)) (count pattern)))))
 
-(defini :ball []
-  "Fills the center of a generation with the pattern `…iumui…`."
-  (make-gen
-   [_ w]
-   (i/make-gen (->Ini-FillCenter [:I :U :M :U :I] :N) w))
+(defini :cycle [-opts pattern]
+  "Fills a generation with repeatedly with the same value sequence."
+  (make-gen [this w] (transduce-ini -opts (i/ini-xform1d this) w))
+  (make-gen [this w h] (transduce-ini -opts (i/ini-xform2d this) w h))
 
-  (make-gen
-   [_ w h]
-   (i/make-gen (->Ini-FillCenter [[:N :N :I :N :N]
-                                  [:N :I :U :I :N]
-                                  [:I :U :M :U :I]
-                                  [:N :I :U :I :N]
-                                  [:N :N :I :N :N]] :N) w h)))
+  i/IniTransducer
+  (ini-xform1d
+   [_]
+   (let [val-cycle (make-val-cycle pattern)]
+     (map #(assoc % :v (val-cycle %)))))
+  (ini-xform2d [this] (i/ini-xform1d this)))
+
+
+(defn- segment-bounds
+  "Calculates the start and end index of a subsequence (“segment”) given its position within a sequence and its alignment at that position. The sequence wraps around itself, so when its subsequence indices would be out of bounds, their count continues from the beginning/end.
+  - `segm-pos` can be an index or an alignment keyword (see below)
+  - `segm-align` must be one of `:start`, `:center` or `:end`"
+  [total-len segm-len segm-pos segm-align segm-offset]
+  (let [wrap (fn [x] (cond (< x 0) (+ total-len x)
+                          (>= x total-len) (- x total-len)
+                          :else x))
+        anchor (case segm-pos
+                 :start  0
+                 :center (quot total-len 2)
+                 :end    total-len
+                 segm-pos)
+        shift (case segm-align
+                :start  0
+                :center (- (quot segm-len 2))
+                :end    (- segm-len))
+        start (wrap (+ anchor segm-offset shift))
+        end   (wrap (+ start (dec segm-len)))]
+    [start end]))
+
+(defn- within-segment-bounds?
+  "Checks if a given index `x` is within the boundaries of a segment (see `segment-bounds`) in the context of the given total length of the wrapping sequence."
+  [[start end] total-len x]
+  (if (> start end)
+    (or (<= start x (dec total-len))
+        (<= 0 x end))
+    (<= start x end)))
+
+(def align->normalized
+  {:left [:start :center]
+   :right [:end :center]
+   :center [:center :center]
+   :top [:center :start]
+   :bottom [:center :end]
+
+   :topleft [:start :start]
+   :topcenter [:center :start]
+   :topright [:end :start]
+   :centerleft [:start :center]
+   :centerright [:end :center]
+   :bottomleft [:start :end]
+   :bottomcenter [:center :end]
+   :bottomright [:end :end]})
+
+(def align-tuples
+  (set (vals align->normalized)))
+
+(defn- normalize-position [pos]
+  (let [v (vec (if-let [norm-align (or (align-tuples pos)
+                                       (align->normalized pos))]
+                 norm-align
+                 (cond
+                   (sequential? pos) pos
+                   (int? pos) [pos pos]
+                   (nil? pos) []
+                   :else (throw (ex-info "Invalid position!" {:pos pos})))))]
+    {:pos-x (get v 0 0)
+     :pos-y (get v 1 0)}))
+
+(defn- normalize-alignment [align]
+  (let [v (vec (if-let [norm-align (or (align-tuples align)
+                                       (align->normalized align))]
+                 norm-align
+                 (if (nil? align)
+                   []
+                   (throw (ex-info "Invalid alignment!" {:align align})))))]
+    {:align-x (get v 0 :start)
+     :align-y (get v 1 :start)}))
+
+(defn- normalize-offset [offset]
+  (let [v (vec (cond
+                 (sequential? offset) offset
+                 (int? offset) [offset offset]
+                 (nil? offset) []
+                 :else (throw (ex-info "Invalid offset!" {:offset offset}))))]
+    {:offset-x (get v 0 0)
+     :offset-y (get v 1 0)}))
+
+;; (defrecord Pattern [gen1d gen2d])
+;; (defrecord PatternSpec [w h f])
+
+(defn- normalize-anchor [{:keys [pos align offset] :as anchor}]
+  (if (and (:pos-x anchor)
+           (:align-x anchor)
+           (:offset-x anchor))
+    anchor ;; already normalized
+    (merge (normalize-position pos)
+           (normalize-alignment align)
+           (normalize-offset offset))))
+
+(defn- normalize-pattern
+  [pattern]
+  (cond
+    (and (map? pattern)
+         (or (:gen1d pattern) (:gen2d pattern)
+             (:f pattern))) pattern
+    (vector? pattern) (let [dim (if (sequential? (first pattern))
+                                  2 1)]
+                        ;; ? defaults for missing dimensions
+                        {:gen1d (if (== dim 1) pattern (first pattern))
+                         :gen2d (if (== dim 2) pattern [pattern])})
+    :else (throw (ex-info "Invalid pattern!" {:pattern pattern}))))
+
+(defn- get-pattern-type
+  [normal-pattern]
+  (cond
+    (:f normal-pattern) :recipe
+    (or (:gen1d normal-pattern)
+        (:gen2d normal-pattern)) :explicit
+    :else (throw (ex-info "Unknown pattern type." {:pattern normal-pattern}))))
+
+(defn- get-pattern-dimensions
+  [{:keys [gen1d gen2d w h] :as pattern}]
+  (case (get-pattern-type pattern)
+    :explicit {:1d (count gen1d)
+               :2d [(count (first gen2d)) (count gen2d)]}
+    :recipe   {:1d w
+               :2d [w h]}))
+
+(defn- make-pattern-fn
+  [normal-pattern]
+  (case (get-pattern-type normal-pattern)
+    :explicit (fn [{:keys [i j v] :as env}]
+                (let [v' (if j
+                           (get-in (:gen2d normal-pattern) [i j])
+                           (get (:gen1d normal-pattern) i))]
+                  (case v'
+                    :_ v
+                    :? (val-random env)
+                    v')))
+    :recipe (:f normal-pattern)))
+
+(defn make-val-figure1d
+  [normal-pattern normal-anchor]
+  (let [{:keys [pos-x align-x offset-x]} normal-anchor
+        {ptn-w :1d} (get-pattern-dimensions normal-pattern)
+        get-val (make-pattern-fn normal-pattern)]
+    (fn [{:keys [w x v] :as env}]
+      (let [[s0 s1 :as xb] (segment-bounds w ptn-w pos-x align-x offset-x)
+            at-ptn? (within-segment-bounds? xb w x)]
+        (if at-ptn?
+          (get-val (-> env (assoc :i (if (and (> s0 s1) (< x s0))
+                                       (+ x (- ptn-w (inc s1)))
+                                       (- x s0)))))
+          v)))))
+
+(defn make-val-figure2d
+  [normal-pattern normal-anchor]
+  (let [{:keys [pos-x    pos-y
+                align-x  align-y
+                offset-x offset-y]} normal-anchor
+        {[ptn-w ptn-h] :2d} (get-pattern-dimensions normal-pattern)
+        get-val (make-pattern-fn normal-pattern)]
+    (fn [{:keys [w h x y v] :as env}]
+      (let [[sx0 sx1 :as xb] (segment-bounds w ptn-w pos-x align-x offset-x)
+            [sy0 sy1 :as yb] (segment-bounds h ptn-h pos-y align-y offset-y)
+            at-ptn?
+            (and (within-segment-bounds? xb w x)
+                 (within-segment-bounds? yb h y))]
+        (if at-ptn?
+          (get-val (-> env (assoc :i (if (and (> sy0 sy1) (< y sy0))
+                                       (+ y (- ptn-h (inc sy1)))
+                                       (- y sy0))
+                                  :j (if (and (> sx0 sx1) (< x sx0))
+                                       (+ x (- ptn-w (inc sx1)))
+                                       (- x sx0)))))
+          v)))))
+
+(defn- parse-bg [-opts bg]
+  (cond
+    ((set calc-core/nuim-code) bg) (->Ini-Constant -opts bg)
+    (= :? bg) (->Ini-Random -opts)
+    (ini-transducer? bg) bg
+    :else (throw (ex-info "Invalid background ini." {:bg-ini bg}))))
+
+(defini :figure [-opts bg pattern anchor]
+  "Places a given `pattern` at the position specified by `anchor` before a given background ini.
+- `bg`: a constant or ini that defines the background pattern of this ini
+- `pattern`: either a (1d/2d) vector of figure values (constants, `:_` to fall back to `bg-ini` or `:?` for a random value) or a map that specifies the pattern implicitly with the following keys:
+  - `w`/`h`: size of the pattern
+  - `f`: function that takes a map of the current `:x`, `:y` coordinates and the background value `:v` (among other parameters) and must return the value at that coordinate
+- `anchor`: map with the following (all optional) keys:
+  - `pos`: can be an index (for x/y), a vector of indices `[x y]` or an alignment keyword (see `align`)
+  - `align`: a keyword, e.g. `:left`, `:center` `:right`, `topleft`, …
+  - `offset`: an integer of the pattern offset (number of cells from `pos`)"
+  (make-gen [this w]
+            (let [bg-ini (parse-bg -opts bg)]
+              (transduce-ini -opts
+                             (comp (i/ini-xform1d bg-ini)
+                                   (i/ini-xform1d this)) w)))
+  (make-gen [this w h]
+            (let [bg-ini (parse-bg -opts bg)]
+              (transduce-ini -opts (comp (i/ini-xform2d bg-ini)
+                                         (i/ini-xform2d this)) w h)))
+
+  i/IniTransducer
+  (ini-xform1d
+   [_]
+   (let [val-figure (make-val-figure1d (normalize-pattern pattern)
+                                       (normalize-anchor anchor))]
+     (map #(assoc % :v (val-figure %)))))
+  (ini-xform2d
+   [_]
+   (let [val-figure (make-val-figure2d (normalize-pattern pattern)
+                                       (normalize-anchor anchor))]
+     (map #(assoc % :v (val-figure %))))))
+
+
+(defini :rand-figure [-opts bg size anchor]
+  "Generates a figure of given `size` with random constants at the position specified by `anchor` before a given background ini (see docs of `:figure` ini for further explanation). "
+  (make-gen [this w]
+            (let [bg-ini (parse-bg -opts bg)]
+              (transduce-ini -opts
+                             (comp (i/ini-xform1d bg-ini)
+                                   (i/ini-xform1d this)) w)))
+  (make-gen [this w h]
+            (let [bg-ini (parse-bg -opts bg)]
+              (transduce-ini -opts (comp (i/ini-xform2d bg-ini)
+                                         (i/ini-xform2d this)) w h)))
+
+  i/IniTransducer
+  (ini-xform1d
+   [_]
+   (let [w (cond
+             (vector? size) (first size)
+             (int? size) size
+             :else 1)
+         pattern {:w w :f val-random}]
+     (i/ini-xform1d (->Ini-Figure -opts nil pattern anchor))))
+  (ini-xform2d
+   [_]
+   (let [[w h] (cond
+                 (vector? size) size
+                 (int? size) [size size]
+                 :else [1 1])
+         pattern {:w w :h h :f val-random}]
+     (i/ini-xform2d (->Ini-Figure -opts nil pattern anchor)))))
+
+
+(defini :ball [-opts bg style anchor]
+  "Generates a “ball” figure on top of a given background ini (see docs of `:figure` ini for further explanation)."
+  (make-gen [this w]
+            (let [bg-ini (parse-bg -opts bg)]
+              (transduce-ini -opts
+                             (comp (i/ini-xform1d bg-ini)
+                                   (i/ini-xform1d this)) w)))
+  (make-gen [this w h]
+            (let [bg-ini (parse-bg -opts bg)]
+              (transduce-ini -opts (comp (i/ini-xform2d bg-ini)
+                                         (i/ini-xform2d this)) w h)))
+
+  i/IniTransducer
+  (ini-xform1d
+   [_]
+   (let [pattern (case style
+                   (:inverted :moore-inverted)
+                   [:U :I :N :I :U]
+                   [:I :U :M :U :I])]
+     (i/ini-xform1d (->Ini-Figure -opts nil pattern anchor))))
+  (ini-xform2d
+   [_]
+   (let [pattern (case style
+                   :moore
+                   [[:I :I :I :I :I]
+                    [:I :U :U :U :I]
+                    [:I :U :M :U :I]
+                    [:I :U :U :U :I]
+                    [:I :I :I :I :I]]
+                   :moore-inverted
+                   [[:U :U :U :U :U]
+                    [:U :I :I :I :U]
+                    [:U :I :N :I :U]
+                    [:U :I :I :I :U]
+                    [:U :U :U :U :U]]
+                   :inverted
+                   [[:_ :_ :U :_ :_]
+                    [:_ :U :I :U :_]
+                    [:U :I :N :I :U]
+                    [:_ :U :I :U :_]
+                    [:_ :_ :U :_ :_]]
+                   [[:_ :_ :I :_ :_]
+                    [:_ :I :U :I :_]
+                    [:I :U :M :U :I]
+                    [:_ :I :U :I :_]
+                    [:_ :_ :I :_ :_]])]
+     (i/ini-xform2d (->Ini-Figure -opts nil pattern anchor)))))
+
+(defini :comp-figures [-opts bg figure-inis]
+  "Takes a background ini and a sequence of `figure-inis` and composes them all together. Inis that appear later in the sequence may overwrite earlier ones when they overlap.
+- `bg-ini`: another ini that defines the background pattern of this ini"
+  (make-gen [this w]
+            (let [bg-ini (parse-bg -opts bg)]
+              (transduce-ini -opts
+                             (comp (i/ini-xform1d bg-ini)
+                                   (i/ini-xform1d this)) w)))
+  (make-gen [this w h]
+            (let [bg-ini (parse-bg -opts bg)]
+              (transduce-ini -opts (comp (i/ini-xform2d bg-ini)
+                                         (i/ini-xform2d this)) w h)))
+
+  i/IniTransducer
+  (ini-xform1d [_] (apply comp
+                          (map (comp i/ini-xform1d validate-ini-transducer)
+                               figure-inis)))
+  (ini-xform2d [_] (apply comp
+                          (map (comp i/ini-xform2d validate-ini-transducer)
+                               figure-inis))))
+
+(defn calc-nth-pattern-offset
+  [n w total-w gap align global-offset]
+  (let [offset (+ (* n w) (* n gap))]
+    (+ (case align
+         :start offset
+         :center (- offset (- (quot total-w 2)
+                              (quot w 2)))
+         :end (- offset))
+       global-offset)))
+
+(defini :figure-repeat [-opts bg pattern anchor copies spacing]
+  "Repeats a given `pattern` n (`copies`) times over a given background ini with a specified `spacing` between each instance. The instances are positioned as specified by `anchor` (see docs of `:figure` ini for further explanation)."
+  (make-gen [this w]
+            (let [bg-ini (parse-bg -opts bg)]
+              (transduce-ini -opts
+                             (comp (i/ini-xform1d bg-ini)
+                                   (i/ini-xform1d this)) w)))
+  (make-gen [this w h]
+            (let [bg-ini (parse-bg -opts bg)]
+              (transduce-ini -opts (comp (i/ini-xform2d bg-ini)
+                                         (i/ini-xform2d this)) w h)))
+
+  i/IniTransducer
+  (ini-xform1d
+   [_]
+   (let [{:keys [align-x offset-x] :as normal-anchor} (normalize-anchor anchor)
+         nx (if (vector? copies) (first copies) copies)
+         dx (if (vector? spacing) (first spacing) spacing)
+         normal-pattern (normalize-pattern pattern)
+         {ptn-w :1d} (get-pattern-dimensions normal-pattern)
+         total-ptn-w (+ (* nx ptn-w) (* (dec nx) dx))
+         fig-xforms
+         (for [x (range nx)
+               :let [offset-x' (calc-nth-pattern-offset
+                                x ptn-w total-ptn-w dx align-x offset-x)]]
+           (i/ini-xform1d
+            (->Ini-Figure -opts nil normal-pattern
+                          (assoc normal-anchor :offset-x offset-x'))))]
+     (apply comp fig-xforms)))
+
+  (ini-xform2d
+   [_]
+   (let [{:keys [align-x align-y
+                 offset-x offset-y]
+          :as normal-anchor} (normalize-anchor anchor)
+         [nx ny] (if (vector? copies) copies [copies copies])
+         [dx dy] (if (vector? spacing) spacing [spacing spacing])
+         normal-pattern (normalize-pattern pattern)
+         {[ptn-w ptn-h] :2d} (get-pattern-dimensions normal-pattern)
+         total-ptn-w (+ (* nx ptn-w) (* (dec nx) dx))
+         total-ptn-h (+ (* ny ptn-h) (* (dec ny) dy))
+         fig-xforms
+         (for [y (range ny)
+               x (range nx)
+               :let [offset-x' (calc-nth-pattern-offset
+                                x ptn-w total-ptn-w dx align-x offset-x)
+                     offset-y' (calc-nth-pattern-offset
+                                y ptn-h total-ptn-h dy align-y offset-y)]]
+           (i/ini-xform2d
+            (->Ini-Figure -opts nil normal-pattern
+                          (assoc normal-anchor
+                                 :offset-x offset-x'
+                                 :offset-y offset-y'))))]
+     (apply comp fig-xforms))))
+
+#_
+(defini :figure-distribute [bg-ini pattern anchor quantity distribution]
+  "Distributes a given `pattern` over a given background ini with the specified distribution parameters and quantity. The instances are positioned from the given `origin` coordinates with a given alignment."
+  (make-gen [this w] (transduce-ini (comp (i/ini-xform bg-ini)
+                                          (i/ini-xform this)) w))
+  (make-gen [this w h] (transduce-ini (comp (i/ini-xform bg-ini)
+                                            (i/ini-xform this)) w h))
+
+  i/IniTransducer
+  (ini-xform
+   [_]
+   (if (== (pattern-dimension pattern) 2)
+     (let [{:keys [pos align] :or {pos [0 0] align [:top :left]}} anchor
+           {:keys [density clustering]} distribution
+           {:keys [min max]} quantity
+           [orig-x orig-y] pos
+           [w h] [(count (first pattern)) (count pattern)]
+           fig-xforms (for [y (range ny)
+                            x (range nx)
+                            :let [pos [(+ orig-x (* x w) (* x dx))
+                                       (+ orig-y (* y h) (* y dy))]]]
+                        (i/ini-xform
+                         (->Ini-Figure nil pattern pos [0 0])))]
+       (apply comp fig-xforms))
+
+     (let [{:keys [pos align] :or {pos 0 align :left}} anchor
+           {:keys [density clustering]} distribution
+           orig-x pos
+           dx gap
+           nx num
+           w (count pattern)
+           fig-xforms (for [x (range nx)
+                            :let [pos (+ orig-x (* x w) (* x dx))]]
+                        (i/ini-xform
+                         (->Ini-Figure nil pattern pos 0)))]
+       (apply comp fig-xforms)))))
 
 
 (defn- wrap-bounds
@@ -137,7 +534,6 @@
     (> n upper-bound) lower-bound
     (< n lower-bound) upper-bound
     :else n))
-
 
 (defumwelt :select-ltr [size]
   "In a 1d environment, observes the cell itself and its direct neighborhood of given `size`."
@@ -411,12 +807,9 @@
      :N)))
 
 
-
-
-
 (defrecord CASpec [resolution rule-spec umwelt-spec ini-spec])
 
-(defspecies :selfi [dna ini]
+(defspecies :selfi [-opts dna ini]
   "1D cellular automaton. Takes a `dna` for its rule function (type `:match`) and an `ini` type (via `make-ini`). Its ‘umwelt’ is of type `:select-ltr`."
   (specify-ca
    [this options w]
@@ -433,7 +826,7 @@
        {:constructor this}))))
 
 
-(defspecies :mindform [dna ini]
+(defspecies :mindform [-opts dna ini]
   "2D cellular automaton. Takes a `dna` for its rule function (type `:match`) and an `ini` type (via `make-ini`). Its ‘umwelt’ is of type `:self-select-ltr`."
   (specify-ca
    [this options w h]
@@ -449,7 +842,7 @@
                      overwrites))
        {:constructor this}))))
 
-(defspecies :lifeform [dna]
+(defspecies :lifeform [-opts dna]
   "2D cellular automaton. Takes a `dna` as part of its rule function, which is of type `:life`. Its ‘umwelt’ is of type `:moore`."
   (specify-ca
    [this options w h]
@@ -460,11 +853,11 @@
                       :resolution  [w h]
                       :rule-spec   (->Rule-Life dna)
                       :umwelt-spec (->Umwelt-Moore :column-first false)
-                      :ini-spec    (->Ini-Random)}
+                      :ini-spec    (->Ini-Random -opts)}
                      overwrites))
        {:constructor this}))))
 
-(defspecies :decisionform [dna init-size]
+(defspecies :decisionform [-opts dna init-size]
   "2D cellular automaton. Takes a `dna` as part of its rule function, which is of type `:life`, and an initial size for its `:rand-center` type ini. Its ‘umwelt’ is of type `:moore`."
   (specify-ca
    [this options w h]
@@ -475,7 +868,11 @@
                       :resolution  [w h]
                       :rule-spec   (->Rule-Life dna)
                       :umwelt-spec (->Umwelt-Moore :column-first false)
-                      :ini-spec    (->Ini-RandCenter init-size)}
+                      :ini-spec    (->Ini-RandFigure -opts
+                                                     (->Ini-Constant -opts :N)
+                                                     init-size
+                                                     {:pos :center
+                                                      :align :center})}
                      overwrites))
        {:constructor this}))))
 
@@ -649,6 +1046,8 @@
                       rule-spec umwelt-spec) gen1)))
 
 
+
+
 (comment
   (def dna [:N :U :I :M :U :U :M :M :I :M :I :M :M :M :M :M :N :U :I :M :U :I :M :M :I :M :I :M :M :M :M :M :N :U :I :M :U :U :M :M :I :M :I :M :M :M :M :M :N :U :I :M :U :I :M :M :I :M :I :M :M :M :M :I])
 
@@ -676,58 +1075,541 @@
   ,)
 
 (comment
-[[:N :N :U]
- [:M :_ :N] ;; self: :N
- [:N :N :I]]
-;;=> :U (should be :M)
-;; solutions:
-;; [:M :U :I] ← ↗ ↘
-;; [:M :I :U] ← ↘ ↗
+  [[:N :N :U]
+   [:M :_ :N] ;; self: :N
+   [:N :N :I]]
+  ;;=> :U (should be :M)
+  ;; solutions:
+  ;; [:M :U :I] ← ↗ ↘
+  ;; [:M :I :U] ← ↘ ↗
 
-[[:N :U :N]
- [:I :_ :N] ;; self: :M
- [:N :U :N]]
-;;=> :M (should be :I)
-;; solutions:
-;; [:I :U :U] ← ↓ ↑ / ← ↑ ↓
+  [[:N :U :N]
+   [:I :_ :N] ;; self: :M
+   [:N :U :N]]
+  ;;=> :M (should be :I)
+  ;; solutions:
+  ;; [:I :U :U] ← ↓ ↑ / ← ↑ ↓
 
-[[:N :I :N]
- [:N :_ :N] ;; self: :N
- [:M :M :N]]
-;;=> :N (should be :U)
-;; solutions:
-;; [:M :I :M] ↙ ↑ ↓ / ↓ ↑ ↙
-;; [:M :M :I] ↙ ↓ ↑ / ↓ ↙ ↑
+  [[:N :I :N]
+   [:N :_ :N] ;; self: :N
+   [:M :M :N]]
+  ;;=> :N (should be :U)
+  ;; solutions:
+  ;; [:M :I :M] ↙ ↑ ↓ / ↓ ↑ ↙
+  ;; [:M :M :I] ↙ ↓ ↑ / ↓ ↙ ↑
 
-[[:N :N :N]
- [:N :_ :I] ;; self: :N
- [:U :N :M]]
-;;=> :I (should be :U)
-;; solutions:
-;; [:U :I :M] ↙ → ↘
-;; [:U :M :I] ↙ ↘ →
+  [[:N :N :N]
+   [:N :_ :I] ;; self: :N
+   [:U :N :M]]
+  ;;=> :I (should be :U)
+  ;; solutions:
+  ;; [:U :I :M] ↙ → ↘
+  ;; [:U :M :I] ↙ ↘ →
 
-[[:N :N :N]
- [:N :_ :U] ;; self: :M
- [:I :I :N]]
-;;=> :U (should be :M)
-;; solutions:
-;; [:I :U :I] ↙ → ↓ / ↓ → ↙
-;; [:I :I :U] ↙ ↓ → / ↓ ↙ →
+  [[:N :N :N]
+   [:N :_ :U] ;; self: :M
+   [:I :I :N]]
+  ;;=> :U (should be :M)
+  ;; solutions:
+  ;; [:I :U :I] ↙ → ↓ / ↓ → ↙
+  ;; [:I :I :U] ↙ ↓ → / ↓ ↙ →
 
-[[:N :N :N]
- [:N :_ :M] ;; self: :N
- [:I :M :N]]
-;;=> :U (should be :N)
-;; solutions:
-;; [:I :M :M] ↙ ↓ → / ↙ → ↓
+  [[:N :N :N]
+   [:N :_ :M] ;; self: :N
+   [:I :M :N]]
+  ;;=> :U (should be :N)
+  ;; solutions:
+  ;; [:I :M :M] ↙ ↓ → / ↙ → ↓
 
-[[:N :N :U]
- [:I :_ :M] ;; self: :N
- [:N :N :N]]
-;;=> :U (should be :I)
-;; solutions:
-;; [:I :U :M] ← ↗ →
-;; [:I :M :U] ← → ↗
+  [[:N :N :U]
+   [:I :_ :M] ;; self: :N
+   [:N :N :N]]
+  ;;=> :U (should be :I)
+  ;; solutions:
+  ;; [:I :U :M] ← ↗ →
+  ;; [:I :M :U] ← → ↗
 
   ,)
+
+(comment
+
+  (require '[clojure.test.check.random :as random])
+
+  (def rng (random/make-random 40))
+  (random/rand-long ((random/split-n rng 3) 2))
+
+  (random/rand-long rng)
+  (random/rand-long (random/make-random (random/rand-long rng)))
+
+  (let [[init-rng next-rng] (random/split rng)]
+    [(random/rand-long init-rng)
+     next-rng])
+
+  (defn random-nums
+    [rng]
+    (lazy-seq
+     (let [[rng1 rng2] (random/split rng)
+           x (random/rand-long rng1)]
+       (cons x (random-nums rng2)))))
+
+  (take 10 (random-nums rng))
+
+  (rng-select rng calc-core/nuim-code)
+
+  ,)
+
+
+
+(comment
+
+  (i/make-gen (->Ini-Constant {} :U) 6)
+  (i/make-gen (->Ini-Constant {} :I) 6 3)
+
+  (i/make-gen (->Ini-Random {:seed nil}) 6)
+  (i/make-gen (->Ini-Random {:seed 10}) 6 3)
+
+  (i/make-gen (->Ini-Cycle {} [:M :U :I]) 6)
+  (i/make-gen (->Ini-Cycle {} [:M :U :I]) 6 3)
+
+  (let [f (make-val-cycle [:M :U :I])]
+    (for [x (range 10)
+          y (range 10)]
+      (f {:x x :y y})))
+
+  (i/make-gen (->Ini-Figure {}
+                            (->Ini-Constant {} :N)
+                            [:M :_ :I] {:pos :center :align :center}) 6)
+  (i/make-gen (->Ini-Figure {}
+                            (->Ini-Constant {} :_)
+                            {:w 2 :h 5 :f (fn [_] :I)}
+                            {:offset [1 2]}) 6 6)
+  (i/make-gen (->Ini-Figure {:seed 12}
+                            (->Ini-Constant {} :_)
+                            {:w 3 :h 3 :f val-random}
+                            {:pos [1 1]}) 6 6)
+  (i/make-gen (->Ini-Figure {}
+                            (->Ini-Constant {} :_)
+                            {:w 6 :f (make-val-cycle [:U :I :M])}
+                            {:pos 3}) 12)
+  (i/make-gen (->Ini-Figure {}
+                            (->Ini-Constant {} :_)
+                            {:w 3 :f val-random}
+                            {}) 5)
+  (i/make-gen (->Ini-Figure {}
+                            (->Ini-Constant {} :_)
+                            [[:M :U :I]
+                             [:N :I :U]] {:pos :center :align :center}) 6 4)
+  (i/make-gen (->Ini-Figure {}
+                            (->Ini-Constant {} :_)
+                            [:N :M :U]
+                            {:pos :center :align :center})
+              20)
+
+  (i/make-gen (->Ini-Figure {}
+                            (->Ini-Constant {} :_)
+                            [:a :b :c :d :e :f :g]
+                            {:pos 7})
+              10)
+
+  (i/make-gen (->Ini-Ball {} :N nil {:pos :center :align :center})
+              7)
+  ;; [:N :I :U :M :U :I :N]
+
+  (i/make-gen (->Ini-Ball {}
+                          (->Ini-Constant {} :M)
+                          :inverted
+                          {:pos :center :align :center})
+              7)
+  ;; [:M :U :I :N :I :U :M]
+  
+  (i/make-gen (->Ini-Ball {}
+                          (->Ini-Constant {} :N)
+                          nil
+                          {:pos :center :align :center})
+              7 7)
+  ;; [[:N :N :N :N :N :N :N]
+  ;;  [:N :N :N :I :N :N :N]
+  ;;  [:N :N :I :U :I :N :N]
+  ;;  [:N :I :U :M :U :I :N]
+  ;;  [:N :N :I :U :I :N :N]
+  ;;  [:N :N :N :I :N :N :N]
+  ;;  [:N :N :N :N :N :N :N]]
+
+  (i/make-gen (->Ini-Ball {}
+                          (->Ini-Constant {} :N)
+                          :moore
+                          {:pos :center :align :center})
+              7 7)
+  ;; [[:N :N :N :N :N :N :N]
+  ;;  [:N :I :I :I :I :I :N]
+  ;;  [:N :I :U :U :U :I :N]
+  ;;  [:N :I :U :M :U :I :N]
+  ;;  [:N :I :U :U :U :I :N]
+  ;;  [:N :I :I :I :I :I :N]
+  ;;  [:N :N :N :N :N :N :N]]
+  
+  (i/make-gen (->Ini-RandFigure {}
+                                (->Ini-Constant {} :_)
+                                [3 2]
+                                {:pos :center
+                                 :align :center})
+              9 5)
+  ;; [[:_ :_ :_ :_ :_ :_ :_ :_ :_]
+  ;;  [:_ :_ :_ :M :U :M :_ :_ :_]
+  ;;  [:_ :_ :_ :U :N :U :_ :_ :_]
+  ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_]
+  ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_]]
+
+  (i/make-gen (->Ini-Figure {}
+                            (->Ini-Constant {} :_)
+                            {:w 3 :h 3 :f val-random}
+                            {:pos :center
+                             :align :center})
+              9)
+  ;; [:_ :_ :_ :I :N :I :_ :_ :_]
+
+  (i/make-gen (->Ini-CompFigures {}
+                                 (->Ini-Constant {} :_)
+                                 [(->Ini-Figure {} nil [:U :I] {:pos 1})
+                                  (->Ini-Ball {} nil nil {:pos 4})
+                                  (->Ini-Figure {} nil [:I :N :U]
+                                                {:pos :right :align :right})])
+              15)
+  ;; [:_ :U :I :_ :I :U :M :U :I :_ :_ :_ :I :N :U]
+
+  (i/make-gen (->Ini-FigureRepeat {}
+                                  (->Ini-Constant {} :_)
+                                  [:M :U]
+                                  {:pos 0 :align :left}
+                                  3
+                                  1)
+              15)
+  [:M :U :I :_ :M :U :I :_ :M :U]
+
+  (i/make-gen (->Ini-FigureRepeat {}
+                                  (->Ini-Constant {} :_)
+                                  {:w 3 :h 3
+                                   :f val-random}
+                                  {:pos :center
+                                   :align :center}
+                                  3
+                                  1)
+              13 13)
+  ;; [[:_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_]
+  ;;  [:_ :U :I :U :_ :M :M :M :_ :N :N :N :_]
+  ;;  [:_ :U :I :N :_ :U :M :M :_ :I :U :U :_]
+  ;;  [:_ :I :N :M :_ :N :M :I :_ :N :I :M :_]
+  ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_]
+  ;;  [:_ :M :N :N :_ :U :U :I :_ :I :I :U :_]
+  ;;  [:_ :N :I :M :_ :I :N :U :_ :I :M :I :_]
+  ;;  [:_ :M :U :N :_ :U :U :M :_ :I :N :U :_]
+  ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_]
+  ;;  [:_ :M :N :N :_ :N :I :M :_ :I :M :N :_]
+  ;;  [:_ :N :N :N :_ :I :U :U :_ :M :U :I :_]
+  ;;  [:_ :U :M :N :_ :N :I :M :_ :M :I :I :_]
+  ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_]]
+  
+  
+  (i/make-gen (->Ini-FigureRepeat {}
+                                  (->Ini-Constant {} :_)
+                                  [[:M :U]
+                                   [:N :I]]
+                                  {:pos [1 1] ;; or just 1 or :center, …
+                                   :align :topleft}
+                                  [3 3] ;; or just 3
+                                  [1 1] ;; or just 1
+                                  )
+              10 10)
+  ;; =>
+  ;; [[:_ :_ :_ :_ :_ :_ :_ :_ :_ :_]
+  ;;  [:_ :M :U :_ :M :U :_ :M :U :_]
+  ;;  [:_ :N :I :_ :N :I :_ :N :I :_]
+  ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_ :_]
+  ;;  [:_ :M :U :_ :M :U :_ :M :U :_]
+  ;;  [:_ :N :I :_ :N :I :_ :N :I :_]
+  ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_ :_]
+  ;;  [:_ :M :U :_ :M :U :_ :M :U :_]
+  ;;  [:_ :N :I :_ :N :I :_ :N :I :_]
+  ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_ :_]]
+
+
+  #_
+  (i/make-gen (->Ini-FigureDistribute (->Ini-Constant :_)
+                                      [[:M :U]
+                                       [:N :I]]
+                                      {:pos [1 1] :align :topleft}
+                                      {:min 2 :max 8}
+                                      {:density 0.7
+                                       :clustering 0.3})
+              10 10)
+
+  ,)
+
+
+(comment
+  (let [opts [:start :center :end]]
+    (for [align opts
+          self-align opts]
+      [[align self-align] (segment-bounds 9 4 align self-align 0)]))
+  [[[:start :start] [0 3]]
+   [[:start :center] [7 1]]
+   [[:start :end] [5 8]]
+   [[:center :start] [4 7]]
+   [[:center :center] [2 5]]
+   [[:center :end] [0 3]]
+   [[:end :start] [0 3]]
+   [[:end :center] [7 1]]
+   [[:end :end] [5 8]]]
+  
+  ;; [0 1 2 3 4 5 6 7 8]
+  ;;  | anchor (start)
+  ;;                    | anchor (end)
+  ;; [0 1 2 3]           ;; start/end start
+  ;;  2 3]         [0 1  ;; start/end center
+  ;;           [0 1 2 3] ;; start/end end
+  
+  ;; [0 1 2 3 4 5 6 7 8]
+  ;;          | anchor
+  ;;         [0 1 2 3]   ;; center start
+  ;;     [0 1 2 3]       ;; center center
+  ;; [0 1 2 3]           ;; center end
+
+  
+  (let [opts [:start :center :end]]
+    (for [align opts
+          self-align opts]
+      [[align self-align] (segment-bounds 9 5 align self-align 0)]))
+  [[[:start :start] [0 4]]
+   [[:start :center] [7 2]]
+   [[:start :end] [4 8]]
+   [[:center :start] [4 8]]
+   [[:center :center] [2 6]]
+   [[:center :end] [8 3]]
+   [[:end :start] [0 4]]
+   [[:end :center] [7 2]]
+   [[:end :end] [4 8]]]
+  
+  ;; [0 1 2 3 4 5 6 7 8]
+  ;;  | anchor (start)
+  ;;                    | anchor (end)
+  ;; [0 1 2 3 4]         ;; start/end start
+  ;;  2 3 4]       [0 1  ;; start/end center
+  ;;         [0 1 2 3 4] ;; start/end end
+  
+  ;; [0 1 2 3 4 5 6 7 8]
+  ;;          | anchor
+  ;;         [0 1 2 3 4]   ;; center start
+  ;;     [0 1 2 3 4]       ;; center center
+  ;;  1 2 3 4]       [0    ;; center end
+
+  
+  (let [opts [:start :center :end]]
+    (for [align opts
+          self-align opts]
+      [[align self-align] (segment-bounds 10 4 align self-align 0)]))
+  [[[:start :start] [0 3]]
+   [[:start :center] [8 1]]
+   [[:start :end] [6 9]]
+   [[:center :start] [5 8]]
+   [[:center :center] [3 6]]
+   [[:center :end] [1 4]]
+   [[:end :start] [0 3]]
+   [[:end :center] [8 1]]
+   [[:end :end] [6 9]]]
+  
+  ;; [0 1 2 3 4 5 6 7 8 9]
+  ;;  | anchor (start)
+  ;;            | anchor (end)
+  ;; [0 1 2 3]             ;; start/end start
+  ;;  2 3]           [0 1  ;; start/end center
+  ;;             [0 1 2 3] ;; start/end end
+
+  ;; [0 1 2 3 4 5 6 7 8 9]
+  ;;            | anchor
+  ;;           [0 1 2 3]   ;; center start
+  ;;       [0 1 2 3]       ;; center center
+  ;;   [0 1 2 3]           ;; center end
+
+  
+  (let [opts [:start :center :end]]
+    (for [align opts
+          self-align opts]
+      [[align self-align] (segment-bounds 3 2 align self-align 0)]))
+  [[[:start :start] [0 1]]
+   [[:start :center] [2 0]]
+   [[:start :end] [1 2]]
+   [[:center :start] [1 2]]
+   [[:center :center] [0 1]]
+   [[:center :end] [2 0]]
+   [[:end :start] [0 1]]
+   [[:end :center] [2 0]]
+   [[:end :end] [1 2]]]
+
+  ;; [0 1 2]
+  ;;  | anchor (start)
+  ;;        | anchor (end)
+  ;; [0 1]   ;; start/end start
+  ;;  1] [0  ;; start/end center
+  ;;   [0 1] ;; start/end end
+
+  ;; [0 1 2]
+  ;;    | anchor
+  ;;   [0 1] ;; center start
+  ;; [0 1]   ;; center center
+  ;;  1] [0  ;; center end
+
+  
+  (let [opts [:start :center :end]]
+    (for [align opts
+          self-align opts]
+      [[align self-align] (segment-bounds 2 2 align self-align 0)]))
+  [[[:start :start] [0 1]]
+   [[:start :center] [1 0]]
+   [[:start :end] [0 1]]
+   [[:center :start] [1 0]]
+   [[:center :center] [0 1]]
+   [[:center :end] [1 0]]
+   [[:end :start] [0 1]]
+   [[:end :center] [1 0]]
+   [[:end :end] [0 1]]]
+  
+  ;; [0 1]
+  ;;  | anchor (start)
+  ;;      | anchor (end)
+  ;; [0 1] ;; start/end start
+  ;;  1|0  ;; start/end center
+  ;; [0 1] ;; start/end end
+
+  ;; [0 1]
+  ;;    | anchor
+  ;;  1|0  ;; center start
+  ;; [0 1] ;; center center
+  ;;  1|0  ;; center end
+
+  
+  (let [opts [:start :center :end]]
+    (for [align opts
+          self-align opts]
+      [[align self-align] (segment-bounds 2 1 align self-align 0)]))
+  [[[:start :start] [0 0]]
+   [[:start :center] [0 0]]
+   [[:start :end] [1 1]]
+   [[:center :start] [1 1]]
+   [[:center :center] [1 1]]
+   [[:center :end] [0 0]]
+   [[:end :start] [0 0]]
+   [[:end :center] [0 0]]
+   [[:end :end] [1 1]]]
+  
+  ;; [0 1]
+  ;;  | anchor (start)
+  ;;      | anchor (end)
+  ;; [0]   ;; start/end start
+  ;; [0]   ;; start/end center
+  ;;   [0] ;; start/end end
+
+  ;; [0 1]
+  ;;    | anchor
+  ;;   [0] ;; center start
+  ;;   [0] ;; center center
+  ;; [0]   ;; center end
+
+  
+  (let [opts [:start :center :end]]
+    (for [align opts
+          self-align opts]
+      (segment-bounds 1 1 align self-align 0)))
+  [[0 0] [0 0] [0 0] [0 0] [0 0] [0 0] [0 0] [0 0] [0 0]]
+  
+  ;; [0 1 2 3 4 5 6 7 8]
+  ;;          | anchor
+  ;;  5]     [0 1 2 3 4  ;; center start
+  ;;   [0 1 2 3 4 5]     ;; center center
+  ;;  2 3 4 5]     [0 1  ;; center end
+
+  
+
+  ,)
+
+(comment
+  #_
+  (defn- get-pattern-specs
+    [pattern]
+    (cond
+      (vector? pattern) (let [dim (if (sequential? (first pattern)) 2 1)]
+                          {:type :explicit
+                           ;; :dim dim
+                           :ptn-w (if (== dim 2)
+                                    (count (first pattern))
+                                    (count pattern))
+                           :ptn-h (when (== dim 2) (count pattern))})
+      (map? pattern) {:type :recipe
+                      ;; :dim (if (:h pattern) 2 1)
+                      :ptn-w (or (:w pattern) (:h pattern) 1)
+                      :ptn-h (or (:h pattern) (:w pattern) 1)}
+      :else (throw (ex-info "Unknown pattern type." {:pattern pattern}))))
+
+  #_
+  (defn- get-pattern-specs
+    [pattern]
+    (let [type (get-pattern-type pattern)]
+      (case type
+        :explicit (let [pattern (normalize-pattern pattern)]
+                    {:type type
+                     :pattern pattern
+                     ;; ? pattern w/h might not always be same between 1d/2d
+                     :ptn-w (count (:gen1d pattern))
+                     :ptn-h (count (:gen2d pattern))})
+        :recipe {:type type
+                 :pattern (:f pattern)
+                 :ptn-w (or (:w pattern) (:h pattern) 1)
+                 :ptn-h (or (:h pattern) (:w pattern) 1)}
+        (throw (ex-info "Unknown pattern type." {:pattern pattern})))))
+  
+  #_
+  (defn make-val-figure [pattern pos align offset]
+    (let [{:keys [type dim ptn-w ptn-h]} (get-pattern-specs pattern)
+          get-val (case type
+                    :explicit (if (== dim 1)
+                                (fn [{i :i}] (get pattern i))
+                                (fn [{i :i j :j}] (get-in pattern [i j])))
+                    :recipe (:f pattern))
+          pos (normalize-position pos)
+          align (normalize-alignment align)]
+      (case dim
+        1 (let [pos-x (or (and (vector? pos) (first pos)) pos 0)
+                align-x (or (first align) :start)
+                offset-x (or offset 0)]
+            (fn [{:keys [w x v] :as env}]
+              (let [[s0 s1 :as bounds] (segment-bounds
+                                        w ptn-w pos-x align-x offset-x)
+                    at-ptn? (within-segment-bounds? bounds w x)]
+                (if at-ptn?
+                  (get-val (-> env (assoc :i (if (and (> s0 s1) (< x s0))
+                                               (+ x (- ptn-w (inc s1)))
+                                               (- x s0)))))
+                  v))))
+
+        2 (let [[pos-x pos-y] (or pos [0 0])
+                [align-x align-y] (or align [:start :start])
+                [offset-x offset-y] (or offset [0 0])]
+            (fn [{:keys [w h x y v] :as env}]
+              (let [[sx0 sx1 :as xbounds] (segment-bounds
+                                           w ptn-w pos-x align-x offset-x)
+                    [sy0 sy1 :as ybounds] (segment-bounds
+                                           h ptn-h pos-y align-y offset-y)
+                    at-ptn?
+                    (and (within-segment-bounds? xbounds w x)
+                         (within-segment-bounds? ybounds h y))]
+                (if at-ptn?
+                  (get-val (-> env (assoc :i (if (and (> sy0 sy1) (< y sy0))
+                                               (+ y (- ptn-h (inc sy1)))
+                                               (- y sy0))
+                                          :j (if (and (> sx0 sx1) (< x sx0))
+                                               (+ x (- ptn-w (inc sx1)))
+                                               (- x sx0)))))
+                  v)))))))
+
+
+  ,)
+

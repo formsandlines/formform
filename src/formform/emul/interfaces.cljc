@@ -9,6 +9,10 @@
     [this w]
     [this w h]))
 
+(defprotocol IniTransducer
+  (ini-xform1d [this])
+  (ini-xform2d [this]))
+
 ;; ? get w/h from generation length
 (defprotocol Umwelt
   (observe-umwelt

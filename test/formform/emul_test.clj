@@ -54,7 +54,7 @@
   [species-type snapshots dna]
   (let [snapshot-evol (mapv :data snapshots)
         {:keys [data size]} (snapshots 0)
-        ini (make-ini :fill-all data)
+        ini (make-ini :figure :N data {})
         species (condp = species-type
                   :lifeform (make-species species-type dna)
                   :decisionform (make-species species-type dna 10)

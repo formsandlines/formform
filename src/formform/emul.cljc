@@ -63,16 +63,27 @@
   [cat-k type-k]
   (get-in-types [cat-k type-k :params]))
 
-(defn make-instance
+(defn- make-instance
   [cat-k type-k & args]
-  (let [{:keys [constructor params] :as m} (get-in-types [cat-k type-k])
-        spec-k (keyword (str (name cat-k) "/" (name type-k)))]
-    (when-not m
-      (throw (ex-info (str "Type `" type-k "` is unknown in " cat-k ".")
-                      {:type-key type-k})))
-    (when-not (= (count params) (count args))
-      (throw (ex-info (str "Wrong number of arguments. Expects: " params)
-                      {:args args})))
+  (let [{:keys [constructor params]}
+        (if-let [m (get-in-types [cat-k type-k])]
+          m
+          (throw (ex-info (str "Type `" type-k "` is unknown in " cat-k ".")
+                          {:type-key type-k})))
+        spec-k (keyword (str (name cat-k) "/" (name type-k)))
+        opts? (= :-opts (first params))
+        args
+        (cond
+          ;; :opts is an optional argument for the api/make-x function,
+          ;; but not for the record constructor
+          opts? (cond
+                  (= (count args) (dec (count params))) (cons {} args)
+                  (and (= (count args) (count params))
+                       (map? (first args))) args)
+          (= (count args) (count params)) args
+          :else (throw (ex-info (str "Wrong number of arguments. Expects: "
+                                     params)
+                                {:args args})))]
     (when (and (s/get-spec spec-k) (not (s/valid? spec-k args)))
       (throw (ex-info (str "Invalid arguments for " (name cat-k)
                            " `" type-k "`.")
@@ -156,6 +167,7 @@
   [selection]
   (expr/op-get (expr/=>* (expr/make :tsds selection 'a 'b 'c)) :dna))
 
+#_
 (defn- conform-tsds-dna-or-sel
   [dna-or-sel]
   (cond
@@ -172,7 +184,7 @@
 (def common-specimen
   "Common specimen to create cellular automata from (via `specify-ca`). Lists all the SelFis introduced by Ralf Peyn in ‘uFORM iFORM’."
   (let [selfi (partial make-species :selfi)
-        ini-ball (make-ini :ball)
+        ini-ball (make-ini :ball :N nil {:pos :center :align :center})
         ini-rand (make-ini :random)
         l 'a, e 'b, r 'c]
     {:Mark1
