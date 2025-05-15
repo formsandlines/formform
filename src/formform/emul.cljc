@@ -390,6 +390,36 @@
   ,)
 
 (comment
+  (sys-ini (make-ini :random)
+           10 10)
+  ;; [[:M :I :M :N :N :U :M :U :U :U]
+  ;;  [:M :I :M :I :N :M :I :I :U :M]
+  ;;  [:N :I :N :I :M :U :U :N :I :U]
+  ;;  [:U :N :M :U :I :U :U :U :U :I]
+  ;;  [:U :N :M :U :M :I :M :N :U :M]
+  ;;  [:I :I :I :M :M :U :M :M :N :I]
+  ;;  [:I :I :N :N :N :N :I :N :N :M]
+  ;;  [:M :N :N :U :N :U :I :I :N :U]
+  ;;  [:N :I :M :I :N :N :N :M :I :M]
+  ;;  [:I :N :N :U :N :U :M :U :I :N]]
+
+  (params :species :lifeform)
+  (ca-iterator (specify-ca (make-species :lifeform
+                                         {:seed 100}
+                                         (calc/rand-dna 2))
+                           {}
+                           10 10)
+               1)
+  
+  (def ca (create-ca (specify-ca (make-species :lifeform
+                                               {:seed 100}
+                                               (calc/rand-dna 2))
+                                 {}
+                                 10 10)))
+
+  (get-current-generation ca false)
+  
+
   (sys-ini ((:constructor (get-in @!types [:ini :fill-all])) :U) 10 3)
   (make-ini :fill-all :I)
   (docs :ini :fill-all)

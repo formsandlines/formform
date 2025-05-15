@@ -13,6 +13,7 @@
                :cljs [formform.emul.interfaces :as i
                       :refer [UmweltOptimized RuleOptimized]
                       :refer-macros [defini defumwelt defrule defspecies]])
+            #?(:cljs [goog.math.Long :as glong])
             [formform.utils :as utils])
   ;; #?(:clj (:import [formform.emul.interfaces UmweltOptimized RuleOptimized]))
   )
@@ -34,7 +35,14 @@
 
 (defn rng-select
   [rng coll]
-  (let [n (mod (random/rand-long rng) 4)]
+  (let [n #?(:clj  (mod (random/rand-long rng) 4)
+             ;; goog.math.Long `.modulo` behaves more like `rem` in Clojure
+             ;; so we need to do some math to make it behave like `mod`:
+             :cljs (let [^goog.math.Long gl
+                         (.modulo ^goog.math.Long (random/rand-long rng)
+                                  ^goog.math.Long (glong/fromNumber 4))
+                         ^js/Number nrem (.toInt gl)]
+                     (if (< nrem 0) (+ nrem 4) nrem)))]
     (coll n)))
 
 (defn transduce-ini
