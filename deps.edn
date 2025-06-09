@@ -13,7 +13,7 @@
   :dev
   {:extra-paths ["dev" "test" "notebooks"]
    :extra-deps {orchestra/orchestra {:mvn/version "2021.01.01-1"}
-                io.github.nextjournal/clerk {:mvn/version "0.13.842"}}}
+                io.github.nextjournal/clerk {:mvn/version "0.17.1102"}}}
 
   :debug  ;; flow-storm (merge with :dev?)
   {:classpath-overrides {org.clojure/clojure nil} ;; for disabling the official compiler
@@ -47,7 +47,7 @@
                :source-paths ["src"]}}
 
   :clerk
-  {:extra-deps {io.github.nextjournal/clerk {:mvn/version "0.13.842"}}
+  {:extra-deps {io.github.nextjournal/clerk {:mvn/version "0.17.1102"}}
    :exec-fn nextjournal.clerk/build!
    :exec-args {:paths ["notebooks/*"]
                :index "index.clj"

@@ -2,7 +2,7 @@
   (:require [formform.utils :as utils])
   #?(:cljs (:require-macros
             [formform.emul.interfaces
-             :refer [defini defumwelt defrule defspecies]])))
+             :refer [defini defumwelt defrule]])))
 
 (defprotocol Ini
   (make-gen
@@ -30,11 +30,6 @@
 
 (defprotocol RuleOptimized
   (apply-rule--fast [this umwelt-qtn self-v]))
-
-(defprotocol Specifier
-  (specify-ca
-    [this options w]
-    [this options w h]))
 
 (defprotocol CASystem
   (step [this] "Advances the automaton by one generation.")
@@ -81,8 +76,6 @@
   (make-record-api :umwelt "Umwelt" (symbol (str *ns* ".Umwelt"))))
 (def defrule-impl
   (make-record-api :rule "Rule" (symbol (str *ns* ".Rule"))))
-(def defspecies-impl
-  (make-record-api :species "Species" (symbol (str *ns* ".Specifier"))))
 
 (defmacro defini
   [type-k fields doc-string? & methods]
@@ -95,8 +88,4 @@
 (defmacro defrule
   [type-k fields doc-string? & methods]
   (apply defrule-impl type-k fields doc-string? methods))
-
-(defmacro defspecies
-  [type-k fields doc-string? & methods]
-  (apply defspecies-impl type-k fields doc-string? methods))
 

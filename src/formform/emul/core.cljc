@@ -8,11 +8,11 @@
             [clojure.test.check.random :as random]
             ;; [formform.expr :as expr]
             #?(:clj  [formform.emul.interfaces :as i
-                      :refer [defini defumwelt defrule defspecies
+                      :refer [defini defumwelt defrule
                               UmweltOptimized RuleOptimized]]
                :cljs [formform.emul.interfaces :as i
                       :refer [UmweltOptimized RuleOptimized]
-                      :refer-macros [defini defumwelt defrule defspecies]])
+                      :refer-macros [defini defumwelt defrule]])
             #?(:cljs [goog.math.Long :as glong])
             [formform.utils :as utils])
   ;; #?(:clj (:import [formform.emul.interfaces UmweltOptimized RuleOptimized]))
@@ -93,12 +93,19 @@
   (ini-xform2d [this] (i/ini-xform1d this)))
 
 
+#_
 (defn val-random
   [{:keys [rng]}]
   (rng-select rng calc-core/nuim-code))
 
-(defini :random [-opts]
-  "Fills a generation with random values."
+(defn val-random
+  [{:keys [rng]}]
+  (rng-select rng calc-core/nuim-code))
+
+(defini :random [-opts distribution]
+  "Fills a generation with random values. Takes a `distribution`, which is either a map of `:N`/`:U`/`:I`/`:M` keys to ratios from 0.0 to 1.0 (representing the proportion of the respective constant in relation to all random values) or a single decimal number that defines an equal ratio for `:N`/`:U`/`:I` against `:N` (e.g. `0.0` → all `:N`, `1.0` → no `:N`, `0.5` → all evenly distributed).
+
+The (first) `-opts` argument is a map that can take a `:seed` entry with an integer number to provide a seed for reproducable random generations."
   (make-gen [this w] (transduce-ini -opts (i/ini-xform1d this) w))
   (make-gen [this w h] (transduce-ini -opts (i/ini-xform2d this) w h))
 
@@ -543,7 +550,7 @@
     (< n lower-bound) upper-bound
     :else n))
 
-(defumwelt :select-ltr [size]
+(defumwelt :select-ltr [-opts size]
   "In a 1d environment, observes the cell itself and its direct neighborhood of given `size`."
   (observe-umwelt
    [_ gen1d [[x] _] w]
@@ -573,7 +580,7 @@
        5 (str (g -2) (g -1) (g  0) (g  1) (g  2))
        (throw (ex-info "Unsupported neighbourhood size" {:size size}))))))
 
-(defumwelt :self-select-ltr [size]
+(defumwelt :self-select-ltr [-opts size]
   "In a 2d environment, the cell “chooses” the direction in which it will observe its neighborhood of given `size` (like in `:select-ltr`). The cell’s choice is determined by its own value:
 - `:N`: ← (left)
 - `:M`: → (right)
@@ -661,7 +668,7 @@
            )
        (throw (ex-info "Unsupported neighbourhood size" {:size size}))))))
 
-(defumwelt :moore [order self?]
+(defumwelt :moore [-opts order self?]
   "In a 2d environment, observes the cell’s direct neighborhood, made up of 8 or 9 (given `self?` is true) cells (corner cells included)."
   (observe-umwelt
    [_ gen2d [[x y] _] w h]
@@ -711,7 +718,7 @@
        (throw (ex-info "Invalid order for umwelt `:moore`."
                        {:order order}))))))
 
-(defumwelt :von-neumann [order self?]
+(defumwelt :von-neumann [-opts order self?]
   "In a 2d environment, observes the cell’s direct neighborhood, made up of 4 or 5 (given `self?` is true) cells (corner cells not included)."
   (observe-umwelt
    [_ gen2d [[x y] _] w h]
@@ -781,7 +788,7 @@
     (dna 0)
     (dna (- (count dna) 1 (utils/parse-int umwelt-qtn 4)))))
 
-(defrule :match [dna]
+(defrule :match [-opts dna]
   "Matches an `umwelt` (of cell values) directly against the given `dna`, which is equivalent to interpreting and calculating a corresponding expression."
   (apply-rule
    [_ umwelt _]
@@ -792,7 +799,7 @@
    [_ umwelt-qtn _]
    (match-dna--fast dna umwelt-qtn)))
 
-(defrule :life [dna]
+(defrule :life [-opts dna]
   "Modeled after the rules for the “Game of Life”:
 - a cell is “alive” when its value is not `:N`
 - if the cell has 2 neighbors, it keeps its own value
@@ -815,74 +822,78 @@
      :N)))
 
 
-(defrecord CASpec [resolution rule-spec umwelt-spec ini-spec])
+(defrecord CASpec [rule-spec umwelt-spec ini-spec])
 
-(defspecies :selfi [-opts dna ini]
-  "1D cellular automaton. Takes a `dna` for its rule function (type `:match`) and an `ini` type (via `make-ini`). Its ‘umwelt’ is of type `:select-ltr`."
-  (specify-ca
-   [this options w]
-   (let [{:keys [overwrites]} options
-         umwelt-size (calc-core/dna-dimension dna)]
-     (with-meta
-       (map->CASpec (merge
-                     {:label       "SelFi"
-                      :resolution  [w]
-                      :rule-spec   (->Rule-Match dna)
-                      :umwelt-spec (->Umwelt-SelectLtr umwelt-size)
-                      :ini-spec    ini}
-                     overwrites))
-       {:constructor this}))))
+#_
+(comment
+  (defspecies :selfi [-opts dna ini]
+    "1D cellular automaton. Takes a `dna` for its rule function (type `:match`) and an `ini` type (via `make-ini`). Its ‘umwelt’ is of type `:select-ltr`."
+    (specify-ca
+     [this options w]
+     (let [{:keys [overwrites]} options
+           umwelt-size (calc-core/dna-dimension dna)]
+       (with-meta
+         (map->CASpec (merge
+                       {:label       "SelFi"
+                        :resolution  [w]
+                        :rule-spec   (->Rule-Match dna)
+                        :umwelt-spec (->Umwelt-SelectLtr umwelt-size)
+                        :ini-spec    ini}
+                       overwrites))
+         {:constructor this}))))
 
 
-(defspecies :mindform [-opts dna ini]
-  "2D cellular automaton. Takes a `dna` for its rule function (type `:match`) and an `ini` type (via `make-ini`). Its ‘umwelt’ is of type `:self-select-ltr`."
-  (specify-ca
-   [this options w h]
-   (let [{:keys [overwrites]} options
-         umwelt-size (calc-core/dna-dimension dna)]
-     (with-meta
-       (map->CASpec (merge
-                     {:label       "MindFORM"
-                      :resolution  [w h]
-                      :rule-spec   (->Rule-Match dna)
-                      :umwelt-spec (->Umwelt-SelfSelectLtr umwelt-size)
-                      :ini-spec    ini}
-                     overwrites))
-       {:constructor this}))))
+  (defspecies :mindform [-opts dna ini]
+    "2D cellular automaton. Takes a `dna` for its rule function (type `:match`) and an `ini` type (via `make-ini`). Its ‘umwelt’ is of type `:self-select-ltr`."
+    (specify-ca
+     [this options w h]
+     (let [{:keys [overwrites]} options
+           umwelt-size (calc-core/dna-dimension dna)]
+       (with-meta
+         (map->CASpec (merge
+                       {:label       "MindFORM"
+                        :resolution  [w h]
+                        :rule-spec   (->Rule-Match dna)
+                        :umwelt-spec (->Umwelt-SelfSelectLtr umwelt-size)
+                        :ini-spec    ini}
+                       overwrites))
+         {:constructor this}))))
 
-(defspecies :lifeform [-opts dna]
-  "2D cellular automaton. Takes a `dna` as part of its rule function, which is of type `:life`. Its ‘umwelt’ is of type `:moore`."
-  (specify-ca
-   [this options w h]
-   (let [{:keys [overwrites]} options]
-     (with-meta
-       (map->CASpec (merge
-                     {:label       "LifeFORM"
-                      :resolution  [w h]
-                      :rule-spec   (->Rule-Life dna)
-                      :umwelt-spec (->Umwelt-Moore :column-first false)
-                      :ini-spec    (->Ini-Random -opts)}
-                     overwrites))
-       {:constructor this}))))
+  (defspecies :lifeform [-opts dna]
+    "2D cellular automaton. Takes a `dna` as part of its rule function, which is of type `:life`. Its ‘umwelt’ is of type `:moore`."
+    (specify-ca
+     [this options w h]
+     (let [{:keys [overwrites]} options]
+       (with-meta
+         (map->CASpec (merge
+                       {:label       "LifeFORM"
+                        :resolution  [w h]
+                        :rule-spec   (->Rule-Life dna)
+                        :umwelt-spec (->Umwelt-Moore :column-first false)
+                        :ini-spec    (->Ini-Random -opts)}
+                       overwrites))
+         {:constructor this}))))
 
-(defspecies :decisionform [-opts dna init-size]
-  "2D cellular automaton. Takes a `dna` as part of its rule function, which is of type `:life`, and an initial size for its `:rand-center` type ini. Its ‘umwelt’ is of type `:moore`."
-  (specify-ca
-   [this options w h]
-   (let [{:keys [overwrites]} options]
-     (with-meta
-       (map->CASpec (merge
-                     {:label       "DecisionFORM"
-                      :resolution  [w h]
-                      :rule-spec   (->Rule-Life dna)
-                      :umwelt-spec (->Umwelt-Moore :column-first false)
-                      :ini-spec    (->Ini-RandFigure -opts
-                                                     (->Ini-Constant -opts :N)
-                                                     init-size
-                                                     {:pos :center
-                                                      :align :center})}
-                     overwrites))
-       {:constructor this}))))
+  (defspecies :decisionform [-opts dna init-size]
+    "2D cellular automaton. Takes a `dna` as part of its rule function, which is of type `:life`, and an initial size for its `:rand-center` type ini. Its ‘umwelt’ is of type `:moore`."
+    (specify-ca
+     [this options w h]
+     (let [{:keys [overwrites]} options]
+       (with-meta
+         (map->CASpec (merge
+                       {:label       "DecisionFORM"
+                        :resolution  [w h]
+                        :rule-spec   (->Rule-Life dna)
+                        :umwelt-spec (->Umwelt-Moore :column-first false)
+                        :ini-spec    (->Ini-RandFigure -opts
+                                                       (->Ini-Constant -opts :N)
+                                                       init-size
+                                                       {:pos :center
+                                                        :align :center})}
+                       overwrites))
+         {:constructor this}))))
+
+  ,)
 
 
 (def sys-ini i/make-gen)
@@ -908,6 +919,9 @@
           rng-w)))
 
 
+;; ! check if multi-arity aset is slower than `(aset (aget arr i) j val)`
+;;   -> see https://ask.clojure.org/index.php/729/aset-aget-perform-poorly-multi-dimensional-arrays-even-hints
+;; ! check type hinting to avoid reflection and boxing
 (defn sys-next--fast
   "More performant version of `sys-next` that uses native platform arrays instead of vectors for the generations and calls special `--fast` methods that operate on them. Note that these methods must be implemented for the provided `rule-spec` and `umwelt-spec`.
 
@@ -1022,7 +1036,7 @@
     (int (/ cell-limit cells-per-gen))))
 
 (defn create-ca
-  [{:keys [resolution rule-spec umwelt-spec ini-spec]} hist-cache-limit]
+  [{:keys [rule-spec umwelt-spec ini-spec]} hist-cache-limit resolution]
   (let [optimized? (and (satisfies? UmweltOptimized umwelt-spec)
                         (satisfies? RuleOptimized rule-spec))
         [w h] resolution
@@ -1046,7 +1060,7 @@
                          (transient evolution) 0 gen1)))
 
 (defn ca-iterator
-  [{:keys [resolution rule-spec umwelt-spec ini-spec]}]
+  [{:keys [rule-spec umwelt-spec ini-spec]} resolution]
   (let [gen1 (apply sys-ini ini-spec resolution)
         [w h] resolution]
     (iterate (partial sys-next
@@ -1059,9 +1073,9 @@
 (comment
   (def dna [:N :U :I :M :U :U :M :M :I :M :I :M :M :M :M :M :N :U :I :M :U :I :M :M :I :M :I :M :M :M :M :M :N :U :I :M :U :U :M :M :I :M :I :M :M :M :M :M :N :U :I :M :U :I :M :M :I :M :I :M :M :M :M :I])
 
-  (def rule (->Rule-Life dna))
+  (def rule (->Rule-Life {} dna))
 
-  (i/apply-rule rule (i/observe-umwelt (->Umwelt-Moore :column-first false)
+  (i/apply-rule rule (i/observe-umwelt (->Umwelt-Moore {} :column-first false)
                                        [[:N :N :U]
                                         [:M :_ :N]
                                         [:N :N :I]]

@@ -12,3 +12,5 @@ msg.txt
 codox/
 /target
 /_scrap
+hs_err_pid*
+/notebooks/clerk_doc.clj

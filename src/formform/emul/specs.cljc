@@ -55,10 +55,6 @@
 (s/def ::rule-spec
   #(satisfies? i/Rule %))
 
-(s/def ::species-spec
-  #(satisfies? i/Specifier %))
-
-
 (s/def ::val (s/or :random #{:?}
                    :const  ::calc-sp/const))
 
@@ -101,11 +97,19 @@
 (s/def ::anchor
   (s/keys :opt-un [:anchor/pos :anchor/align :anchor/offset]))
 
+(s/def :rand/N float?)
+(s/def :rand/U float?)
+(s/def :rand/I float?)
+(s/def :rand/M float?)
+
+(s/def ::random-distribution
+  (s/or :against-n float?
+        :explicit (s/keys :req-un [:rand/N :rand/U :rand/I :rand/M])))
 
 ;; Note: the `x/y` specs below don’t apply directly to the records, but to the arguments as provided in `emul/make-x` constructors, where they are validated against the specs.
 
 (s/def :ini/constant (s/cat :-opts ::ini-opts :const ::calc-sp/const))
-(s/def :ini/random (s/cat :-opts ::ini-opts))
+(s/def :ini/random (s/cat :-opts ::ini-opts :distr ::random-distribution))
 (s/def :ini/cycle (s/cat :-opts ::ini-opts :pattern vector?))
 
 (s/def :ini/figure (s/cat :-opts ::ini-opts
@@ -138,11 +142,16 @@
 
 
 (s/def ::umwelt-opts map?)
+(s/def ::umwelt-order #{:column-first :row-first})
 
 (s/def :umwelt/select-ltr (s/cat :-opts ::umwelt-opts :size pos-int?))
 (s/def :umwelt/self-select-ltr (s/cat :-opts ::umwelt-opts :size pos-int?))
-(s/def :umwelt/moore (s/cat :-opts ::umwelt-opts :self? boolean?))
-(s/def :umwelt/von-neumann (s/cat :-opts ::umwelt-opts :self? boolean?))
+(s/def :umwelt/moore (s/cat :-opts ::umwelt-opts
+                            :order ::umwelt-order
+                            :self? boolean?))
+(s/def :umwelt/von-neumann (s/cat :-opts ::umwelt-opts
+                                  :order ::umwelt-order
+                                  :self? boolean?))
 
 
 (s/def ::rule-opts map?)
@@ -151,30 +160,37 @@
 (s/def :rule/life (s/cat :-opts ::rule-opts :dna ::calc-sp/dna))
 
 
-(s/def :species/overwrites map?)
-(s/def ::species-opts (s/keys :opt-un [:species/overwrites]))
+#_
+(comment
+  (s/def :species/overwrites map?)
+  (s/def ::species-opts (s/keys :opt-un [:species/overwrites]))
 
-(s/def :species/selfi (s/cat :-opts ::species-opts
-                             :dna ::calc-sp/dna
-                             :ini ::ini-spec))
+  (s/def :species/selfi (s/cat :-opts ::species-opts
+                               :dna ::calc-sp/dna
+                               :ini ::ini-spec))
 
-(s/def :species/mindform (s/cat :-opts ::species-opts
-                                :dna ::calc-sp/dna
-                                :ini ::ini-spec))
+  (s/def :species/mindform (s/cat :-opts ::species-opts
+                                  :dna ::calc-sp/dna
+                                  :ini ::ini-spec))
 
-(s/def :species/lifeform (s/cat :-opts ::species-opts
-                                :dna ::calc-sp/dna))
+  (s/def :species/lifeform (s/cat :-opts ::species-opts
+                                  :dna ::calc-sp/dna))
 
-(s/def :species/decisionform (s/cat :-opts ::species-opts
-                                    :dna ::calc-sp/dna
-                                    :init-size pos-int?))
+  (s/def :species/decisionform (s/cat :-opts ::species-opts
+                                      :dna ::calc-sp/dna
+                                      :init-size pos-int?)))
 
+(comment
+
+  (s/valid? :rule/match [{} [:N]])
+
+  ,)
 
 (s/def ::ca-spec
   (s/keys :req-un [::resolution ::rule-spec ::umwelt-spec ::ini-spec]))
 
-(s/def ::ca-constructor
-  #(satisfies? i/Specifier %))
+;; (s/def ::ca-constructor
+;;   #(satisfies? i/Specifier %))
 
 
 (binding [clojure.spec.alpha/*coll-check-limit* 3]
@@ -234,9 +250,9 @@
   (s/valid? ::iterator-2d (iterate (fn [xs] (conj xs [:U :I])) [[:N :M]]))
   (s/valid? ::iterator-1d (iterate (fn [xs] (conj xs :U)) [:N :M]))
 
-  (def mindform (emul/make-species :mindform
-                                   (calc/rand-dna 3)
-                                   (emul/make-ini :random)))
+  (def mindform (emul/make-mindform
+                 (calc/rand-dna 3)
+                 (emul/make-ini :random)))
   (s/conform ::ca-constructor mindform)
   (def ca (emul/specify-ca mindform 40 30))
   (s/conform ::ca-spec ca)
