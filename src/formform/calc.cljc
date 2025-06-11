@@ -1,3 +1,4 @@
+;; VVV
 (ns formform.calc
   "API for the `calc` module of `formform`."
   (:require [formform.calc.core :as core]
@@ -302,6 +303,7 @@ Note: `dna-seq` can have any type of elements (not only constants)"
                #(== (core/dna-dimension (-> % :dna))
                     (count (-> % :vpoint))))
   :ret  ::sp/const)
+;; VVV
 (defn dna-get
   "Extracts a single value from a `dna` according to a given `vpoint` index, which is a sequence of constants corresponding to each term→value association."
   [dna vpoint]
@@ -312,18 +314,19 @@ Note: `dna-seq` can have any type of elements (not only constants)"
 
 ;; Convert to/from formDNA
 
+;; ! sort-code will map AND reorder, but what if the order is already correct?
 (s/fdef digits->dna
   :args (sp/spec--dna-seq-args (s/coll-of ::sp/const-int 
-                                              :min-count 1
-                                              :kind sequential?))
+                                          :min-count 1
+                                          :kind sequential?))
   :ret  ::sp/dna)
 (defn digits->dna
   "Converts a `seqable?` of digits (as string/char or integer) to formDNA.
   
-Note that `nuim-code` is the default ordering. If a different `sort-code` is specified, `digits` will be reordered to match the code."
+  Note that `nuim-code` is the default ordering and is always assumed for _formDNA_. If a different `sort-code` is specified, the input sequence (expected in this code) will be mapped and reordered to match `nuim-code`."
   ([dna-seq] (core/digits->dna dna-seq))
-  ([sort-code dna-seq]
-   (core/digits->dna sort-code dna-seq)))
+  ([from-sort-code dna-seq]
+   (core/digits->dna from-sort-code dna-seq)))
 
 (s/fdef dna->digits
   :args (sp/spec--dna-args)
@@ -333,10 +336,10 @@ Note that `nuim-code` is the default ordering. If a different `sort-code` is spe
 (defn dna->digits
   "Converts formDNA to a sequence of digits corresponding to a `sort-code`.
   
-Note that `nuim-code` is the default ordering. If a different `sort-code` is specified, `dna` will be reordered to match the code."
+  Note that `nuim-code` is the default ordering and is always assumed for _formDNA_. If a different `sort-code` is specified, the input dna (expected in `nuim-code`) will be mapped and reordered to match this code."
   ([dna] (core/dna->digits dna))
-  ([sort-code dna]
-   (core/dna->digits sort-code dna)))
+  ([to-sort-code dna]
+   (core/dna->digits to-sort-code dna)))
 
 ;; ? not needed
 (s/fdef chars->dna
@@ -347,10 +350,10 @@ Note that `nuim-code` is the default ordering. If a different `sort-code` is spe
 (defn chars->dna
   "Converts a `seqable?` of chars to formDNA.
   
-Note that `nuim-code` is the default ordering. If a different `sort-code` is specified, `digits` will be reordered to match the code."
+  Note that `nuim-code` is the default ordering and is always assumed for _formDNA_. If a different `sort-code` is specified, the input sequence (expected in this code) will be reordered to match `nuim-code`."
   ([dna-seq] (core/chars->dna dna-seq))
-  ([sort-code dna-seq]
-   (core/chars->dna sort-code dna-seq)))
+  ([from-sort-code dna-seq]
+   (core/chars->dna from-sort-code dna-seq)))
 
 
 ;;-------------------------------------------------------------------------
@@ -453,8 +456,10 @@ Note that `nuim-code` is the default ordering. If a different `sort-code` is spe
    (core/vdict opts vpoint->result)))
 
 (s/fdef dna->vdict
-  :args (s/cat :opts (s/keys :opt-un [:opts/sorted? :opts.safety/unsafe?])
-               :dna  ::sp/dna)
+  :args (s/alt :ar1 (s/cat :dna ::sp/dna)
+               :ar2 (s/cat :opts (s/keys :opt-un [:opts/sorted?
+                                                  :opts.safety/unsafe?])
+                           :dna  ::sp/dna))
   :ret  ::sp/vdict)
 (defn dna->vdict
   "Generates a vdict from a given dna.
@@ -511,6 +516,7 @@ Note that `nuim-code` is the default ordering. If a different `sort-code` is spe
 (s/fdef vmap-perspectives
   :args (s/cat :dna-psps ::sp/dna-perspective-group)
   :ret  ::sp/vmap-perspective-group)
+;; VVV
 (defn vmap-perspectives
   "Given a group of all perspectives from a formDNA, returns these perspectives as vmaps."
   [dna-psps]

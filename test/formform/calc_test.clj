@@ -1,3 +1,4 @@
+;; VVV
 (ns formform.calc-test
   (:require [clojure.test :as t :refer [deftest is are testing]]
             [formform.calc :refer :all]
@@ -5,6 +6,7 @@
 
 (doseq [fsym fns-with-specs] (stest/instrument fsym))
 
+(def rv (comp vec reverse))
 
 ;; ? should test dna functions with lists too
 
@@ -56,6 +58,7 @@
     
 
 
+;; VVV
 (deftest make-dna-test
   (testing "Correct transformation of mixed element types"
     (is (= (make-dna :M \U \I 0 [1 2 1 3] :U :U :I \n [1 2 1 3])
@@ -89,26 +92,28 @@
            4))))
 
 
+;; VVV
 (deftest dna->digits-test
   (testing "Correctness of conversion"
     (is (= (dna->digits [:N :U :I :M]) '(0 1 2 3)))
-    (is (= (dna->digits nmui-code [:N :U :I :M]) '(2 3 0 1)))
+    (is (= (dna->digits nmui-code [:N :U :I :M]) '(0 1 2 3)))
     (is (= (dna->digits
             nmui-code
-            '(:M :M :M :M  :I :I :I :I  :U :U :U :U  :N :N :N :N
-                 :I :M :I :M  :M :M :M :M  :N :U :N :U  :U :U :U :U
-                 :U :U :M :M  :N :N :I :I  :M :M :M :M  :I :I :I :I
-                 :N :U :I :M  :U :U :M :M  :I :M :I :M  :M :M :M :M))
-           [1 1 1 1  2 0 0 2  1 3 3 1  2 2 2 2
-            0 3 0 3  1 1 1 1  2 1 2 1  3 3 3 3
-            3 3 3 3  2 2 2 2  1 1 1 1  0 0 0 0
-            2 1 2 1  1 3 3 1  2 3 0 1  1 1 1 1]))))
+            [:M :M :M :M  :M :I :M :I  :M :M :U :U  :M :I :U :N
+             :I :I :I :I  :M :M :M :M  :I :I :N :N  :M :M :U :U
+             :U :U :U :U  :U :N :U :N  :M :M :M :M  :M :I :M :I
+             :N :N :N :N  :U :U :U :U  :I :I :I :I  :M :M :M :M])
+           [1 1 1 1  1 0 3 2  1 3 3 1  1 2 1 2
+            0 0 0 0  1 1 1 1  2 2 2 2  3 3 3 3
+            3 3 3 3  1 2 1 2  1 1 1 1  3 0 3 0  
+            2 2 2 2  1 3 3 1  2 0 0 2  1 1 1 1]))))
 
 
+;; VVV
 (deftest digits->dna-test
   (testing "Correctness of conversion"
     (is (= (digits->dna [0 1 2 3]) [:N :U :I :M]))
-    (is (= (digits->dna nmui-code [1 2 0 3]) [:N :M :U :I]))
+    (is (= (digits->dna nmui-code [1 2 0 3]) [:M :N :I :U]))
     (is (= (digits->dna nmui-code '(1 0 3 2  0 1 2 3  3 2 1 0  2 3 0 1))
            [:M :I :U :N  :I :M :N :U  :U :N :M :I  :N :U :I :M]))
     (is (= (digits->dna nmui-code
@@ -116,24 +121,55 @@
                          0 3 0 3  2 3 0 1  2 3 0 1  0 3 0 3
                          0 3 0 3  2 0 0 2  2 3 0 1  0 0 0 0
                          2 3 0 1  2 3 0 1  2 3 0 1  2 3 0 1])
-           [:N :U :I :M  :N :N :I :I  :N :U :N :U  :N :N :N :N
-            :N :U :I :M  :N :U :I :M  :N :U :N :U  :N :U :N :U
-            :N :U :I :M  :N :N :I :I  :N :U :I :M  :N :N :I :I
-            :N :U :I :M  :N :U :I :M  :N :U :I :M  :N :U :I :M]))))
+           [:U :N :M :I  :U :N :M :I  :U :N :U :N  :U :N :U :N
+            :N :N :I :I  :U :N :M :I  :N :N :N :N  :U :N :U :N
+            :U :N :M :I  :U :N :M :I  :U :N :M :I  :U :N :M :I
+            :N :N :I :I  :U :N :M :I  :N :N :I :I  :U :N :M :I]))))
 
 
+;; VVV
 (deftest reorder-dna-seq-test
   (testing "Correctness of reordered dna-seq"
     (is (= (reorder-dna-seq
-            [:M :M :M :M :I :I :I :I :U :U :U :U :N :N :N :N]
+            [:N :N :N :N :U :U :U :U :I :I :I :I :M :M :M :M]
             nuim-code nmui-code)
-           [:I :I :I :I :U :U :U :U :M :M :M :M :N :N :N :N]))
+           [:N :N :N :N :M :M :M :M :U :U :U :U :I :I :I :I]))
     (is (= (reorder-dna-seq
-            '(:I :I :I :I :U :U :U :U :M :M :M :M :N :N :N :N)
+            [:N :U :I :M  :U :I :M :N  :I :M :N :U  :M :N :U :I]
+            nuim-code nmui-code)
+           [:N :M :U :I  :M :I :N :U  :U :N :I :M  :I :U :M :N]))
+    (is (= (reorder-dna-seq
+            [:N :N :N :N  :U :U :U :U  :I :I :I :I  :M :M :M :M
+             :U :U :U :U  :I :I :I :I  :M :M :M :M  :N :N :N :N
+             :I :I :I :I  :M :M :M :M  :N :N :N :N  :U :U :U :U
+             :M :M :M :M  :N :N :N :N  :U :U :U :U  :I :I :I :I]
+            nuim-code nmui-code)
+           [:N :N :N :N  :M :M :M :M  :U :U :U :U  :I :I :I :I
+            :M :M :M :M  :I :I :I :I  :N :N :N :N  :U :U :U :U
+            :U :U :U :U  :N :N :N :N  :I :I :I :I  :M :M :M :M
+            :I :I :I :I  :U :U :U :U  :M :M :M :M  :N :N :N :N]))
+    (is (= (reorder-dna-seq
+            [:N :U :I :M  :U :I :M :N  :I :M :N :U  :M :N :U :I
+             :U :I :M :N  :I :M :N :U  :M :N :U :I  :N :U :I :M
+             :I :M :N :U  :M :N :U :I  :N :U :I :M  :U :I :M :N
+             :M :N :U :I  :N :U :I :M  :U :I :M :N  :I :M :N :U]
+            nuim-code nmui-code)
+           [:N :M :U :I  :M :I :N :U  :U :N :I :M  :I :U :M :N
+            :M :I :N :U  :I :U :M :N  :N :M :U :I  :U :N :I :M  
+            :U :N :I :M  :N :M :U :I  :I :U :M :N  :M :I :N :U
+            :I :U :M :N  :U :N :I :M  :M :I :N :U  :N :M :U :I]))
+    (is (= (reorder-dna-seq
+            [:N :U :I :M  :U :I :M :N  :I :M :N :U  :M :N :U :I]
+            nuim-code nuim-code)
+           [:N :U :I :M  :U :I :M :N  :I :M :N :U  :M :N :U :I])))
+  (testing "List reorders exactly the same as vector"
+    (is (= (reorder-dna-seq
+            '(:N :U :I :M  :U :I :M :N  :I :M :N :U  :M :N :U :I)
             nmui-code nuim-code)
-           [:M :M :M :M :I :I :I :I :U :U :U :U :N :N :N :N]))))
+           [:N :I :M :U  :I :N :U :M  :M :U :I :N  :U :M :N :I]))))
 
 
+;; VVV
 (deftest compare-consts-test
   (testing "Correctness of sorted order"
     (is (= [] (sort compare-consts [])))
@@ -149,6 +185,7 @@
                  [[:N :U :I :M] [:I :M] [:U :M :I] [:M :N :U]])))))
   
 
+;; VVV
 (deftest expand-dna-seq-test
   (testing "Correctness of expansion"
     (is (= (expand-dna-seq [:M :I :U :N] 2)
@@ -166,6 +203,7 @@
             :I :I :I :I :M :M :M :M :I :I :I :I :U :U :U :U
             :M :M :M :M :I :I :I :I :U :U :U :U :N :N :N :N]))))
 
+;; VVV
 (deftest reduce-dna-seq-test
   (testing "Correct reduction for 3->2 dimensions"
     (is (= (reduce-dna-seq '[a b c]
@@ -400,35 +438,38 @@
   
 
 
+;; VVV
 (deftest filter-dna-test
   (testing "Correctness of transformation"
     (is (= (filter-dna [:N] []) [:N]))
     (is (= (filter-dna [:I] []) [:I]))
-    (is (= (filter-dna [:N :M :U :I] [:_]) [:N :M :U :I]))
-    (is (= (filter-dna [:N :M :U :I] [:U]) [:U]))
-    (is (= (filter-dna [:N :M :U :I] [:M]) [:N]))
-    (is (= (filter-dna [:N :U :I :M  :U :I :M :I  :I :M :I :U  :M :I :U :N
-                        :U :I :M :U  :I :M :I :I  :M :I :U :M  :I :U :N :N
-                        :I :M :U :I  :M :I :I :M  :I :U :M :I  :U :N :N :U
-                        :M :U :I :M  :I :I :M :I  :U :M :I :U  :N :N :U :I]
-                       [:_ :I :_]) [:U :I :M :I
-                                    :I :M :I :I
+    (is (= (filter-dna [:I :U :M :N] [:_]) [:I :U :M :N]))
+    (is (= (filter-dna [:I :U :M :N] [:U]) [:U]))
+    (is (= (filter-dna [:I :U :M :N] [:M]) [:N]))
+    (is (= (filter-dna [:I :U :N :N  :U :I :M :U  :I :M :I :I  :M :I :U :M
+                        :U :N :N :U  :I :M :U :I  :M :I :I :M  :I :U :M :I
+                        :N :N :U :I  :M :U :I :M  :I :I :M :I  :U :M :I :U
+                        :N :U :I :M  :U :I :M :I  :I :M :I :U  :M :I :U :N]
+                       [:_ :I :_]) [:I :M :I :I
                                     :M :I :I :M
-                                    :I :I :M :I]))))
+                                    :I :I :M :I
+                                    :I :M :I :U]))))
 
+;; VVV
 (deftest dna-get-test
   ;; is just filter-dna without the vector and no holes in vpoint allowed
   (testing "IO shape"
     (is (= (dna-get [:U] [])
            :U))
-    (is (= (dna-get [:M :M :M :I  :M :N :M :I  :N :U :N :U  :N :U :U :I]
+    (is (= (dna-get [:I :U :U :N  :U :N :U :N  :I :M :N :M  :I :M :M :M]
                     [:M :N])
            :I))
     (is (thrown? clojure.lang.ExceptionInfo
-                 (dna-get [:M :M :M :I  :M :N :M :I  :N :U :N :U  :N :U :U :I]
+                 (dna-get [:I :U :U :N  :U :N :U :N  :I :M :N :M  :I :M :M :M]
                           [:M :_])))))
 
 
+;; VVV
 (deftest dna-perspectives-test
   (testing "Correctness of permutations"
     (is (= (dna-perspectives (make-dna (make-dna :U :I :M :N)
@@ -472,9 +513,22 @@
                   (vdict {:default-result :U} vp->r))))))
 
 
+;; VVV
 (deftest dna->vdict-test
   (testing "Validity of vdict"
-    (is (vdict? (dna->vdict {:sorted? true} (rand-dna 4))))))
+    (is ((every-pred vdict? sorted?)
+         (dna->vdict {:sorted? true} (rand-dna 4)))))
+  (testing "Correctness of transformation"
+    (is (= (dna->vdict [:M :I :U :N])
+           {[:N] :M, [:U] :I, [:I] :U, [:M] :N}))
+    (is (= (dna->vdict [:N :M :U :U
+                        :I :I :I :M
+                        :M :N :U :I
+                        :I :U :M :N])
+           {[:N :N] :N, [:N :U] :M, [:N :I] :U, [:N :M] :U,
+            [:U :N] :I, [:U :U] :I, [:U :I] :I, [:U :M] :M,
+            [:I :N] :M, [:I :U] :N, [:I :I] :U, [:I :M] :I,
+            [:M :N] :I, [:M :U] :U, [:M :I] :M, [:M :M] :N}))))
 
 
 (deftest vdict->vmap-test
@@ -512,6 +566,7 @@
                :I {:N :M, :U :N, :I :U, :M :I},
                :M {:N :I, :U :U, :I :M, :M :N}}))))) 
 
+;; VVV
 (deftest vmap-perspectives-test
   (testing "Correct output shape"
     (is (= {[0 1] {:M {:M :U, :I :I, :U :M, :N :N}
@@ -523,8 +578,8 @@
                    :U {:M :M, :I :M, :U :M, :N :M}
                    :N {:M :N, :I :N, :U :N, :N :N}}}
            (vmap-perspectives
-            {[0 1] [:U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N],
-             [1 0] [:U :U :U :U :I :I :I :I :M :M :M :M :N :N :N :N]}))))
+            {[0 1] [:N :M :I :U :N :M :I :U :N :M :I :U :N :M :I :U],
+             [1 0] [:N :N :N :N :M :M :M :M :I :I :I :I :U :U :U :U]}))))
   (testing "Retains dna-perspectives metadata"
     (is (= '([0 1 2 3] [0 1 3 2] [0 2 1 3] [0 2 3 1] [0 3 1 2] [0 3 2 1] [1 0 2 3] [1 0 3 2] [1 2 0 3] [1 2 3 0] [1 3 0 2] [1 3 2 0] [2 0 1 3] [2 0 3 1] [2 1 0 3] [2 1 3 0] [2 3 0 1] [2 3 1 0] [3 0 1 2] [3 0 2 1] [3 1 0 2] [3 1 2 0] [3 2 0 1] [3 2 1 0])
            (:sorted-keys

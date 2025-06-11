@@ -1,3 +1,4 @@
+;; VVV
 ;; ========================================================================
 ;;     formform calculation module
 ;;     -- created 08/2022, (c) Peter Hofmann
@@ -56,16 +57,18 @@
      -1 ;; “hole” or variable value
      (const->digit sort-code c))))
 
+;; VVV
 (defn consts->quaternary
   "Converts a sequence of constants to a corresponding quaternary number (as a string). Used for comparison.
 
-  * use `read-string` to obtain the decimal value as a BigInt"
+  * use `read-string` and prepend `\"4r\"` to the number string to obtain the decimal value as a BigInt"
   [consts]
   (if (seq consts)
-    (let [digits (map const->digit consts)]
+    (let [digits (mapv const->digit consts)]
       (apply str digits))
     (throw (ex-info "Must contain at least one element." {:arg consts}))))
 
+;; VVV
 (defn make-compare-consts
   [sort-code]
   (fn [a b]
@@ -91,17 +94,23 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; formDNA
 
+;; VVV
 (def dna-lengths (iterate (partial * 4) 1))
 
+;; VVV
 ;; ? true for JavaScript
 (def ^:private max-safe-dna-dim 25)
 
+;; VVV
 (def ^:private max-safe-dna-len
   (last (take max-safe-dna-dim dna-lengths)))
 
+;; VVV
 (def ^:private cached_dna-length->dim
   (into {} (map vector (take max-safe-dna-dim dna-lengths) (range))))
 
+
+;; VVV
 (defn dna-length->dim
   [n]
   (if (<= n max-safe-dna-len)
@@ -112,25 +121,29 @@
         nil
         (int dim)))))
 
+;; VVV
 (defn dna-dimension
   [xs]
   (dna-length->dim (count xs)))
 
 
+;; VVV
 (def reverse-dna
   "Reverses a formDNA (returns an rseq)
 
   * make sure the input is a vector for constant-time reverse"
   (comp rseq vec))
 
+;; ? rewrite to use transduce instead of map+reduce and vectors instead of seqs
+;;   maybe also subvec instead of take/drop
+;; VVV
 (defn reorder-dna-seq
   [dna-seq sort-code-from sort-code-to]
   (if (= sort-code-from sort-code-to)
     dna-seq
-    (let [sort-idxs (->> (range 3 -1 -1)
+    (let [sort-idxs (->> [0 1 2 3] ;; indexes, not values!
                          (zipmap sort-code-from)
                          (sort (make-compare-consts sort-code-to))
-                         reverse
                          (map second))
           ;; ! recursion can cause OutOfMemoryError with dim > 12
           aux (fn reorder [dna-subseq]
@@ -148,8 +161,25 @@
       (aux dna-seq))))
 
 
+(comment
+
+  (reorder-dna-seq [:N :U :I :M  :U :I :M :N  :I :M :N :U  :M :N :U :I]
+                   nuim-code nmui-code)
+  [:N :M :U :I  :M :I :N :U  :U :N :I :M  :I :U :M :N]
+
+  (let [sort-code-from nuim-code
+        sort-code-to nmui-code]
+    (->> [0 1 2 3] ;; indexes, not values!
+         (zipmap sort-code-from)
+         (sort (make-compare-consts sort-code-to))
+         (map second)))
+
+  ,)
+
+
 ;; ? almost useless to abstract these functions for a single use case:
 
+;; VVV
 (defn prod=dna-seq->dna
   "Produces a converter function from a `dna-seq` of any type to `dna`.
   Requires a mapping function `sort+x->const` that takes a `sort-code` and an item `x` of the type expected in a to-be-converted `dna-seq` and returns a constant.
@@ -163,6 +193,7 @@
                      (reorder-dna-seq dna-seq sort-code nuim-code))]
        (mapv (partial sort+x->const sort-code) dna-seq)))))
 
+;; VVV
 (defn prod=dna->dna-seq
   "Produces a converter function from `dna` to a `dna-seq` of any type.
   Requires a mapping function `sort+const->x` that takes a `sort-code` and a constant from the to-be-converted `dna` and returns an item of the desired type.
@@ -176,17 +207,21 @@
          dna-seq
          (reorder-dna-seq dna-seq nuim-code sort-code))))))
 
+;; VVV
 (def digits->dna
   (prod=dna-seq->dna (fn [sort-code x] (digit->const sort-code x))))
 
+;; VVV
 (def chars->dna
   (prod=dna-seq->dna (fn [sort-code x] (char->const sort-code x))))
 
+;; VVV
 (def dna->digits
   (prod=dna->dna-seq (fn [sort-code x] (const?->digit sort-code x))))
 
 
 ;; ? is this correct expansion for dim > 2 (see `rel`)
+;; VVV
 (defn expand-dna-seq
   [dna-seq dim ext-dim]
   (reduce
@@ -196,6 +231,7 @@
     []
     dna-seq))
 
+;; VVV
 (defn reduce-dna-seq
   ([dna-seq]
    (let [dim (dna-dimension dna-seq)]
@@ -227,6 +263,7 @@
                   (dec dim) subdim)))))))
 
 
+;; VVV
 (defn make-dna
   [& xs]
   (let [x->const
@@ -247,6 +284,8 @@
       dna
       (throw (ex-info "invalid dna length" {:dna dna})))))
 
+;; ? use clojure.test.check.random for seeds
+;; VVV
 (defn rand-dna
   ([dim] (rand-dna dim nil))
   ([dim elems]
@@ -256,7 +295,7 @@
                              nuim-code))]
      (vec (repeatedly len gen-fn)))))
 
-
+;; VVV
 (defn filter-dna-seq
   [dna-seq depth-selections]
   (let [dim (dna-dimension dna-seq)]
@@ -266,7 +305,7 @@
         ((comp vector (vec dna-seq))
          (let [qtn (apply str (if (empty? depth-selections)
                                 [0] depth-selections))]
-           (- (count dna-seq) 1 (utils/parse-int qtn 4))))
+           (utils/parse-int qtn 4)))
         ;; otherwise, we need more machinery
         (let [f (fn [pos depth] (* pos (utils/pow-nat 4 (- dim depth))))
               depth-offsets (map (fn [pos depth]
@@ -275,16 +314,16 @@
                                      (list (f pos depth))))
                                  depth-selections (drop 1 (range)))
               idxs (set (map #(apply + %)
-                             (apply combo/cartesian-product depth-offsets)))
-              n (dec (count dna-seq))]
+                             (apply combo/cartesian-product depth-offsets)))]
           (->> dna-seq
-               (mapv vector (range))
-               (filterv (fn [[i _]] (idxs (- n i))))
+               (mapv vector (range)) ;; ? map-indexed
+               (filterv (fn [[i _]] (idxs i)))
                (mapv second))))
       (throw
        (ex-info "Size of selection vector must be equal to dna-seq dimension!"
                 {:expected dim :actual (count depth-selections)})))))
 
+;; VVV
 (defn filter-dna
   [dna vpoint]
   ;; ! mapping vpoint to digits seems to drag down performance in CAs
@@ -294,6 +333,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; formDNA perspectives
 
+;; VVV
 (defn permute-dna-seq
   [{:keys [limit?] :or {limit? true}} dna-seq perm-order]
   (let [dim     (dna-dimension dna-seq)
@@ -332,6 +372,7 @@
             (aset perm-dna-arr i-perm (dna-vec i))))
         [perm-order (vec perm-dna-arr)]))))
 
+;; VVV
 (defn dna-seq-perspectives
   [{:keys [limit?] :or {limit? true}} dna-seq]
   (let [dim (dna-dimension dna-seq)]
@@ -345,8 +386,10 @@
           {:sorted-keys perms})))))
 
 
+;; VVV
 (def equal-dna =)
 
+;; VVV
 (defn equiv-dna
   ([_] true)
   ([a b] (let [->psps (comp (partial dna-seq-perspectives {})
@@ -369,8 +412,7 @@
 (defn vspace
   ([dim] (vspace nuim-code dim))
   ([sort-code dim]
-   (let [vs sort-code]
-     (apply combo/cartesian-product (repeat dim sort-code)))))
+   (apply combo/cartesian-product (repeat dim sort-code))))
 
 
 (defn vdict
@@ -385,16 +427,18 @@
                    [% def-r])) vspc)
          (into (if sorted? (sorted-map-by compare-consts) (hash-map))))))
 
+;; VVV
 (defn dna->vdict
   [{:keys [sorted? unsafe?] :or {sorted? false unsafe? false}}
    dna]
   (let [dim     (dna-dimension dna)
         _       (when (and (not unsafe?) (> dim 11))
                   (throw (ex-info "Aborted: operation may freeze for formDNA dimensions above 11. Set option `unsafe?` to true if you still want to proceed." {:dimension dim})))
-        dna-rev (reverse-dna dna)
         vspc    (vspace dim)]
-    (into (if sorted? (sorted-map-by compare-consts) (hash-map))
-          (map vector vspc dna-rev))))
+    (into (if sorted?
+            (sorted-map-by compare-consts)
+            (hash-map))
+          (mapv vector vspc dna))))
 
 
 ;; fast-ish with up to 10 dimensions
@@ -416,6 +460,7 @@
        (with-meta (aux 0 vspc) {:dim dim})))))
 
 ;; ? can a custom algo directly from formDNA be more efficient here
+;; VVV
 (defn dna->vmap
   [dna]
   (vdict->vmap nil (dna->vdict {} dna)))
@@ -435,9 +480,10 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; formDNA arithmetic
+;; const/formDNA arithmetic
 
-(defn- relc [a b]
+;; VVV
+(defn relc [a b]
   (case a
     :M :M
     :N b
@@ -449,6 +495,7 @@
         [:I :I] :I
         ([:U :I] [:I :U]) :M))))
 
+;; VVV
 (defn rel
   ([]  :N)
   ([a] a)
@@ -463,13 +510,15 @@
   ([a b & xs] (rel a (reduce rel b xs))))
 
 
-(defn- invc [a]
+;; VVV
+(defn invc [a]
   (case a
     :N :M
     :U :I
     :I :U
     :M :N))
 
+;; VVV
 (defn inv
   ([]  :M)
   ([a] (if (const? a)

@@ -147,10 +147,9 @@
 ;; function specs (impl)
 
 
-(let [digits (set (map (comp first str) (range 4)))]
-  (s/def ::quaternary-str (s/and string?
-                                 #(= "4r" (subs % 0 2))
-                                 #(every? digits (subs % 2)))))
+;; note: dropped the "4r" prefix requirement
+(let [digits #{\0 \1 \2 \3}]
+  (s/def ::quaternary-str (s/and string? (partial every? digits))))
 
 (s/fdef core/consts->quaternary
   :args (s/cat :consts ::consts)

@@ -42,7 +42,7 @@
 
 (defn parse-int-maybe
   "Like `parse-int`, but return `nil` on invalid input instead of throwing an exception."
-  ([s] (parse-int nil))
+  ([s] (parse-int-maybe s nil))
   ([s base]
    (if base
      #?(:clj  (try (. Integer parseInt s base) (catch Exception _ nil))
