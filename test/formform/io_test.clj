@@ -1,3 +1,4 @@
+;; VVV
 (ns formform.io-test
   (:require [clojure.test :as t :refer [deftest is are testing]]
             [formform.calc :as calc]
@@ -259,13 +260,13 @@
     (is (= (read-expr "::NUIM")
            (read-expr "::0123") '[:fdna ["v__0"] [:N :U :I :M]]))
     (is (= (read-expr ->nmui "::NUIM")
-           (read-expr ->nmui "::0231") '[:fdna ["v__0"] [:I :N :U :M]]))
+           (read-expr ->nmui "::0231") '[:fdna ["v__0"] [:N :I :M :U]]))
     (is (= (read-expr ->nmui "::2310302310012021221111113232332212132133023103213021320233011023")
            '[:fdna ["v__0" "v__1" "v__2"]
-             [:I :N :U :M  :M :M :U :I  :I :U :M :I  :U :N :I :M
-              :N :M :N :M  :M :U :I :N  :U :I :N :I  :U :U :N :M
-              :I :I :U :U  :M :U :U :M  :M :M :M :M  :U :I :I :U
-              :N :I :I :M  :U :I :N :M  :N :I :U :U  :U :M :N :I]]))
+             [:U :M :N :I  :M :N :M :N  :U :U :M :N  :I :U :I :N 
+              :M :M :I :U  :N :I :M :U  :N :U :M :I  :U :I :I :M 
+              :I :U :M :N  :I :N :M :I  :M :U :I :N  :I :N :U :U 
+              :U :M :M :U  :I :I :U :U  :I :U :U :I  :M :M :M :M]]))
 
     (is (= (read-expr "[:fdna []::M]")
            (read-expr "[:fdna []::3]") [:fdna [] [:M]]))
@@ -274,7 +275,7 @@
     (is (= (read-expr "[:fdna [a]::NUIM]")
            (read-expr "[:fdna [a]::0123]") '[:fdna ["a"] [:N :U :I :M]]))
     (is (= (read-expr ->nmui "[:fdna [a]::NUIM]")
-           (read-expr ->nmui "[:fdna [a]::0231]") '[:fdna ["a"] [:I :N :U :M]]))
+           (read-expr ->nmui "[:fdna [a]::0231]") '[:fdna ["a"] [:N :I :M :U]]))
     (is (= (read-expr "[:fdna [a,'z_3']::NUIMMNIIIUNMMUNU]")
            '[:fdna ["a" "z_3"] [:N :U :I :M
                                 :M :N :I :I
@@ -282,10 +283,10 @@
                                 :M :U :N :U]]))
     (is (= (read-expr ->nmui "[:fdna [a,b,c]::2310302310012021221111113232332212132133023103213021320233011023]")
            '[:fdna ["a" "b" "c"]
-             [:I :N :U :M  :M :M :U :I  :I :U :M :I  :U :N :I :M
-              :N :M :N :M  :M :U :I :N  :U :I :N :I  :U :U :N :M
-              :I :I :U :U  :M :U :U :M  :M :M :M :M  :U :I :I :U
-              :N :I :I :M  :U :I :N :M  :N :I :U :U  :U :M :N :I]])))
+             [:U :M :N :I  :M :N :M :N  :U :U :M :N  :I :U :I :N 
+              :M :M :I :U  :N :I :M :U  :N :U :M :I  :U :I :I :M 
+              :I :U :M :N  :I :N :M :I  :M :U :I :N  :I :N :U :U 
+              :U :M :M :U  :I :I :U :U  :I :U :U :I  :M :M :M :M]])))
 
   (testing "Correctness of related transformations"
     (testing "of the same type"

@@ -1,3 +1,4 @@
+;; VVV
 ;; ========================================================================
 ;;     formform io module
 ;;     -- created 11/2022, (c) Peter Hofmann
@@ -43,10 +44,9 @@
 
 (defn parse-fdna
   [sort-code prefixed-s]
-  (let [s       (-> (subs prefixed-s 2)
-                    str/reverse) ;; !TEMP
+  (let [s       (-> (subs prefixed-s 2))
         digits?
-        (case (first s) (\n \u \i \m) false true) ;; !TEMP
+        (case (first s) (\n \u \i \m  \N \U \I \M) false true) ;; !TEMP
         ;; (case (first s) (\N \U \I \M) false true)
         ]
     (if digits?
