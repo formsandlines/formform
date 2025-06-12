@@ -1,3 +1,4 @@
+;; VVV
 ;; ========================================================================
 ;;     formform symbolic expression module
 ;;     -- created 03/2023, (c) Peter Hofmann
@@ -244,7 +245,5 @@
                   [:seq-re :<r nil nil]   :U
                   [[:seq-re :<r nil nil]] :I
                   [:U]                    :I})
-
-(comment)
 
   

@@ -1,9 +1,12 @@
+;; VVV
 (ns formform.expr-test
  (:require [clojure.test :as t :refer [deftest is are testing]]
            [formform.calc :as calc]
            [formform.expr.core :as core]
            [formform.expr :refer :all]
            [orchestra.spec.test :as stest]))
+
+(def rv (comp vec reverse))
 
 (doseq [fsym fns-with-specs] (stest/instrument fsym))
 
@@ -30,6 +33,7 @@
   (testing "Invalid arguments to known operators"
     (is (= true true))))
 
+;; VVV
 (deftest valid-op?-test
   (testing "Context of the test assertions"
     (is (true? (valid-op? (make :fdna ['a 'b]
@@ -549,7 +553,7 @@
            (in>> [ [[:- 'a 'b 'c]]])))
     (is (= '[:? y] ;; operator unknown
            (in>> [ [[:? 'y]]])))
-    (is (= '[([:fdna ["foo"] (:N :U :U :U)])]
+    (is (= '[([:fdna ["foo"] [:U :U :U :N]])]
            (in>> [ [[:uncl "foo"]]])))
     (is (= '[([:seq-re :<..r a b])]
            (in>> [ [[:seq-re :<..r 'a 'b]]])))
@@ -564,10 +568,10 @@
            (in>> [[:mem [['x 'y] ['y 'z]] 'x] [:mem [['x 'y] ['y 'z]] 'x]])))
     (is (= '[:U]
            (in>> [[:mem [['x :U]] 'x] [:mem [['x :U]] 'x]])))
-    (is (= '[[:fdna ["foo"] (:N :U :U :U)]]
+    (is (= '[[:fdna ["foo"] (:U :U :U :N)]]
            (in>> [[:uncl "foo"] [:uncl "foo"] [:uncl "foo"]])
-           (in>> [[:fdna ["foo"] [:N :U :U :U]
-                   [:fdna ["foo"] [:N :U :U :U]]]])))
+           (in>> [[:fdna ["foo"] [:U :U :U :N]
+                   [:fdna ["foo"] [:U :U :U :N]]]])))
     (is (= '[[:seq-re :<..r a b]]
            (in>> [[:seq-re :<..r 'a 'b] [:seq-re :<..r 'a 'b]])))
     ;; cannot cross re-entry boundary in (de)generation!
@@ -620,55 +624,53 @@
 
 (defn ->nmui [fdna-expr]
   (let [{:keys [varorder dna]} (op-data fdna-expr)]
-    (apply str varorder "::" (calc/dna->digits calc/nmui-code dna))))
+    (apply str varorder "::" (reverse (calc/dna->digits calc/nmui-code dna)))))
 
+;; VVV
 (deftest eval->expr-all-test
   (testing "Correctness of returned combinatorial space"
     (is (= [:fdna '() [:N]]
            (=>* (make nil))))
 
-    (is (= [:fdna '(a) [:M :I :U :N]]
+    (is (= [:fdna '(a) [:N :U :I :M]]
            (=>* (make 'a))))
 
-    (is (= [:fdna '(a b) [:M :M :M :M
-                          :M :I :M :I
-                          :M :M :U :U
-                          :M :I :U :N]]
+    (is (= [:fdna '(a b) [:N :U :I :M
+                          :U :U :M :M
+                          :I :M :I :M
+                          :M :M :M :M]]
            (=>* (make 'a 'b))))
 
     (is (= [:fdna '(a b c)
-            [:M :M :M :M  :M :M :M :M  :M :M :M :M  :M :M :M :M
-             :M :M :M :M  :M :I :M :I  :M :M :M :M  :M :I :M :I
-             :M :M :M :M  :M :M :M :M  :M :M :U :U  :M :M :U :U
-             :M :M :M :M  :M :I :M :I  :M :M :U :U  :M :I :U :N]]
+            [:N :U :I :M  :U :U :M :M  :I :M :I :M  :M :M :M :M
+             :U :U :M :M  :U :U :M :M  :M :M :M :M  :M :M :M :M
+             :I :M :I :M  :M :M :M :M  :I :M :I :M  :M :M :M :M
+             :M :M :M :M  :M :M :M :M  :M :M :M :M  :M :M :M :M]]
            (=>* (make 'a 'b 'c)))))
 
   (testing "Correctness of evaluation for simple seq-re FORMs"
-    (is (= '[:fdna [a] [:N :I :I :I]]
+    (is (= '[:fdna [a] [:I :I :I :N]]
            (=>* (seq-re :<r 'a)) (=>* (seq-re :<..r. 'a))))
-    (is (= '[:fdna [a] [:N :U :U :U]]
+    (is (= '[:fdna [a] [:U :U :U :N]]
            (=>* (seq-re :<..r 'a))))
 
-    (is (= '[:fdna [a] [:M :U :U :I]]
+    (is (= '[:fdna [a] [:I :U :U :M]]
            (=>* (seq-re :<r_ 'a)) (=>* (seq-re :<..r._ 'a))))
-    (is (= '[:fdna [a] [:M :I :I :U]]
+    (is (= '[:fdna [a] [:U :I :I :M]]
            (=>* (seq-re :<..r_ 'a))))
 
-    (is (= '[:fdna [a] [:N :I :I :I]]
+    (is (= '[:fdna [a] [:I :I :I :N]]
            (=>* (seq-re :<r' 'a)) (=>* (seq-re :<..r'. 'a))))
-    (is (= '[:fdna [a] [:N :U :U :U]]
+    (is (= '[:fdna [a] [:U :U :U :N]]
            (=>* (seq-re :<..r' 'a))))
 
-    (is (= '[:fdna [a] [:M :I :M :I]]
+    (is (= '[:fdna [a] [:I :M :I :M]]
            (=>* (seq-re :<r'_ 'a)) (=>* (seq-re :<..r'._ 'a))))
-    (is (= '[:fdna [a] [:M :M :U :U]]
+    (is (= '[:fdna [a] [:U :U :M :M]]
            (=>* (seq-re :<..r'_ 'a)))))
 
   (testing "Correctness of evaluation in complex seq-re FORMs"
-    (is (= '[:fdna [a b] [:N :N :N :N
-                          :N :I :N :I
-                          :I :I :I :I
-                          :I :U :I :U]]
+    (is (= '[:fdna [a b] [:U :I :U :I :I :I :I :I :I :N :I :N :N :N :N :N]]
            (=>* (seq-re :<r 'b [:- :I 'a] 'a)))))
 
   (testing "Congruence of evaluated formDNA with formform 1 results"
@@ -880,24 +882,25 @@
 
 
 (deftest simplify-op-test
+  ;; VVV
   (testing "formDNA"
     (testing "Basic functionality"
       (is (= (simplify-op (make :fdna [] [:N]) {}) :N))
-      (is (= (simplify-op (make :fdna ['a] [:N :U :I :M]) {'a :U}) :I))
+      (is (= (simplify-op (make :fdna ['a] [:N :U :I :M]) {'a :U}) :U))
       (is (= (simplify-op (make :fdna ['a 'b] [:N :U :I :M
                                                :U :I :M :I
                                                :I :M :I :U
                                                :M :I :U :N]) {'a :M})
-             '[:fdna [b] [:N :U :I :M]])))
+             '[:fdna [b] [:M :I :U :N]])))
 
     (testing "Partial matches in dictionary"
       (is (= (simplify-op (make :fdna ['a] [:N :U :I :M]) {'x :M})
              '[:fdna [a] [:N :U :I :M]]))
       (is (= (simplify-op (make :fdna ['a] [:N :U :I :M]) {'x :M 'a :U})
-             :I)))
+             :U)))
 
     (testing "Correctness of transformations"
-      (are [x y] (= (simplify-op (make :fdna ['a] [:N :U :I :M]) {'a x}) y)
+      (are [x y] (= (simplify-op (make :fdna ['a] [:M :I :U :N]) {'a x}) y)
         :N :M
         :U :I
         :I :U
@@ -908,12 +911,13 @@
                                    :U :I :M :I
                                    :I :M :I :U
                                    :M :I :U :N]) {'a :U})
-             '[:fdna [b] [:I :M :I :U]]))))
+             '[:fdna [b] [:U :I :M :I]]))))
 
+  ;; VVV
   (testing "unclear FORMs"
     (testing "Basic functionality"
       (is (= (simplify-op (make :uncl "hey") {})
-             '[:fdna ["hey"] [:N :U :U :U]]))
+             '[:fdna ["hey"] [:U :U :U :N]]))
 
       (are [x y] (= (simplify-op (make :uncl "unkFo") {"unkFo" x}) y)
         :N :U
@@ -1039,14 +1043,14 @@
       (is (= (interpret-op (make :fdna [] [:M])) :M))
       (is (= (interpret-op (make :fdna ['a] [:N :U :I :M]))
              '[:-
-               [[:M] [[:N->M a]]]
-               [[:I] [[:U->M a]]]
-               [[:U] [[:I->M a]]]
-               [[:N] [[:M->M a]]]]))
-      (is (= (interpret-op (make :fdna ['a 'b] [:M :I :N :I
-                                                :U :M :I :N
-                                                :U :M :N :I
-                                                :M :M :I :M]))
+               [[:N] [[:N->M a]]]
+               [[:U] [[:U->M a]]]
+               [[:I] [[:I->M a]]]
+               [[:M] [[:M->M a]]]]))
+      (is (= (interpret-op (make :fdna ['a 'b] [:M :I :M :M
+                                                :I :N :M :U
+                                                :N :I :M :U
+                                                :I :N :I :M]))
              '[:-
                [[:I] [[:M->M a]] [[:N->M b]]]
                [[:I] [[:M->M a]] [[:I->M b]]]
