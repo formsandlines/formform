@@ -1,4 +1,3 @@
-;; VVV
 (ns formform.calc
   "API for the `calc` module of `formform`."
   (:require [formform.calc.core :as core]
@@ -303,7 +302,6 @@ Note: `dna-seq` can have any type of elements (not only constants)"
                #(== (core/dna-dimension (-> % :dna))
                     (count (-> % :vpoint))))
   :ret  ::sp/const)
-;; VVV
 (defn dna-get
   "Extracts a single value from a `dna` according to a given `vpoint` index, which is a sequence of constants corresponding to each term→value association."
   [dna vpoint]
@@ -516,7 +514,6 @@ Note: `dna-seq` can have any type of elements (not only constants)"
 (s/fdef vmap-perspectives
   :args (s/cat :dna-psps ::sp/dna-perspective-group)
   :ret  ::sp/vmap-perspective-group)
-;; VVV
 (defn vmap-perspectives
   "Given a group of all perspectives from a formDNA, returns these perspectives as vmaps."
   [dna-psps]

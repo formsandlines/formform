@@ -1,4 +1,3 @@
-;; VVV
 (ns formform.io
   "API for the `io` module of `formform`."
   (:require [formform.calc.specs :as calc-sp]
@@ -91,5 +90,24 @@
 (def ^:no-doc fns-with-specs (utils/list-fn-specs "formform.io"))
 
 
-(comment)
+(comment
+
+  (require '[formform.expr :as expr])
+  (require '[formform.calc :as calc])
+  (require '[clojure.string :as str])
+
+  (print-dna (expr/op-get (expr/=>* (expr/seq-re :<r 'a,'b,'c)) :dna))
+
+  (print-expr (expr/seq-re :<r 'a,'b,'c))
+  "{@ a, b, c}"
+
+  "::IIINUIUNUIINMIUNIINNUIUNIINNMIUNININUNUNUIINMIUNNNNNUNUNIINNMIUN"
+
+  (read-expr {:sort-code calc/nmui-code}
+             (str "::" (str/reverse "3302200223013003030323022301030303032002230100003302230223013303")))
+  (print-dna [:I :I :I :N :U :I :U :N :U :I :I :N :M :I :U :N :I :I :N :N :U :I :U :N :I :I :N :N :M :I :U :N :I :N :I :N :U :N :U :N :U :I :I :N :M :I :U :N :N :N :N :N :U :N :U :N :I :I :N :N :M :I :U :N])
+  "::IIINUIUNUIINMIUNIINNUIUNIINNMIUNININUNUNUIINMIUNNNNNUNUNIINNMIUN"
+  
+  
+  ,)
   

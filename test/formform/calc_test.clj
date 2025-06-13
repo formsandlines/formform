@@ -1,4 +1,3 @@
-;; VVV
 (ns formform.calc-test
   (:require [clojure.test :as t :refer [deftest is are testing]]
             [formform.calc :refer :all]
@@ -58,7 +57,6 @@
     
 
 
-;; VVV
 (deftest make-dna-test
   (testing "Correct transformation of mixed element types"
     (is (= (make-dna :M \U \I 0 [1 2 1 3] :U :U :I \n [1 2 1 3])
@@ -92,7 +90,6 @@
            4))))
 
 
-;; VVV
 (deftest dna->digits-test
   (testing "Correctness of conversion"
     (is (= (dna->digits [:N :U :I :M]) '(0 1 2 3)))
@@ -109,7 +106,6 @@
             2 2 2 2  1 3 3 1  2 0 0 2  1 1 1 1]))))
 
 
-;; VVV
 (deftest digits->dna-test
   (testing "Correctness of conversion"
     (is (= (digits->dna [0 1 2 3]) [:N :U :I :M]))
@@ -127,7 +123,6 @@
             :N :N :I :I  :U :N :M :I  :N :N :I :I  :U :N :M :I]))))
 
 
-;; VVV
 (deftest reorder-dna-seq-test
   (testing "Correctness of reordered dna-seq"
     (is (= (reorder-dna-seq
@@ -169,7 +164,6 @@
            [:N :I :M :U  :I :N :U :M  :M :U :I :N  :U :M :N :I]))))
 
 
-;; VVV
 (deftest compare-consts-test
   (testing "Correctness of sorted order"
     (is (= [] (sort compare-consts [])))
@@ -185,7 +179,6 @@
                  [[:N :U :I :M] [:I :M] [:U :M :I] [:M :N :U]])))))
   
 
-;; VVV
 (deftest expand-dna-seq-test
   (testing "Correctness of expansion"
     (is (= (expand-dna-seq [:M :I :U :N] 2)
@@ -203,7 +196,6 @@
             :I :I :I :I :M :M :M :M :I :I :I :I :U :U :U :U
             :M :M :M :M :I :I :I :I :U :U :U :U :N :N :N :N]))))
 
-;; VVV
 (deftest reduce-dna-seq-test
   (testing "Correct reduction for 3->2 dimensions"
     (is (= (reduce-dna-seq '[a b c]
@@ -438,7 +430,6 @@
   
 
 
-;; VVV
 (deftest filter-dna-test
   (testing "Correctness of transformation"
     (is (= (filter-dna [:N] []) [:N]))
@@ -455,7 +446,6 @@
                                     :I :I :M :I
                                     :I :M :I :U]))))
 
-;; VVV
 (deftest dna-get-test
   ;; is just filter-dna without the vector and no holes in vpoint allowed
   (testing "IO shape"
@@ -469,7 +459,6 @@
                           [:M :_])))))
 
 
-;; VVV
 (deftest dna-perspectives-test
   (testing "Correctness of permutations"
     (is (= (dna-perspectives (make-dna (make-dna :U :I :M :N)
@@ -513,7 +502,6 @@
                   (vdict {:default-result :U} vp->r))))))
 
 
-;; VVV
 (deftest dna->vdict-test
   (testing "Validity of vdict"
     (is ((every-pred vdict? sorted?)
@@ -566,7 +554,6 @@
                :I {:N :M, :U :N, :I :U, :M :I},
                :M {:N :I, :U :U, :I :M, :M :N}}))))) 
 
-;; VVV
 (deftest vmap-perspectives-test
   (testing "Correct output shape"
     (is (= {[0 1] {:M {:M :U, :I :I, :U :M, :N :N}

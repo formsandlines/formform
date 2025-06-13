@@ -1,4 +1,3 @@
-;; VVV
 ;; ========================================================================
 ;;     formform emulation module
 ;;     -- created 02/2025, (c) Peter Hofmann
@@ -774,7 +773,6 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
 #_
 (def match-dna (comp first calc-core/filter-dna))
 
-;; VVV
 (defn match-dna
   [dna umwelt]
   (if (== (count dna) 1)
@@ -783,14 +781,12 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
           idx (utils/parse-int qtn 4)]
       (dna idx))))
 
-;; VVV
 (defn match-dna--fast
   [dna umwelt-qtn]
   (if (== (count dna) 1)
     (dna 0)
     (dna (utils/parse-int umwelt-qtn 4))))
 
-;; VVV
 (defrule :match [-opts dna]
   "Matches an `umwelt` (of cell values) directly against the given `dna`, which is equivalent to interpreting and calculating a corresponding expression."
   (apply-rule
@@ -802,7 +798,6 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
    [_ umwelt-qtn _]
    (match-dna--fast dna umwelt-qtn)))
 
-;; VVV
 (defrule :life [-opts dna]
   "Modeled after the rules for the “Game of Life”:
 - a cell is “alive” when its value is not `:N`

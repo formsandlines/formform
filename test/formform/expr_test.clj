@@ -1,4 +1,3 @@
-;; VVV
 (ns formform.expr-test
  (:require [clojure.test :as t :refer [deftest is are testing]]
            [formform.calc :as calc]
@@ -33,7 +32,6 @@
   (testing "Invalid arguments to known operators"
     (is (= true true))))
 
-;; VVV
 (deftest valid-op?-test
   (testing "Context of the test assertions"
     (is (true? (valid-op? (make :fdna ['a 'b]
@@ -626,7 +624,6 @@
   (let [{:keys [varorder dna]} (op-data fdna-expr)]
     (apply str varorder "::" (reverse (calc/dna->digits calc/nmui-code dna)))))
 
-;; VVV
 (deftest eval->expr-all-test
   (testing "Correctness of returned combinatorial space"
     (is (= [:fdna '() [:N]]
@@ -882,7 +879,6 @@
 
 
 (deftest simplify-op-test
-  ;; VVV
   (testing "formDNA"
     (testing "Basic functionality"
       (is (= (simplify-op (make :fdna [] [:N]) {}) :N))
@@ -913,7 +909,6 @@
                                    :M :I :U :N]) {'a :U})
              '[:fdna [b] [:U :I :M :I]]))))
 
-  ;; VVV
   (testing "unclear FORMs"
     (testing "Basic functionality"
       (is (= (simplify-op (make :uncl "hey") {})

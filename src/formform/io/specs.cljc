@@ -1,4 +1,3 @@
-;; VVV
 (ns formform.io.specs
   (:require [formform.calc.specs :as calc-sp]
             [formform.expr.specs :as expr-sp]

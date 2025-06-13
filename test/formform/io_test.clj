@@ -1,4 +1,3 @@
-;; VVV
 (ns formform.io-test
   (:require [clojure.test :as t :refer [deftest is are testing]]
             [formform.calc :as calc]

@@ -1,4 +1,3 @@
-;; VVV
 (ns formform.calc.core-test
   (:require [clojure.test :as t :refer [deftest is are testing]]
             [formform.calc.specs :refer [fns-with-specs]]
@@ -10,7 +9,6 @@
 (def rv (comp vec reverse))
 
 
-;; VVV
 (deftest filter-dna-seq-test
   (testing "Correctness and completeness of selection"
     (are [x y] (= (filter-dna-seq [:N :U :I :M] x) y)
@@ -90,7 +88,6 @@
                     :M :I :U :N  :N :U :I :M  :U :I :M :I  :I :M :I :U])))
 
 
-;; VVV
 (deftest consts->quaternary-test
   (testing "Correctness of conversion"
     (is (= "0123" (consts->quaternary [:N :U :I :M])))
@@ -108,7 +105,6 @@
                  (consts->quaternary [])))))
 
 
-;; VVV
 (deftest permute-dna-seq-test
   (testing "Correctness of permutation"
     (is (= (permute-dna-seq
@@ -135,7 +131,6 @@
                p))))))
 
 
-;; VVV
 (deftest dna-seq-perspectives-test
   (testing "Correctness of permutations"
     (is (= (dna-seq-perspectives

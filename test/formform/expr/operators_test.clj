@@ -1,4 +1,3 @@
-;; VVV
 (ns formform.expr.operators-test
   (:require [clojure.test :as t :refer [deftest is are testing]]
             [formform.expr.specs :refer [fns-with-specs]]

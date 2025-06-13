@@ -1,4 +1,3 @@
-;; VVV
 ;; ========================================================================
 ;;     formform expression core module
 ;;     -- created 08/2022, (c) Peter Hofmann
@@ -362,7 +361,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Evaluation
 
-;; VVV
 (defn eval-simplified
   [expr env]
   (let [simpl-expr (cnt> expr env)
@@ -382,7 +380,6 @@
 ;; ? check for validity of varorder
 ;; ? remove `reverse-results?` bc formDNA no longer reversed
 ;;   -> maybe a more general sort-code option
-;; VVV
 (defn eval-simplified*
   [{:keys [varorder only-vals? reverse-results?]} expr global-env]
   (let [vars (if (nil? varorder) (find-vars expr {:ordered? true}) varorder)
@@ -408,7 +405,6 @@
   ([expr env]
    (:val (eval-simplified expr env))))
 
-;; VVV
 (defn =>*
   ([expr] (=>* expr {}))
   ([expr env] (=>* {} expr env))
@@ -418,7 +414,6 @@
           (merge opts {:only-vals? true}) expr env)]
      [tag_formDNA varorder results])))
 
-;; VVV
 (defn equal
   [& exprs]
   (let [data     (map (comp symx/op-data =>*) exprs)
@@ -427,7 +422,6 @@
     (and (apply = varlists)
          (apply calc/equal-dna dnas))))
 
-;; VVV
 (defn equiv
   [& exprs]
   (apply calc/equiv-dna (map (comp #(symx/op-get % :dna) =>*) exprs)))

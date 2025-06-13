@@ -1,4 +1,3 @@
-;; VVV
 ;; ========================================================================
 ;;     formform expression operators module
 ;;     -- created 03/2023, (c) Peter Hofmann
@@ -69,7 +68,6 @@
       (throw (ex-info "Invalid label for unclear FORM."
                       {:label label})))))
 
-;; VVV
 (defoperator tag_unclear [label] [tag_seq-reentry :<r label label]
   :constructor construct-unclear
   :predicate unclear?
@@ -430,12 +428,10 @@
 ;;-------------------------------------------------------------------------
 ;; formDNA
 
-;; VVV
 (def formDNA? #(and (symx/operator? %)
                     (= tag_formDNA (op-symbol %))))
 
 ;; ? refactor (matches need not return a vector)
-;; VVV
 (defn- filter-formDNA
   "Filters the `dna` by values from given `env` whose keys match variables in the `varlist` of the formDNA."
   [fdna env]
@@ -453,7 +449,6 @@
           (mapv first (filter #(= (second %) calc/var-const) matches))
           (calc/filter-dna dna vpoint))))
 
-;; VVV
 (defn- simplify-formDNA
   [operator env]
   (let [filtered-fdna (filter-formDNA operator env)]
@@ -461,7 +456,6 @@
       (first (op-get filtered-fdna :dna))
       filtered-fdna)))
 
-;; VVV
 (defn- construct-formDNA
   ([op-k] (construct-formDNA op-k [] [:N]))
   ([op-k dna] (let [varorder (vec (core/gen-vars (calc/dna-dimension dna)))]
@@ -473,7 +467,6 @@
        (throw (ex-info (str "Invalid operator arguments" op-k)
                        {:op op-k :varorder varorder :dna dna}))))))
 
-;; VVV
 (defoperator tag_formDNA [varorder dna]
   (if (empty? varorder)
     (make (first dna))
@@ -490,7 +483,6 @@
   :reducer simplify-formDNA)
 
 ;; ! assumes equal order between `permute-vars` and `calc/dna-perspectives`
-;; VVV
 (defn formDNA-perspectives [fdna]
   (let [{:keys [dna varorder]} (op-data fdna)
         perms (permute-vars varorder)]

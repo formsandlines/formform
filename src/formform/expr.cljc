@@ -1,4 +1,3 @@
-;; VVV
 (ns formform.expr
   "API for the `expr` module of `formform`."
   (:require
