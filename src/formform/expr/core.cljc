@@ -43,9 +43,9 @@
 (defn splice-ctx
   [ctx]
   (reduce (fn [acc x] (cond
-                        (nil? x) acc
-                        (symx/arrangement? x) (into acc (rest x))
-                        :else (conj acc x)))
+                       (nil? x) acc
+                       (symx/arrangement? x) (into acc (rest x))
+                       :else (conj acc x)))
           [] ctx))
 
 (defn make
@@ -209,7 +209,7 @@
   ([x default]
    (case x ;; [] = '() in cases! (cljs doesn’t like ((…)) in cases)
      ([] :M [nil] [:N] [[[]]] [[:M]] [[[nil]]] [[[:N]]]
-         [[:U :I]] [[:I :U]])
+      [[:U :I]] [[:I :U]])
      []
      (nil :N [[]] [:M] [[nil]] [[:N]]
           [:U :I] [:I :U])
@@ -397,8 +397,8 @@
      :vspace vspc
      :results results}))
 
-; (defn calc*
-;   [expr])
+;; (defn calc*
+;;   [expr])
 
 (defn =>
   ([expr] (=> expr {}))
@@ -535,5 +535,3 @@
   (find-vars [['x] "a" 'z "x" 'a] {})
   (find-vars [['x] "a" 'z "x" 'a] {:ordered? true}))
 
-
-  

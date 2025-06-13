@@ -32,7 +32,7 @@
 
 (defmulti op-get
   (fn [[op-k & _] param] {:pre [(keyword? op-k)
-                                (keyword? param)]} [op-k param]))
+                               (keyword? param)]} [op-k param]))
 
 (defmulti op-data
   (fn [[op-k & _]] {:pre [(keyword? op-k)]} op-k))
@@ -138,7 +138,7 @@
     "MemoryFORM."
     (let [eqs (apply make
                      (map (fn [[k v]] (form (form k v)
-                                           (form (form k) (form v))))
+                                            (form (form k) (form v))))
                           rems))]
       (form eqs (apply form ctx)))
 
@@ -217,8 +217,8 @@
 
 (defoperator tag_arrangement [& exprs] (vector (into [] exprs))
   :predicate arrangement?)
-  ; :reducer (fn [[_ & exprs] env] (simplify-content [exprs] env))
-  
+;; :reducer (fn [[_ & exprs] env] (simplify-content [exprs] env))
+
 
 (defn arr-prepend [x rel-expr]
   (apply vector tag_arrangement x (rest rel-expr)))
@@ -245,4 +245,4 @@
                   [[:seq-re :<r nil nil]] :I
                   [:U]                    :I})
 
-  
+

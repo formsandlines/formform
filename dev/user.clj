@@ -8,9 +8,9 @@
   (clerk/serve! {:browse? true})
 
   ;; either call `clerk/show!` explicitly
-  ; (clerk/show! "notebooks/formform/index.clj")
+  ;; (clerk/show! "notebooks/formform/index.clj")
 
-  ; (clerk/build! {:paths [(str root "introduction.clj")]})
+  ;; (clerk/build! {:paths [(str root "introduction.clj")]})
 
   ;; or let Clerk watch the given `:paths` for changes
   (clerk/serve! {:watch-paths ["index.clj" root]}))

@@ -54,7 +54,7 @@
                  (rand-dna 4 [:x :y :z :v :w])))
     (is (thrown? clojure.lang.ExceptionInfo
                  (rand-dna 1 [])))))
-    
+
 
 
 (deftest make-dna-test
@@ -177,7 +177,7 @@
     (is (= [[:I :M] [:N :U :I :M] [:U :M :I] [:M :N :U]]
            (sort compare-consts
                  [[:N :U :I :M] [:I :M] [:U :M :I] [:M :N :U]])))))
-  
+
 
 (deftest expand-dna-seq-test
   (testing "Correctness of expansion"
@@ -363,7 +363,7 @@
                                   :U :I :N :M
                                   :U :I :N :M])
            [[0] [:U :I :N :M]]))))
-    
+
 
 
 (deftest equiv-dna-test
@@ -392,7 +392,7 @@
     (is (not (equiv-dna [:N :N :N :N] [:N :N :N :M])))
     (is (not (equiv-dna [:N :N :N :N :U :U :U :U :U :U :I :I :U :I :I :M]
                         [:N :U :U :U :N :U :U :I :N :U :I :I :N :U :I :N]))))
-    
+  
 
   (testing "Equivalence of permutation"
     (are [x] (apply equiv-dna (vals (dna-perspectives x)))
@@ -414,7 +414,7 @@
                     :N :N :I :I
                     :N :U :N :U
                     :N :N :N :N]
-                   ; permutation:
+                   ;; permutation:
                    [:N :U :I :M  :N :U :I :M  :N :U :I :M  :N :U :I :M
                     :N :N :I :I  :N :N :I :I  :N :N :I :I  :N :N :I :I
                     :N :U :N :U  :N :U :N :U  :N :U :N :U  :N :U :N :U
@@ -427,7 +427,7 @@
                    [:N :N :N :N :U :U :U :U :U :U :I :I :U :I :I :M]
                    [:N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M]
                    [:N :U :U :U :N :U :U :I :N :U :I :I :N :U :I :M]))))
-  
+
 
 
 (deftest filter-dna-test
@@ -497,7 +497,7 @@
   (testing "Validity of vdict"
     (is (vdict? (let [vp->r {[:N :M] :M
                              [:U :U] :I
-                             ; [:X :Y] :M
+                             ;; [:X :Y] :M
                              [:U :U :I] :N}]
                   (vdict {:default-result :U} vp->r))))))
 
@@ -543,7 +543,7 @@
 (deftest vmap-dimension-test
   (testing "Cached dimension in vmap meta"
     (is (= 5 (vmap-dimension (dna->vmap (rand-dna 5))))))
-         
+  
   (testing "Matching dimension for vmaps without meta"
     (is (= 0 (vmap-dimension :N)))
     (is (= 0 (vmap-dimension :U)))

@@ -223,7 +223,7 @@
            (make-lifeform {:overwrites {:ini-spec
                                         (make-ini :fill-all ini-gen)}}
                           (tsds-sel->dna [1 0 0 1 0 1]))
-                  
+           
            [res])
           (take 10))
      (map :data (lifeform-snaps :100101lifeFORMs_0000s)))

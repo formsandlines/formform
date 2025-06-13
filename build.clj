@@ -24,7 +24,7 @@
                 :version version
                 :basis basis
                 :src-dirs ["src"]})
-                ; :src-pom "template/pom.xml"
+                ;; :src-pom "template/pom.xml"
                 
   (b/copy-dir {:src-dirs ["src" "resources"]
                :target-dir class-dir})

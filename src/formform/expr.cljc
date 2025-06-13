@@ -673,10 +673,10 @@
   (s/conform ::sp/expression [[:M] [:- 'a ['b]]]) ;=> [:form [[:M] [:- a [b]]]]
 
   (s/conform ::sp/context [[:M] [:- 'a ['b]] 'x :U nil])
-  ;=> [[:form [:M]] [:operator {:tag :-, :args-unchecked [a [b]]}] [:variable [:sym x]] [:expr-symbol :U] [:empty nil]]
+  ;;=> [[:form [:M]] [:operator {:tag :-, :args-unchecked [a [b]]}] [:variable [:sym x]] [:expr-symbol :U] [:empty nil]]
 
 
- (s/valid? ::sp/operator (seq-re {} nil))
- (seq-reentry-opts->sign {})
- (seq-reentry-sign->opts :<r))
+  (s/valid? ::sp/operator (seq-re {} nil))
+  (seq-reentry-opts->sign {})
+  (seq-reentry-sign->opts :<r))
 

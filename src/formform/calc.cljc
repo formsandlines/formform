@@ -238,7 +238,7 @@
 (defn expand-dna-seq
   "Expands a `dna-seq` to a given target dimension by repeating elements.
 
-Note: `dna-seq` can have any type of elements (not only constants)"
+  Note: `dna-seq` can have any type of elements (not only constants)"
   ([dna-seq ext-dim]
    (let [dim (core/dna-dimension dna-seq)]
      (expand-dna-seq dna-seq dim ext-dim)))
@@ -267,20 +267,20 @@ Note: `dna-seq` can have any type of elements (not only constants)"
   ([terms dna-seq]
    (core/reduce-dna-seq terms dna-seq)))
 
-; (s/fdef filter-dna-seq
-;   :args (s/and (s/cat :dna-seq          ::sp/dna-seq
-;                       :depth-selections (s/coll-of ::sp/const-int?
-;                                                    :kind sequential?))
-;                #(== (core/dna-dimension (-> % :dna-seq))
-;                     (count (-> % :depth-selections))))
-;   :ret  ::sp/dna-seq)
-; (defn filter-dna-seq
-;   "Filters a `dna-seq` by matching each of its “depth indices” (which corresponds to the interpretation order of terms) with the integers from a given `depth-selections` sequence.
-  
-;   This is a generalized form of `filter-dna`."
-;   ;; ! needs better explanation and examples
-;   [dna-seq depth-selections]
-;   (core/filter-dna-seq dna-seq depth-selections))
+;; (s/fdef filter-dna-seq
+;;   :args (s/and (s/cat :dna-seq          ::sp/dna-seq
+;;                       :depth-selections (s/coll-of ::sp/const-int?
+;;                                                    :kind sequential?))
+;;                #(== (core/dna-dimension (-> % :dna-seq))
+;;                     (count (-> % :depth-selections))))
+;;   :ret  ::sp/dna-seq)
+;; (defn filter-dna-seq
+;;   "Filters a `dna-seq` by matching each of its “depth indices” (which corresponds to the interpretation order of terms) with the integers from a given `depth-selections` sequence.
+
+;;   This is a generalized form of `filter-dna`."
+;;   ;; ! needs better explanation and examples
+;;   [dna-seq depth-selections]
+;;   (core/filter-dna-seq dna-seq depth-selections))
 
 (s/fdef filter-dna
   :args (s/and (s/cat :dna    ::sp/dna
@@ -478,16 +478,16 @@ Note: `dna-seq` can have any type of elements (not only constants)"
 (s/fdef vdict->vmap
   :args (s/cat :vdict ::sp/vdict)
   ;; ? fmap arg needed
-  ; :args (s/alt :ar1 (s/cat :vdict ::sp/vdict)
-  ;              :ar2 (s/cat :fmap
-  ;                          (s/nilable
-  ;                           ;; lightweight spec to prevent recursion issues
-  ;                           (s/fspec :args (s/cat :vmap map?
-  ;                                                 :vspace sequential?
-  ;                                                 :depth nat-int?
-  ;                                                 :dim ::sp/dna-dimension)
-  ;                                    :ret  map?))
-  ;                          :vdict ::sp/vdict))
+  ;; :args (s/alt :ar1 (s/cat :vdict ::sp/vdict)
+  ;;              :ar2 (s/cat :fmap
+  ;;                          (s/nilable
+  ;;                           ;; lightweight spec to prevent recursion issues
+  ;;                           (s/fspec :args (s/cat :vmap map?
+  ;;                                                 :vspace sequential?
+  ;;                                                 :depth nat-int?
+  ;;                                                 :dim ::sp/dna-dimension)
+  ;;                                    :ret  map?))
+  ;;                          :vdict ::sp/vdict))
   :ret  ::sp/vmap)
 (defn vdict->vmap
   "Generates a vmap from a given vdict."

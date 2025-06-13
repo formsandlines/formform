@@ -115,18 +115,18 @@
     (let [perms
           [;; a b c
            [[0 1 2] [:N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :N :U :N :U :U :U :U :U :N :U :N :U :I :I :I :I :I :I :I :I :N :N :I :I :N :N :I :I :M :M :M :M :I :M :I :M :U :U :M :M :N :U :I :M]]
-            ;; a c b
+           ;; a c b
            [[0 2 1] [:N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :N :U :N :U :U :U :U :U :N :U :N :U :U :U :U :I :I :N :N :I :I :N :N :I :I :I :I :I :I :I :I :M :I :U :N :M :M :U :U :M :I :M :I :M :M :M :M]]
-            ;; b a c
+           ;; b a c
            [[1 0 2] [:N :N :N :N :U :U :U :U :I :I :I :I :M :M :M :M :N :N :N :N :N :U :N :U :I :I :I :I :I :M :I :M :N :N :N :N :U :U :U :U :N :N :I :I :U :U :M :M :N :N :N :N :N :U :N :U :N :N :I :I :N :U :I :M]]
-            ;; b c a
+           ;; b c a
            [[1 2 0] [:N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :N :I :I :N :U :I :M :N :N :I :I :N :U :I :M :N :U :N :U :N :U :N :U :N :U :I :M :N :U :I :M :N :N :N :N :N :U :N :U :N :N :I :I :N :U :I :M]]
-            ;; c a b
+           ;; c a b
            [[2 0 1] [:N :N :N :N :U :N :U :N :I :I :N :N :M :I :U :N :N :N :N :N :U :U :U :U :I :I :N :N :M :M :U :U :N :N :N :N :U :N :U :N :I :I :I :I :M :I :M :I :N :N :N :N :U :U :U :U :I :I :I :I :M :M :M :M]]
-            ;; c b a
+           ;; c b a
            [[2 1 0] [:N :U :I :M :N :N :I :I :N :U :N :U :N :N :N :N :N :U :I :M :N :U :I :M :N :U :N :U :N :U :N :U :N :U :I :M :N :N :I :I :N :U :I :M :N :N :I :I :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M]]]]
       (doseq
-       [[porder dna :as p] perms]
+          [[porder dna :as p] perms]
         (is (= (permute-dna-seq {} (second (first perms)) porder)
                p))))))
 

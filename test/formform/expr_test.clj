@@ -1,9 +1,9 @@
 (ns formform.expr-test
- (:require [clojure.test :as t :refer [deftest is are testing]]
-           [formform.calc :as calc]
-           [formform.expr.core :as core]
-           [formform.expr :refer :all]
-           [orchestra.spec.test :as stest]))
+  (:require [clojure.test :as t :refer [deftest is are testing]]
+            [formform.calc :as calc]
+            [formform.expr.core :as core]
+            [formform.expr :refer :all]
+            [orchestra.spec.test :as stest]))
 
 (def rv (comp vec reverse))
 
@@ -160,16 +160,16 @@
            (find-vars (make 'a [:x ['x]] "z" ["x" 'y]) {:vars #{'x "y" 'z}}))))
 
   (testing "Exotic variable names"))
-    ;; incorrect ordering due to symbols
-    ; (is (= (find-vars '[ "apple tree" ("something" else) ])
-    ;        '("apple tree" else "something")))
+;; incorrect ordering due to symbols
+;; (is (= (find-vars '[ "apple tree" ("something" else) ])
+;;        '("apple tree" else "something")))
 
 
 
 (defn- simplify-expr-chain-reversed [r->l? exprs env]
   (let [rev-exprs (fn [xs] (reverse (map #(if (arrangement? %)
-                                            (cons (first %) (reverse (rest %)))
-                                            %) xs)))]
+                                           (cons (first %) (reverse (rest %)))
+                                           %) xs)))]
     (rev-exprs (chain>> {:rtl? r->l?} (rev-exprs exprs) {}))))
 
 (def chain>>-rtl (partial simplify-expr-chain-reversed true))
@@ -303,7 +303,7 @@
       (is (= '[[:- :f* :U]]
              (chain>> {:rtl? true} x {})
              (chain>>-ltr x {}))))))
-    ;; (((:f*) :U) :U) => (((:f*)) :U) => (:f* :U)
+;; (((:f*) :U) :U) => (((:f*)) :U) => (:f* :U)
 
 
 (deftest simplify-test
@@ -1113,7 +1113,7 @@
 
       (testing "Shape of expressions with even resolution"
         (are [x y] (= x y)
-         ;; ? should even/odd construct redundant re-entries?
+          ;; ? should even/odd construct redundant re-entries?
           (f (seqre-opts 0) 'a 'b)  '[:mem [[:f* ((:f* a) b)]] :f*]
           (f (seqre-opts 1) 'a 'b)  '[:mem [[:f* ((:f* a) b)]] :f*]
           (f (seqre-opts 2) 'a 'b)  '[:mem [[:f* ((:f* a) b)]] :f*]
@@ -1413,12 +1413,12 @@
                '((a) (((b) (c)) r))
                '[:- ((a) (b) (c)) ((a) (r))]))
     ;; C9 (commented out because slow, but test passes)
-    ; (is (equiv '(((b) (r)) ((a) (r)) ((x) r) ((y) r))
-    ;            '(((b) (r)) ((a) (r)) ((x y) r))
-    ;            '[:- (b a ((x y) r)) (r ((x y) r))]
-    ;            '[:- (b a ((x y) r)) (r x y)]
-    ;            '[:- (b a ((x y) r) (r x y)) (r x y)]
-    ;            '[:- ((r) a b) (r x y)]))
+    ;; (is (equiv '(((b) (r)) ((a) (r)) ((x) r) ((y) r))
+    ;;            '(((b) (r)) ((a) (r)) ((x y) r))
+    ;;            '[:- (b a ((x y) r)) (r ((x y) r))]
+    ;;            '[:- (b a ((x y) r)) (r x y)]
+    ;;            '[:- (b a ((x y) r) (r x y)) (r x y)]
+    ;;            '[:- ((r) a b) (r x y)]))
 
     ;; uFORM iFORM (engl. Ed.)
     ;; p.7

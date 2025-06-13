@@ -137,8 +137,8 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
   - `segm-align` must be one of `:start`, `:center` or `:end`"
   [total-len segm-len segm-pos segm-align segm-offset]
   (let [wrap (fn [x] (cond (< x 0) (+ total-len x)
-                          (>= x total-len) (- x total-len)
-                          :else x))
+                           (>= x total-len) (- x total-len)
+                           :else x))
         anchor (case segm-pos
                  :start  0
                  :center (quot total-len 2)
@@ -303,7 +303,7 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
 (defn- parse-bg [-opts bg]
   (cond
     ((set calc-core/nuim-code) bg) (->Ini-Constant -opts bg)
-    (= :? bg) (->Ini-Random -opts)
+    (= :? bg) (->Ini-Random -opts 0.5)
     (ini-transducer? bg) bg
     :else (throw (ex-info "Invalid background ini." {:bg-ini bg}))))
 

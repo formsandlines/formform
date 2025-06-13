@@ -12,8 +12,8 @@
             [clojure.edn :as edn]
             [clojure.string :as str]
             [instaparse.core :as insta]
-            ; #?(:clj  [instaparse.core :as insta]
-            ;    :cljs [instaparse.core :as insta])
+            ;; #?(:clj  [instaparse.core :as insta]
+            ;;    :cljs [instaparse.core :as insta])
             [formform.utils :as utils]))
 
 ;;-------------------------------------------------------------------------
@@ -98,7 +98,7 @@
 
     :SYMBOL    (partial parse-symbol sort-code)
     :OPERATOR  parse-operator
-    ; :UNPARSED  identity ;; EDN?
+    ;; :UNPARSED  identity ; EDN?
 
     :UNCLEAR   (partial expr/make :uncl)
     :UNCLEAR_SYM (partial parse-symbol sort-code)
@@ -189,7 +189,7 @@
 (defn formDNA->formula
   [[op-k varorder dna]]
   (str "[" op-k " [" (str/join ", " (map variable->formula varorder)) "] "
-      (dna->formula dna) "]"))
+       (dna->formula dna) "]"))
 
 (defn memory->formula
   [[op-k rems expr]]
@@ -295,8 +295,8 @@
    sym]
   (cond (and use-const? (calc/consts sym))
         {:type :constant
-         ; :value (calc/const->digit expr)
-         ; :label (str expr)
+         ;; :value (calc/const->digit expr)
+         ;; :label (str expr)
          :value (name sym)}
         (and use-seq-reentry?
              (= :f* sym))
@@ -359,22 +359,22 @@
   (let [{:keys [x y] :or {x "a" y "bar"} :as m} {:y "foo"}]
     [[x (:x m)]
      [y (:y m)]]))
-  
+
 
 (comment
   (utils/nest-right #(map (partial expr->uniform {}) %) ['a 'b])
   (utils/nest-right ['a 'b 'c 'd])
 
   (utils/nest-right (fn [xs] {:type :seq
-                              :space xs})
+                             :space xs})
                     (fn [x] {:val x}) ['a 'b 'c])
 
   (utils/nest-left (fn [xs] {:type :seq
-                             :space xs})
+                            :space xs})
                    (fn [x] {:val x}) ['a 'b 'c])
 
   (uniform-expr {:use-unmarked? true
                  :use-seq-reentry? true} (expr/seq-re :<r 'a 'b 'c))
 
   (uniform-expr {:legacy? true} (expr/seq-re :<r 'a 'b '[:- c d])))
-  
+

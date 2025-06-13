@@ -15,7 +15,7 @@
 (defn splitv-atv
   "Alternative to `clojure.core/splitv-at` that only takes vector input.
 
-* performance improvement might be minimal."
+  * performance improvement might be minimal."
   [i v]
   (vector (into [] (subvec v 0 i))
           (into [] (subvec v i (count v)))))
@@ -82,16 +82,16 @@
 
 (defn compare-names [a b]
   (let [to-str (fn [x] (cond
-                         (symbol? x)  (str x)
-                         (keyword? x) (name x)
-                         (string? x)   x
-                         :else (assert false)))
+                        (symbol? x)  (str x)
+                        (keyword? x) (name x)
+                        (string? x)   x
+                        :else (assert false)))
         astr (to-str a)
         bstr (to-str b)]
     (compare astr bstr)))
 
-; (defn extend-meta [x metadata]
-;   (with-meta x (merge (meta x) metadata)))
+;; (defn extend-meta [x metadata]
+;;   (with-meta x (merge (meta x) metadata)))
 
 ;; ? get rid of `nil`
 (defn nest-left

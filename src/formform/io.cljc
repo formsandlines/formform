@@ -62,17 +62,17 @@
 (s/def :opts.uniform/use-seq-reentry? boolean?)
 
 (s/fdef uniform-expr
-        :args (s/alt :ar1 (s/cat :expr ::expr-sp/expression)
-                     :ar2 (s/cat :opts 
-                                 (s/keys :opt-un 
-                                         [:opts.uniform/legacy?
-                                          :opts.uniform/branchname
-                                          :opts.uniform/use-unmarked?
-                                          :opts.uniform/unclear?
-                                          :opts.uniform/const?
-                                          :opts.uniform/use-seq-reentry?])
-                                 :expr ::expr-sp/expression))
-        :ret  ::sp/uniform-expr)
+  :args (s/alt :ar1 (s/cat :expr ::expr-sp/expression)
+               :ar2 (s/cat :opts 
+                           (s/keys :opt-un 
+                                   [:opts.uniform/legacy?
+                                    :opts.uniform/branchname
+                                    :opts.uniform/use-unmarked?
+                                    :opts.uniform/unclear?
+                                    :opts.uniform/const?
+                                    :opts.uniform/use-seq-reentry?])
+                           :expr ::expr-sp/expression))
+  :ret  ::sp/uniform-expr)
 (defn uniform-expr
   "Given an expression, returns a `uniform` data structure that is a nested map with the following pattern:
   ```
@@ -84,7 +84,7 @@
   Can be given an option map to support various customizations (see source), e.g. the `:legacy?` flag can be set to output a map that can be used as `formJSON` for backward compatibility with formform 1."
   ([expr] (core/uniform-expr {} expr))
   ([opts expr] (core/uniform-expr opts expr)))
-  
+
 
 
 (def ^:no-doc fns-with-specs (utils/list-fn-specs "formform.io"))
@@ -110,4 +110,4 @@
   
   
   ,)
-  
+

@@ -55,12 +55,12 @@
                            :tree ::parse-tree))
   :ret  (s/or :expr ::expr-sp/expression
               :fail insta/failure?))
-; (defn parse-tree
-;   "Parses the given instaparse tree and returns a FORM expression."
-;   ([tree] (core/parse-tree {} tree))
-;   ([opts tree]
-;    (core/parse-tree opts tree)))
-  
+;; (defn parse-tree
+;;   "Parses the given instaparse tree and returns a FORM expression."
+;;   ([tree] (core/parse-tree {} tree))
+;;   ([opts tree]
+;;    (core/parse-tree opts tree)))
+
 
 (def ^:no-doc fns-with-specs (utils/list-fn-specs "formform.io"))
 

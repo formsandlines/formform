@@ -327,16 +327,16 @@
       (let [int->quat-str (fn [n] (utils/pad-left (utils/int->nbase n 4)
                                                   dim "0"))
             dim-ns (range dim)
-            ; perm-dna-seq
-            ; (mapv (fn [i]
-            ;         (let [qtn-key  (mapv (comp edn/read-string str)
-            ;                              (int->quat-str i))
-            ;               perm-key (apply str "4r"
-            ;                               (map #(qtn-key (perm-order %))
-            ;                                    dim-ns)) ;; ? just map perm-order
-            ;               i-perm   (edn/read-string perm-key)]
-            ;           (dna-vec i-perm)))
-            ;       (range (count dna-seq)))
+            ;; perm-dna-seq
+            ;; (mapv (fn [i]
+            ;;         (let [qtn-key  (mapv (comp edn/read-string str)
+            ;;                              (int->quat-str i))
+            ;;               perm-key (apply str "4r"
+            ;;                               (map #(qtn-key (perm-order %))
+            ;;                                    dim-ns)) ;; ? just map perm-order
+            ;;               i-perm   (edn/read-string perm-key)]
+            ;;           (dna-vec i-perm)))
+            ;;       (range (count dna-seq)))
             ;; ? make this platform-agnostic
             perm-dna-arr #?(:clj  (make-array clojure.lang.Keyword
                                               (count dna-seq))

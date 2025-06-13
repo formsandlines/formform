@@ -551,10 +551,10 @@
                                 [:_ :I :_ :_]
                                 [:M :_ :_ :_]]) 4 4)
   (sys-ini (make-ini :fill-all (fn [x] (if (= 0 (mod x 3))
-                                        :U :_))) 10)
+                                         :U :_))) 10)
   (sys-ini (make-ini :fill-all (fn [x y] (if (and (= 0 (mod x 3))
-                                                 (= 0 (mod y 3)))
-                                          :U :_))) 10 10)
+                                                  (= 0 (mod y 3)))
+                                           :U :_))) 10 10)
   (sys-ini (make-ini :fill-center {:res [4] :val :U} :_) 10)
   (sys-ini (make-ini :fill-center {:res [4 3] :val :rand} :_) 10 10)
   (sys-ini (make-ini :fill-center [:U :I :M] :_) 10)

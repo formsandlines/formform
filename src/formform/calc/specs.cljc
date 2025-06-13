@@ -1,9 +1,9 @@
 (ns formform.calc.specs
   (:require
-    [formform.calc.core :as core]
-    [formform.utils :as utils]
-    [clojure.spec.alpha :as s]
-    [clojure.spec.gen.alpha :as gen])
+   [formform.calc.core :as core]
+   [formform.utils :as utils]
+   [clojure.spec.alpha :as s]
+   [clojure.spec.gen.alpha :as gen])
   #?(:cljs (:require-macros
             [formform.calc.specs :refer [spec--dna-args spec--dna-seq-args]])))
 
@@ -113,10 +113,10 @@
                     :min-count 1
                     :distinct true)
          (fn [vspc] (let [vs-dim (core/dna-dimension (seq vspc))
-                         vp-dim (count (first vspc))]
-                     (and (some? vs-dim)
-                          (== vs-dim vp-dim)
-                          (every? #(== vp-dim (count %)) vspc))))))
+                          vp-dim (count (first vspc))]
+                      (and (some? vs-dim)
+                           (== vs-dim vp-dim)
+                           (every? #(== vp-dim (count %)) vspc))))))
 ;; ? add spec ordered-vspace
 
 ;;-------------------------------------------------------------------------

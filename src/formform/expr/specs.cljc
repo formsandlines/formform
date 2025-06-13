@@ -143,17 +143,17 @@
 (s/fdef core/splice-ctx
   :args (s/cat :ctx ::context)
   :ret  ::context)
-; (defn splice-ctx
-;   "Dissolves arrangements in given context such that their elements become direct children of the context itself."
-;   [ctx]
-;   (core/splice-ctx ctx))
+;; (defn splice-ctx
+;;   "Dissolves arrangements in given context such that their elements become direct children of the context itself."
+;;   [ctx]
+;;   (core/splice-ctx ctx))
 
 (s/fdef core/substitute-expr
   :args (s/cat :env  ::environment
                :expr ::expression)
   :ret  ::expression)
-; (defn substitute-expr
-;   "Substitutes an expression by a matching expression in given environment. Returns the original expression if match failed.")
+;; (defn substitute-expr
+;;   "Substitutes an expression by a matching expression in given environment. Returns the original expression if match failed.")
 
 (s/fdef core/ctx->cnt
   :args (s/cat :opts (s/keys :opt-un [:opts/+meta?])

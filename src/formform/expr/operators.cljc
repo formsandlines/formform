@@ -223,40 +223,40 @@
         (let [exprs (vec exprs)
               [x y z] (map #(get exprs % :∅) (range 3))]
           (match [interpr open? parity  x y z]
-            ;; primitive cases:
-            [_ _     :even nil :∅  :∅] :U ;; ((f))
-            [_ _     _     nil :∅  :∅] [:U] ;; (f)
-            [_ false _     nil nil :∅] :U ;; ((f))
-            [_ true  _     nil nil :∅] [:U] ;; (((f))) => (f)
+                 ;; primitive cases:
+                 [_ _     :even nil :∅  :∅] :U ;; ((f))
+                 [_ _     _     nil :∅  :∅] [:U] ;; (f)
+                 [_ false _     nil nil :∅] :U ;; ((f))
+                 [_ true  _     nil nil :∅] [:U] ;; (((f))) => (f)
 
-            ;; if interpretation of `mn` is “recursive identity”
-            ;; and `f = ((f))` can be separated from the rest:
-            ;; f x      |  (f) x 
-            [:rec-ident true  :even xs :∅ :∅] (>< (make :U xs))
-            [:rec-ident true  _     xs :∅ :∅] (>< (make :I xs))
-            ;; (f) x    |  ((f x))
-            [:rec-ident true  _     nil ys :∅] (>< (make :I ys))
-            [:rec-ident false _     xs nil :∅] (>< (make :U xs))
-            ;; ((f x))  |  (((f) x))
-            [:rec-ident false :even nil ys nil] (>< (make :U ys))
-            [:rec-ident false _     nil ys nil] (>< (make :I ys))
+                 ;; if interpretation of `mn` is “recursive identity”
+                 ;; and `f = ((f))` can be separated from the rest:
+                 ;; f x      |  (f) x 
+                 [:rec-ident true  :even xs :∅ :∅] (>< (make :U xs))
+                 [:rec-ident true  _     xs :∅ :∅] (>< (make :I xs))
+                 ;; (f) x    |  ((f x))
+                 [:rec-ident true  _     nil ys :∅] (>< (make :I ys))
+                 [:rec-ident false _     xs nil :∅] (>< (make :U xs))
+                 ;; ((f x))  |  (((f) x))
+                 [:rec-ident false :even nil ys nil] (>< (make :U ys))
+                 [:rec-ident false _     nil ys nil] (>< (make :I ys))
 
-            ;; by case distinction:
-            [_ _     _     (:or :U ([:U] :seq)) nil :∅] [:U] ;; ((f U/I))
-            [_ _     _     nil (:or :U ([:U] :seq)) :∅] :U ;; ((f) U/I)
+                 ;; by case distinction:
+                 [_ _     _     (:or :U ([:U] :seq)) nil :∅] [:U] ;; ((f U/I))
+                 [_ _     _     nil (:or :U ([:U] :seq)) :∅] :U ;; ((f) U/I)
 
-            [_ false :even (:or :U ([:U] :seq)) :∅ :∅] :U ;; (f U/I)
-            [_ true  :even (:or :U ([:U] :seq)) :∅ :∅] [:U] ;; (f U/I)
-            [_ true  _     (:or :U ([:U] :seq)) :∅ :∅] :U ;; (f U/I)
-            [_ false _     (:or :U ([:U] :seq)) :∅ :∅] [:U] ;; (f U/I)
+                 [_ false :even (:or :U ([:U] :seq)) :∅ :∅] :U ;; (f U/I)
+                 [_ true  :even (:or :U ([:U] :seq)) :∅ :∅] [:U] ;; (f U/I)
+                 [_ true  _     (:or :U ([:U] :seq)) :∅ :∅] :U ;; (f U/I)
+                 [_ false _     (:or :U ([:U] :seq)) :∅ :∅] [:U] ;; (f U/I)
 
-            [_ false :even nil (:or :U ([:U] :seq)) nil] [:U] ;; (((f) U/I))
-            [_ true  :even nil (:or :U ([:U] :seq)) nil] :U ;; (((f) U/I))
-            [_ true  _     nil (:or :U ([:U] :seq)) nil] [:U] ;; (((f) U/I))
-            [_ false _     nil (:or :U ([:U] :seq)) nil] :U ;; (((f) U/I))
+                 [_ false :even nil (:or :U ([:U] :seq)) nil] [:U] ;; (((f) U/I))
+                 [_ true  :even nil (:or :U ([:U] :seq)) nil] :U ;; (((f) U/I))
+                 [_ true  _     nil (:or :U ([:U] :seq)) nil] [:U] ;; (((f) U/I))
+                 [_ false _     nil (:or :U ([:U] :seq)) nil] :U ;; (((f) U/I))
 
-             ;; if nothing applies, return the reduced seq-reentry FORM:
-            :else (apply make tag_seq-reentry sign exprs)))
+                 ;; if nothing applies, return the reduced seq-reentry FORM:
+                 :else (apply make tag_seq-reentry sign exprs)))
         (apply make tag_seq-reentry sign exprs))
       ;; re-entry vanished due to dominance of the mark
       ;; this is not a re-entry FORM anymore
@@ -319,7 +319,7 @@
 (defoperator :tsds [selection l e r]
   (->> [[l e r] [r e l] [e r l] [l r e] [r l e] [e l r]]
        (mapv (fn [b exprs] (when-not (zero? b)
-                            (apply seq-re :<r exprs)))
+                             (apply seq-re :<r exprs)))
              selection)
        (filterv some?)
        (into [:-]))
@@ -505,18 +505,18 @@
 
   (core/simplify ['a [:fdna ['b] [:N :U :I :M]]]
                  {'a :U})
-  ;=> (:U [:fdna [b] [:N :U :I :M]])
+  ;;=> (:U [:fdna [b] [:N :U :I :M]])
   '[[:fdna [b] [:U :U :M :M]]]
 
   (core/simplify ['a [:fdna ['b] [:N :U :I :M]]])
-  ;=> (a [:fdna [b] [:N :U :I :M]])
+  ;;=> (a [:fdna [b] [:N :U :I :M]])
   '[[:fdna [a b] [:M :M :M :M
                   :I :M :I :M
                   :U :U :M :M
                   :N :U :I :M]]]
 
   (core/simplify ['a 'b [:fdna ['c] [:N :U :I :M]]])
-  ;=> (a b [:fdna [c] [:N :U :I :M]])
+  ;;=> (a b [:fdna [c] [:N :U :I :M]])
   '[[:fdna [a b c]
      [:M :M :M :M  :M :M :M :M  :M :M :M :M  :M :M :M :M
       :M :M :M :M  :I :M :I :M  :M :M :M :M  :I :M :I :M
@@ -557,4 +557,4 @@
         (calc/dna->vdict
          {} (op-get (core/=>* nil) :dna)))))
 
-  
+

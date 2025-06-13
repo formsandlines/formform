@@ -42,7 +42,7 @@
            (f (seq-re :<..r'_ :U nil)) (f (seq-re :<..r'._ :U nil))
            (f (seq-re :<r'_ :I nil))
            (f (seq-re :<..r'_ :I nil)) (f (seq-re :<..r'._ :I nil))))
-      ;; Exceptions in alternative interpretation
+    ;; Exceptions in alternative interpretation
     (is (= :U
            (f (seq-re :<r' :U nil))
            (f (seq-re :<..r' :U nil)) (f (seq-re :<..r'. :U nil))))
