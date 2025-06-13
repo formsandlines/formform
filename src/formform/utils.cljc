@@ -199,12 +199,12 @@
     arr))
 
 (comment
-  (aget (keywords-to-array [:N :U :I :M]) 1)
-  (aget (keywords-to-array-2d [[:N :U] [:I :M]]) 0 1)
+  (aget (keywords-to-array [:n :u :i :m]) 1)
+  (aget (keywords-to-array-2d [[:n :u] [:i :m]]) 0 1)
 
-  (is-array? (keywords-to-array [:N :U :I :M]))
+  (is-array? (keywords-to-array [:n :u :i :m]))
 
-  (array-to-vector (keywords-to-array [:N :U :I :M]))
-  (array-to-vector (keywords-to-array-2d [[:N :U] [:I :M]]))
+  (array-to-vector (keywords-to-array [:n :u :i :m]))
+  (array-to-vector (keywords-to-array-2d [[:n :u] [:i :m]]))
 
   ,)

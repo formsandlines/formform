@@ -84,7 +84,7 @@
     (throw (ex-info "Ini must be a record and satisfy the `formform.emul.interfaces.IniTransducer` protocol." {:ini ini}))))
 
 (defini :constant [-opts const]
-  "Fills a generation with a given constant (`:N`/`:M`/`:U`/`:I`)."
+  "Fills a generation with a given constant (`:n`/`:m`/`:u`/`:i`)."
   (make-gen [this w] (transduce-ini -opts (i/ini-xform1d this) w))
   (make-gen [this w h] (transduce-ini -opts (i/ini-xform2d this) w h))
 
@@ -103,7 +103,7 @@
   (rng-select rng calc-core/nuim-code))
 
 (defini :random [-opts distribution]
-  "Fills a generation with random values. Takes a `distribution`, which is either a map of `:N`/`:U`/`:I`/`:M` keys to ratios from 0.0 to 1.0 (representing the proportion of the respective constant in relation to all random values) or a single decimal number that defines an equal ratio for `:N`/`:U`/`:I` against `:N` (e.g. `0.0` → all `:N`, `1.0` → no `:N`, `0.5` → all evenly distributed).
+  "Fills a generation with random values. Takes a `distribution`, which is either a map of `:n`/`:u`/`:i`/`:m` keys to ratios from 0.0 to 1.0 (representing the proportion of the respective constant in relation to all random values) or a single decimal number that defines an equal ratio for `:n`/`:u`/`:i` against `:n` (e.g. `0.0` → all `:n`, `1.0` → no `:n`, `0.5` → all evenly distributed).
 
 The (first) `-opts` argument is a map that can take a `:seed` entry with an integer number to provide a seed for reproducable random generations."
   (make-gen [this w] (transduce-ini -opts (i/ini-xform1d this) w))
@@ -388,35 +388,35 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
    [_]
    (let [pattern (case style
                    (:inverted :moore-inverted)
-                   [:U :I :N :I :U]
-                   [:I :U :M :U :I])]
+                   [:u :i :n :i :u]
+                   [:i :u :m :u :i])]
      (i/ini-xform1d (->Ini-Figure -opts nil pattern anchor))))
   (ini-xform2d
    [_]
    (let [pattern (case style
                    :moore
-                   [[:I :I :I :I :I]
-                    [:I :U :U :U :I]
-                    [:I :U :M :U :I]
-                    [:I :U :U :U :I]
-                    [:I :I :I :I :I]]
+                   [[:i :i :i :i :i]
+                    [:i :u :u :u :i]
+                    [:i :u :m :u :i]
+                    [:i :u :u :u :i]
+                    [:i :i :i :i :i]]
                    :moore-inverted
-                   [[:U :U :U :U :U]
-                    [:U :I :I :I :U]
-                    [:U :I :N :I :U]
-                    [:U :I :I :I :U]
-                    [:U :U :U :U :U]]
+                   [[:u :u :u :u :u]
+                    [:u :i :i :i :u]
+                    [:u :i :n :i :u]
+                    [:u :i :i :i :u]
+                    [:u :u :u :u :u]]
                    :inverted
-                   [[:_ :_ :U :_ :_]
-                    [:_ :U :I :U :_]
-                    [:U :I :N :I :U]
-                    [:_ :U :I :U :_]
-                    [:_ :_ :U :_ :_]]
-                   [[:_ :_ :I :_ :_]
-                    [:_ :I :U :I :_]
-                    [:I :U :M :U :I]
-                    [:_ :I :U :I :_]
-                    [:_ :_ :I :_ :_]])]
+                   [[:_ :_ :u :_ :_]
+                    [:_ :u :i :u :_]
+                    [:u :i :n :i :u]
+                    [:_ :u :i :u :_]
+                    [:_ :_ :u :_ :_]]
+                   [[:_ :_ :i :_ :_]
+                    [:_ :i :u :i :_]
+                    [:i :u :m :u :i]
+                    [:_ :i :u :i :_]
+                    [:_ :_ :i :_ :_]])]
      (i/ini-xform2d (->Ini-Figure -opts nil pattern anchor)))))
 
 (defini :comp-figures [-opts bg figure-inis]
@@ -582,10 +582,10 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
 
 (defumwelt :self-select-ltr [-opts size]
   "In a 2d environment, the cell “chooses” the direction in which it will observe its neighborhood of given `size` (like in `:select-ltr`). The cell’s choice is determined by its own value:
-- `:N`: ← (left)
-- `:M`: → (right)
-- `:U`: ↓ (down)
-- `:I`: ↑ (up)"
+- `:n`: ← (left)
+- `:m`: → (right)
+- `:u`: ↓ (down)
+- `:i`: ↑ (up)"
   (observe-umwelt
    [_ gen2d [[x y] self-v] w h]
    (let [g (fn [dx dy]
@@ -595,34 +595,34 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
      (case size
        0 []
        1 (case self-v
-           :N [(g -1  0)] ;; ←
-           :U [(g  0  1)] ;; ↓
-           :I [(g  0 -1)] ;; ↑
-           :M [(g  1  0)] ;; →
+           :n [(g -1  0)] ;; ←
+           :u [(g  0  1)] ;; ↓
+           :i [(g  0 -1)] ;; ↑
+           :m [(g  1  0)] ;; →
            )
        2 (case self-v
-           :N [(g -1  1) (g -1 -1)] ;; ←
-           :U [(g  1  1) (g -1  1)] ;; ↓
-           :I [(g -1 -1) (g  1 -1)] ;; ↑
-           :M [(g  1 -1) (g  1  1)] ;; →
+           :n [(g -1  1) (g -1 -1)] ;; ←
+           :u [(g  1  1) (g -1  1)] ;; ↓
+           :i [(g -1 -1) (g  1 -1)] ;; ↑
+           :m [(g  1 -1) (g  1  1)] ;; →
            )
        3 (case self-v
-           :N [(g -1  1) (g -1  0) (g -1 -1)] ;; ← (bottom -> top)
-           :U [(g  1  1) (g  0  1) (g -1  1)] ;; ↓ (right -> left)
-           :I [(g -1 -1) (g  0 -1) (g  1 -1)] ;; ↑ (left -> right)
-           :M [(g  1 -1) (g  1  0) (g  1  1)] ;; → (top -> bottom)
+           :n [(g -1  1) (g -1  0) (g -1 -1)] ;; ← (bottom -> top)
+           :u [(g  1  1) (g  0  1) (g -1  1)] ;; ↓ (right -> left)
+           :i [(g -1 -1) (g  0 -1) (g  1 -1)] ;; ↑ (left -> right)
+           :m [(g  1 -1) (g  1  0) (g  1  1)] ;; → (top -> bottom)
            )
        4 (case self-v
-           :N [(g -1  2) (g -1  1) (g -1 -1) (g -1 -2)] ;; ←
-           :U [(g  2  1) (g  1  1) (g -1  1) (g -2  1)] ;; ↓
-           :I [(g -2 -1) (g -1 -1) (g  1 -1) (g  2 -1)] ;; ↑
-           :M [(g  1 -2) (g  1 -1) (g  1  1) (g  1  2)] ;; →
+           :n [(g -1  2) (g -1  1) (g -1 -1) (g -1 -2)] ;; ←
+           :u [(g  2  1) (g  1  1) (g -1  1) (g -2  1)] ;; ↓
+           :i [(g -2 -1) (g -1 -1) (g  1 -1) (g  2 -1)] ;; ↑
+           :m [(g  1 -2) (g  1 -1) (g  1  1) (g  1  2)] ;; →
            )
        5 (case self-v
-           :N [(g -1  2) (g -1  1) (g -1  0) (g -1 -1) (g -1 -2)] ;; ←
-           :U [(g  2  1) (g  1  1) (g  0  1) (g -1  1) (g -2  1)] ;; ↓
-           :I [(g -2 -1) (g -1 -1) (g  0 -1) (g  1 -1) (g  2 -1)] ;; ↑
-           :M [(g  1 -2) (g  1 -1) (g  1  0) (g  1  1) (g  1  2)] ;; →
+           :n [(g -1  2) (g -1  1) (g -1  0) (g -1 -1) (g -1 -2)] ;; ←
+           :u [(g  2  1) (g  1  1) (g  0  1) (g -1  1) (g -2  1)] ;; ↓
+           :i [(g -2 -1) (g -1 -1) (g  0 -1) (g  1 -1) (g  2 -1)] ;; ↑
+           :m [(g  1 -2) (g  1 -1) (g  1  0) (g  1  1) (g  1  2)] ;; →
            )
        (throw (ex-info "Unsupported neighbourhood size" {:size size})))))
 
@@ -637,34 +637,34 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
      (case size
        0 ""
        1 (case self-v
-           :N (str (g -1  0)) ;; ←
-           :U (str (g  0  1)) ;; ↓
-           :I (str (g  0 -1)) ;; ↑
-           :M (str (g  1  0)) ;; →
+           :n (str (g -1  0)) ;; ←
+           :u (str (g  0  1)) ;; ↓
+           :i (str (g  0 -1)) ;; ↑
+           :m (str (g  1  0)) ;; →
            )
        2 (case self-v
-           :N (str (g -1  1) (g -1 -1)) ;; ←
-           :U (str (g  1  1) (g -1  1)) ;; ↓
-           :I (str (g -1 -1) (g  1 -1)) ;; ↑
-           :M (str (g  1 -1) (g  1  1)) ;; →
+           :n (str (g -1  1) (g -1 -1)) ;; ←
+           :u (str (g  1  1) (g -1  1)) ;; ↓
+           :i (str (g -1 -1) (g  1 -1)) ;; ↑
+           :m (str (g  1 -1) (g  1  1)) ;; →
            )
        3 (case self-v
-           :N (str (g -1  1) (g -1  0) (g -1 -1)) ;; ← (bottom -> top)
-           :U (str (g  1  1) (g  0  1) (g -1  1)) ;; ↓ (right -> left)
-           :I (str (g -1 -1) (g  0 -1) (g  1 -1)) ;; ↑ (left -> right)
-           :M (str (g  1 -1) (g  1  0) (g  1  1)) ;; → (top -> bottom)
+           :n (str (g -1  1) (g -1  0) (g -1 -1)) ;; ← (bottom -> top)
+           :u (str (g  1  1) (g  0  1) (g -1  1)) ;; ↓ (right -> left)
+           :i (str (g -1 -1) (g  0 -1) (g  1 -1)) ;; ↑ (left -> right)
+           :m (str (g  1 -1) (g  1  0) (g  1  1)) ;; → (top -> bottom)
            )
        4 (case self-v
-           :N (str (g -1  2) (g -1  1) (g -1 -1) (g -1 -2)) ;; ←
-           :U (str (g  2  1) (g  1  1) (g -1  1) (g -2  1)) ;; ↓
-           :I (str (g -2 -1) (g -1 -1) (g  1 -1) (g  2 -1)) ;; ↑
-           :M (str (g  1 -2) (g  1 -1) (g  1  1) (g  1  2)) ;; →
+           :n (str (g -1  2) (g -1  1) (g -1 -1) (g -1 -2)) ;; ←
+           :u (str (g  2  1) (g  1  1) (g -1  1) (g -2  1)) ;; ↓
+           :i (str (g -2 -1) (g -1 -1) (g  1 -1) (g  2 -1)) ;; ↑
+           :m (str (g  1 -2) (g  1 -1) (g  1  1) (g  1  2)) ;; →
            )
        5 (case self-v
-           :N (str (g -1  2) (g -1  1) (g -1  0) (g -1 -1) (g -1 -2)) ;; ←
-           :U (str (g  2  1) (g  1  1) (g  0  1) (g -1  1) (g -2  1)) ;; ↓
-           :I (str (g -2 -1) (g -1 -1) (g  0 -1) (g  1 -1) (g  2 -1)) ;; ↑
-           :M (str (g  1 -2) (g  1 -1) (g  1  0) (g  1  1) (g  1  2)) ;; →
+           :n (str (g -1  2) (g -1  1) (g -1  0) (g -1 -1) (g -1 -2)) ;; ←
+           :u (str (g  2  1) (g  1  1) (g  0  1) (g -1  1) (g -2  1)) ;; ↓
+           :i (str (g -2 -1) (g -1 -1) (g  0 -1) (g  1 -1) (g  2 -1)) ;; ↑
+           :m (str (g  1 -2) (g  1 -1) (g  1  0) (g  1  1) (g  1  2)) ;; →
            )
        (throw (ex-info "Unsupported neighbourhood size" {:size size}))))))
 
@@ -800,17 +800,17 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
 
 (defrule :life [-opts dna]
   "Modeled after the rules for the “Game of Life”:
-- a cell is “alive” when its value is not `:N`
+- a cell is “alive” when its value is not `:n`
 - if the cell has 2 neighbors, it keeps its own value
 - if the cell has 3 neighbors, it matches their values against the given `dna` (see `:match` rule)
-- in every other case, the cell “dies” (turns to `:N`)"
+- in every other case, the cell “dies” (turns to `:n`)"
   (apply-rule
    [_ umwelt self-v]
-   (let [alive (vec (remove #(or (= :N %) (nil? %)) umwelt))]
+   (let [alive (vec (remove #(or (= :n %) (nil? %)) umwelt))]
      (case (count alive)
        2 self-v
        3 (match-dna dna alive)
-       :N)))
+       :n)))
 
   RuleOptimized
   (apply-rule--fast
@@ -818,7 +818,7 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
    (case (count umwelt-qtn)
      2 self-v
      3 (match-dna--fast dna umwelt-qtn)
-     :N)))
+     :n)))
 
 
 (defrecord CASpec [rule-spec umwelt-spec ini-spec])
@@ -998,85 +998,85 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
 
 
 (comment
-  (def dna [:N :U :I :M :U :U :M :M :I :M :I :M :M :M :M :M :N :U :I :M :U :I :M :M :I :M :I :M :M :M :M :M :N :U :I :M :U :U :M :M :I :M :I :M :M :M :M :M :N :U :I :M :U :I :M :M :I :M :I :M :M :M :M :I])
+  (def dna [:n :u :i :m :u :u :m :m :i :m :i :m :m :m :m :m :n :u :i :m :u :i :m :m :i :m :i :m :m :m :m :m :n :u :i :m :u :u :m :m :i :m :i :m :m :m :m :m :n :u :i :m :u :i :m :m :i :m :i :m :m :m :m :i])
 
   (def rule (->Rule-Life {} dna))
 
   (i/apply-rule rule (i/observe-umwelt (->Umwelt-Moore {} :column-first false)
-                                       [[:N :N :U]
-                                        [:M :_ :N]
-                                        [:N :N :I]]
-                                       [[1 1] :N]
+                                       [[:n :n :u]
+                                        [:m :_ :n]
+                                        [:n :n :i]]
+                                       [[1 1] :n]
                                        3 3)
-                :N)
+                :n)
   ;;=> 
 
   (require '[clojure.math.combinatorics :as combo])
 
-  (calc-core/filter-dna dna [:U :M :I])
+  (calc-core/filter-dna dna [:u :m :i])
   
   (filter
-   (fn [[p [v]]] (= v :M))
+   (fn [[p [v]]] (= v :m))
    (map
     (fn [p] [p (calc-core/filter-dna dna (vec p))])
-    (combo/permutations [:U :M :I])))
+    (combo/permutations [:u :m :i])))
 
   ,)
 
 (comment
-  [[:N :N :U]
-   [:M :_ :N] ;; self: :N
-   [:N :N :I]]
-  ;;=> :U (should be :M)
+  [[:n :n :u]
+   [:m :_ :n] ;; self: :n
+   [:n :n :i]]
+  ;;=> :u (should be :m)
   ;; solutions:
-  ;; [:M :U :I] ← ↗ ↘
-  ;; [:M :I :U] ← ↘ ↗
+  ;; [:m :u :i] ← ↗ ↘
+  ;; [:m :i :u] ← ↘ ↗
 
-  [[:N :U :N]
-   [:I :_ :N] ;; self: :M
-   [:N :U :N]]
-  ;;=> :M (should be :I)
+  [[:n :u :n]
+   [:i :_ :n] ;; self: :m
+   [:n :u :n]]
+  ;;=> :m (should be :i)
   ;; solutions:
-  ;; [:I :U :U] ← ↓ ↑ / ← ↑ ↓
+  ;; [:i :u :u] ← ↓ ↑ / ← ↑ ↓
 
-  [[:N :I :N]
-   [:N :_ :N] ;; self: :N
-   [:M :M :N]]
-  ;;=> :N (should be :U)
+  [[:n :i :n]
+   [:n :_ :n] ;; self: :n
+   [:m :m :n]]
+  ;;=> :n (should be :u)
   ;; solutions:
-  ;; [:M :I :M] ↙ ↑ ↓ / ↓ ↑ ↙
-  ;; [:M :M :I] ↙ ↓ ↑ / ↓ ↙ ↑
+  ;; [:m :i :m] ↙ ↑ ↓ / ↓ ↑ ↙
+  ;; [:m :m :i] ↙ ↓ ↑ / ↓ ↙ ↑
 
-  [[:N :N :N]
-   [:N :_ :I] ;; self: :N
-   [:U :N :M]]
-  ;;=> :I (should be :U)
+  [[:n :n :n]
+   [:n :_ :i] ;; self: :n
+   [:u :n :m]]
+  ;;=> :i (should be :u)
   ;; solutions:
-  ;; [:U :I :M] ↙ → ↘
-  ;; [:U :M :I] ↙ ↘ →
+  ;; [:u :i :m] ↙ → ↘
+  ;; [:u :m :i] ↙ ↘ →
 
-  [[:N :N :N]
-   [:N :_ :U] ;; self: :M
-   [:I :I :N]]
-  ;;=> :U (should be :M)
+  [[:n :n :n]
+   [:n :_ :u] ;; self: :m
+   [:i :i :n]]
+  ;;=> :u (should be :m)
   ;; solutions:
-  ;; [:I :U :I] ↙ → ↓ / ↓ → ↙
-  ;; [:I :I :U] ↙ ↓ → / ↓ ↙ →
+  ;; [:i :u :i] ↙ → ↓ / ↓ → ↙
+  ;; [:i :i :u] ↙ ↓ → / ↓ ↙ →
 
-  [[:N :N :N]
-   [:N :_ :M] ;; self: :N
-   [:I :M :N]]
-  ;;=> :U (should be :N)
+  [[:n :n :n]
+   [:n :_ :m] ;; self: :n
+   [:i :m :n]]
+  ;;=> :u (should be :n)
   ;; solutions:
-  ;; [:I :M :M] ↙ ↓ → / ↙ → ↓
+  ;; [:i :m :m] ↙ ↓ → / ↙ → ↓
 
-  [[:N :N :U]
-   [:I :_ :M] ;; self: :N
-   [:N :N :N]]
-  ;;=> :U (should be :I)
+  [[:n :n :u]
+   [:i :_ :m] ;; self: :n
+   [:n :n :n]]
+  ;;=> :u (should be :i)
   ;; solutions:
-  ;; [:I :U :M] ← ↗ →
-  ;; [:I :M :U] ← → ↗
+  ;; [:i :u :m] ← ↗ →
+  ;; [:i :m :u] ← → ↗
 
   ,)
 
@@ -1111,26 +1111,26 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
 
 (comment
 
-  (i/make-gen (->Ini-Constant {} :U) 6)
-  (i/make-gen (->Ini-Constant {} :I) 6 3)
+  (i/make-gen (->Ini-Constant {} :u) 6)
+  (i/make-gen (->Ini-Constant {} :i) 6 3)
 
   (i/make-gen (->Ini-Random {:seed nil}) 6)
   (i/make-gen (->Ini-Random {:seed 10}) 6 3)
 
-  (i/make-gen (->Ini-Cycle {} [:M :U :I]) 6)
-  (i/make-gen (->Ini-Cycle {} [:M :U :I]) 6 3)
+  (i/make-gen (->Ini-Cycle {} [:m :u :i]) 6)
+  (i/make-gen (->Ini-Cycle {} [:m :u :i]) 6 3)
 
-  (let [f (make-val-cycle [:M :U :I])]
+  (let [f (make-val-cycle [:m :u :i])]
     (for [x (range 10)
           y (range 10)]
       (f {:x x :y y})))
 
   (i/make-gen (->Ini-Figure {}
-                            (->Ini-Constant {} :N)
-                            [:M :_ :I] {:pos :center :align :center}) 6)
+                            (->Ini-Constant {} :n)
+                            [:m :_ :i] {:pos :center :align :center}) 6)
   (i/make-gen (->Ini-Figure {}
                             (->Ini-Constant {} :_)
-                            {:w 2 :h 5 :f (fn [_] :I)}
+                            {:w 2 :h 5 :f (fn [_] :i)}
                             {:offset [1 2]}) 6 6)
   (i/make-gen (->Ini-Figure {:seed 12}
                             (->Ini-Constant {} :_)
@@ -1138,7 +1138,7 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
                             {:pos [1 1]}) 6 6)
   (i/make-gen (->Ini-Figure {}
                             (->Ini-Constant {} :_)
-                            {:w 6 :f (make-val-cycle [:U :I :M])}
+                            {:w 6 :f (make-val-cycle [:u :i :m])}
                             {:pos 3}) 12)
   (i/make-gen (->Ini-Figure {}
                             (->Ini-Constant {} :_)
@@ -1146,11 +1146,11 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
                             {}) 5)
   (i/make-gen (->Ini-Figure {}
                             (->Ini-Constant {} :_)
-                            [[:M :U :I]
-                             [:N :I :U]] {:pos :center :align :center}) 6 4)
+                            [[:m :u :i]
+                             [:n :i :u]] {:pos :center :align :center}) 6 4)
   (i/make-gen (->Ini-Figure {}
                             (->Ini-Constant {} :_)
-                            [:N :M :U]
+                            [:n :m :u]
                             {:pos :center :align :center})
               20)
 
@@ -1160,42 +1160,42 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
                             {:pos 7})
               10)
 
-  (i/make-gen (->Ini-Ball {} :N nil {:pos :center :align :center})
+  (i/make-gen (->Ini-Ball {} :n nil {:pos :center :align :center})
               7)
-  ;; [:N :I :U :M :U :I :N]
+  ;; [:n :i :u :m :u :i :n]
 
   (i/make-gen (->Ini-Ball {}
-                          (->Ini-Constant {} :M)
+                          (->Ini-Constant {} :m)
                           :inverted
                           {:pos :center :align :center})
               7)
-  ;; [:M :U :I :N :I :U :M]
+  ;; [:m :u :i :n :i :u :m]
   
   (i/make-gen (->Ini-Ball {}
-                          (->Ini-Constant {} :N)
+                          (->Ini-Constant {} :n)
                           nil
                           {:pos :center :align :center})
               7 7)
-  ;; [[:N :N :N :N :N :N :N]
-  ;;  [:N :N :N :I :N :N :N]
-  ;;  [:N :N :I :U :I :N :N]
-  ;;  [:N :I :U :M :U :I :N]
-  ;;  [:N :N :I :U :I :N :N]
-  ;;  [:N :N :N :I :N :N :N]
-  ;;  [:N :N :N :N :N :N :N]]
+  ;; [[:n :n :n :n :n :n :n]
+  ;;  [:n :n :n :i :n :n :n]
+  ;;  [:n :n :i :u :i :n :n]
+  ;;  [:n :i :u :m :u :i :n]
+  ;;  [:n :n :i :u :i :n :n]
+  ;;  [:n :n :n :i :n :n :n]
+  ;;  [:n :n :n :n :n :n :n]]
 
   (i/make-gen (->Ini-Ball {}
-                          (->Ini-Constant {} :N)
+                          (->Ini-Constant {} :n)
                           :moore
                           {:pos :center :align :center})
               7 7)
-  ;; [[:N :N :N :N :N :N :N]
-  ;;  [:N :I :I :I :I :I :N]
-  ;;  [:N :I :U :U :U :I :N]
-  ;;  [:N :I :U :M :U :I :N]
-  ;;  [:N :I :U :U :U :I :N]
-  ;;  [:N :I :I :I :I :I :N]
-  ;;  [:N :N :N :N :N :N :N]]
+  ;; [[:n :n :n :n :n :n :n]
+  ;;  [:n :i :i :i :i :i :n]
+  ;;  [:n :i :u :u :u :i :n]
+  ;;  [:n :i :u :m :u :i :n]
+  ;;  [:n :i :u :u :u :i :n]
+  ;;  [:n :i :i :i :i :i :n]
+  ;;  [:n :n :n :n :n :n :n]]
   
   (i/make-gen (->Ini-RandFigure {}
                                 (->Ini-Constant {} :_)
@@ -1204,8 +1204,8 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
                                  :align :center})
               9 5)
   ;; [[:_ :_ :_ :_ :_ :_ :_ :_ :_]
-  ;;  [:_ :_ :_ :M :U :M :_ :_ :_]
-  ;;  [:_ :_ :_ :U :N :U :_ :_ :_]
+  ;;  [:_ :_ :_ :m :u :m :_ :_ :_]
+  ;;  [:_ :_ :_ :u :n :u :_ :_ :_]
   ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_]
   ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_]]
 
@@ -1215,25 +1215,25 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
                             {:pos :center
                              :align :center})
               9)
-  ;; [:_ :_ :_ :I :N :I :_ :_ :_]
+  ;; [:_ :_ :_ :i :n :i :_ :_ :_]
 
   (i/make-gen (->Ini-CompFigures {}
                                  (->Ini-Constant {} :_)
-                                 [(->Ini-Figure {} nil [:U :I] {:pos 1})
+                                 [(->Ini-Figure {} nil [:u :i] {:pos 1})
                                   (->Ini-Ball {} nil nil {:pos 4})
-                                  (->Ini-Figure {} nil [:I :N :U]
+                                  (->Ini-Figure {} nil [:i :n :u]
                                                 {:pos :right :align :right})])
               15)
-  ;; [:_ :U :I :_ :I :U :M :U :I :_ :_ :_ :I :N :U]
+  ;; [:_ :u :i :_ :i :u :m :u :i :_ :_ :_ :i :n :u]
 
   (i/make-gen (->Ini-FigureRepeat {}
                                   (->Ini-Constant {} :_)
-                                  [:M :U]
+                                  [:m :u]
                                   {:pos 0 :align :left}
                                   3
                                   1)
               15)
-  [:M :U :I :_ :M :U :I :_ :M :U]
+  [:m :u :i :_ :m :u :i :_ :m :u]
 
   (i/make-gen (->Ini-FigureRepeat {}
                                   (->Ini-Constant {} :_)
@@ -1245,24 +1245,24 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
                                   1)
               13 13)
   ;; [[:_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_]
-  ;;  [:_ :U :I :U :_ :M :M :M :_ :N :N :N :_]
-  ;;  [:_ :U :I :N :_ :U :M :M :_ :I :U :U :_]
-  ;;  [:_ :I :N :M :_ :N :M :I :_ :N :I :M :_]
+  ;;  [:_ :u :i :u :_ :m :m :m :_ :n :n :n :_]
+  ;;  [:_ :u :i :n :_ :u :m :m :_ :i :u :u :_]
+  ;;  [:_ :i :n :m :_ :n :m :i :_ :n :i :m :_]
   ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_]
-  ;;  [:_ :M :N :N :_ :U :U :I :_ :I :I :U :_]
-  ;;  [:_ :N :I :M :_ :I :N :U :_ :I :M :I :_]
-  ;;  [:_ :M :U :N :_ :U :U :M :_ :I :N :U :_]
+  ;;  [:_ :m :n :n :_ :u :u :i :_ :i :i :u :_]
+  ;;  [:_ :n :i :m :_ :i :n :u :_ :i :m :i :_]
+  ;;  [:_ :m :u :n :_ :u :u :m :_ :i :n :u :_]
   ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_]
-  ;;  [:_ :M :N :N :_ :N :I :M :_ :I :M :N :_]
-  ;;  [:_ :N :N :N :_ :I :U :U :_ :M :U :I :_]
-  ;;  [:_ :U :M :N :_ :N :I :M :_ :M :I :I :_]
+  ;;  [:_ :m :n :n :_ :n :i :m :_ :i :m :n :_]
+  ;;  [:_ :n :n :n :_ :i :u :u :_ :m :u :i :_]
+  ;;  [:_ :u :m :n :_ :n :i :m :_ :m :i :i :_]
   ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_]]
   
   
   (i/make-gen (->Ini-FigureRepeat {}
                                   (->Ini-Constant {} :_)
-                                  [[:M :U]
-                                   [:N :I]]
+                                  [[:m :u]
+                                   [:n :i]]
                                   {:pos [1 1] ;; or just 1 or :center, …
                                    :align :topleft}
                                   [3 3] ;; or just 3
@@ -1271,24 +1271,24 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
               10 10)
   ;; =>
   ;; [[:_ :_ :_ :_ :_ :_ :_ :_ :_ :_]
-  ;;  [:_ :M :U :_ :M :U :_ :M :U :_]
-  ;;  [:_ :N :I :_ :N :I :_ :N :I :_]
+  ;;  [:_ :m :u :_ :m :u :_ :m :u :_]
+  ;;  [:_ :n :i :_ :n :i :_ :n :i :_]
   ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_ :_]
-  ;;  [:_ :M :U :_ :M :U :_ :M :U :_]
-  ;;  [:_ :N :I :_ :N :I :_ :N :I :_]
+  ;;  [:_ :m :u :_ :m :u :_ :m :u :_]
+  ;;  [:_ :n :i :_ :n :i :_ :n :i :_]
   ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_ :_]
-  ;;  [:_ :M :U :_ :M :U :_ :M :U :_]
-  ;;  [:_ :N :I :_ :N :I :_ :N :I :_]
+  ;;  [:_ :m :u :_ :m :u :_ :m :u :_]
+  ;;  [:_ :n :i :_ :n :i :_ :n :i :_]
   ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_ :_]]
 
 
   #_
   (i/make-gen (->Ini-FigureDistribute (->Ini-Constant :_)
-                                      [[:M :U]
-                                       [:N :I]]
+                                      [[:m :u]
+                                       [:n :i]]
                                       {:pos [1 1] :align :topleft}
                                       {:min 2 :max 8}
-                                      {:density 0.7
+                                      {:density    0.7
                                        :clustering 0.3})
               10 10)
 

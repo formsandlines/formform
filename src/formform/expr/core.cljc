@@ -208,16 +208,16 @@
   ([x] (simplify-matching-content x x))
   ([x default]
    (case x ;; [] = '() in cases! (cljs doesn’t like ((…)) in cases)
-     ([] :M [nil] [:N] [[[]]] [[:M]] [[[nil]]] [[[:N]]]
-      [[:U :I]] [[:I :U]])
+     ([] :m [nil] [:n] [[[]]] [[:m]] [[[nil]]] [[[:n]]]
+      [[:u :i]] [[:i :u]])
      []
-     (nil :N [[]] [:M] [[nil]] [[:N]]
-          [:U :I] [:I :U])
+     (nil :n [[]] [:m] [[nil]] [[:n]]
+          [:u :i] [:i :u])
      nil
-     (:U [:I] [[:U]] [[[:I]]])
-     :U
-     (:I [:U] [[:I]] [[[:U]]])
-     [:U]
+     (:u [:i] [[:u]] [[[:i]]])
+     :u
+     (:i [:u] [[:i]] [[[:u]]])
+     [:u]
      default)))
 
 (declare simplify-context)
@@ -261,29 +261,29 @@
 
 ;; ? kinda messy - how to make this more systematic
 (defn- simplify-by-calling
-  "Tries to reduce given context to `()` if it contains the equivalent of a `MARK` or both `:U` and `:I` are present in the context and/or given `env`.
-  - remembers any occurrence of `:U` or `:I` in the `env`."
+  "Tries to reduce given context to `()` if it contains the equivalent of a `MARK` or both `:u` and `:i` are present in the context and/or given `env`.
+  - remembers any occurrence of `:u` or `:i` in the `env`."
   [ctx env]
   ;; find mark in the expression
-  (if (some #{[] :M [nil] [:N] [[[]]] [[:M]] [[[nil]]] [[[:N]]]}
+  (if (some #{[] :m [nil] [:n] [[[]]] [[:m]] [[[nil]]] [[[:n]]]}
             ctx)
     [[[]] env]
-    ;; else find and remember :U in the expression
-    ;; match with :I if seen
-    (let [[seenU? seenI?] [(observed-has? env :U) (observed-has? env :I)]
+    ;; else find and remember :u in the expression
+    ;; match with :i if seen
+    (let [[seenU? seenI?] [(observed-has? env :u) (observed-has? env :i)]
           [seenU? env-next]
           (if (and (not seenU?)
-                   (some #{:U [:I] [[:U]] [[[:I]]]} ctx))
-            [true (observed-put env :U)]
+                   (some #{:u [:i] [[:u]] [[[:i]]]} ctx))
+            [true (observed-put env :u)]
             [seenU? env])]
       (if (and seenU? seenI?)
         [[[]] env-next]
-        ;; else find and remember :I in the expression
-        ;; match with :U if seen
+        ;; else find and remember :i in the expression
+        ;; match with :u if seen
         (let [[seenI? env-next]
               (if (and (not seenI?)
-                       (some #{:I [:U] [[:I]] [[[:U]]]} ctx))
-                [true (observed-put env-next :I)]
+                       (some #{:i [:u] [[:i]] [[[:u]]]} ctx))
+                [true (observed-put env-next :i)]
                 [seenI? env-next])]
           (if (and seenU? seenI?)
             [[[]] env-next]
@@ -365,10 +365,10 @@
   [expr env]
   (let [simpl-expr (cnt> expr env)
         result     (case simpl-expr
-                     []   :M
-                     nil  :N
-                     :U   :U
-                     [:U] :I
+                     []   :m
+                     nil  :n
+                     :u   :u
+                     [:u] :i
                      calc/var-const)]
     {:expr simpl-expr
      :env env
@@ -524,11 +524,11 @@
   ;; simplify-op -> interpret-op or interpret or something else?
   ;; simplify-content
 
-  (interpret-walk {:--focus #{[:- 'x]}} [:- 'a ['b [ [:- 'x] ]] :M])
-  (interpret-walk {:--defocus #{[:- 'x]}} [:- 'a ['b [ [:- 'x] ]] :M])
+  (interpret-walk {:--focus #{[:- 'x]}} [:- 'a ['b [ [:- 'x] ]] :m])
+  (interpret-walk {:--defocus #{[:- 'x]}} [:- 'a ['b [ [:- 'x] ]] :m])
 
   ;; form </> data in this case
-  (interpret [:if #(= % []) :x :M :U])
+  (interpret [:if #(= % []) :x :m :u])
 
   (find-vars [['x] 'z 'a] {})
   (find-vars [['x] 'z 'a] {:ordered? true})

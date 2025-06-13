@@ -182,7 +182,7 @@
 
 (comment
 
-  (s/valid? :rule/match [{} [:N]])
+  (s/valid? :rule/match [{} [:n]])
 
   ,)
 
@@ -211,8 +211,8 @@
 (comment
   (require '[formform.emul.core :as core])
 
-  (s/conform ::bg (core/->Ini-Constant {} :N))
-  (s/conform ::figure [:N :_ :?])
+  (s/conform ::bg (core/->Ini-Constant {} :n))
+  (s/conform ::figure [:n :_ :?])
   (s/conform ::ini-pattern {:f (fn [] nil)
                             :w 12})
   (s/conform ::anchor {:pos :center
@@ -221,10 +221,10 @@
 
   (s/explain :ini/figure
              (core/->Ini-Figure {}
-                                (core/->Ini-Constant {} :N)
-                                [:M :_ :I] {:pos :center :align :center}))
+                                (core/->Ini-Constant {} :n)
+                                [:m :_ :i] {:pos :center :align :center}))
   (s/conform :ini/constant
-             (into {} (core/->Ini-Constant {} :N)))
+             (into {} (core/->Ini-Constant {} :n)))
 
   ,)
 
@@ -233,7 +233,7 @@
   (require '[formform.emul :as emul])
 
   (emul/params :ini :ball)
-  (emul/make-ini :ball (emul/make-ini :constant :N) nil {})
+  (emul/make-ini :ball (emul/make-ini :constant :n) nil {})
 
   (s/conform ::rule-spec (emul/make-rule :match (calc/rand-dna 3)))
   (s/conform ::umwelt-spec (emul/make-umwelt :moore false))
@@ -244,11 +244,11 @@
            (s/conform ::rule-spec (emul/make-umwelt :moore false))
            (s/conform ::umwelt-spec (emul/make-ini :ball))])
 
-  (s/conform ::generation-1d [:N :M :I :M :M :U])
-  (s/conform ::generation-2d [[:N :M] [:I :M] [:M :U]])
+  (s/conform ::generation-1d [:n :m :i :m :m :u])
+  (s/conform ::generation-2d [[:n :m] [:i :m] [:m :u]])
 
-  (s/valid? ::iterator-2d (iterate (fn [xs] (conj xs [:U :I])) [[:N :M]]))
-  (s/valid? ::iterator-1d (iterate (fn [xs] (conj xs :U)) [:N :M]))
+  (s/valid? ::iterator-2d (iterate (fn [xs] (conj xs [:u :i])) [[:n :m]]))
+  (s/valid? ::iterator-1d (iterate (fn [xs] (conj xs :u)) [:n :m]))
 
   (def mindform (emul/make-mindform
                  (calc/rand-dna 3)
@@ -260,12 +260,12 @@
 
   (s/conform ::evolution
              (take 10 (iterate (fn [xs] (into [] (repeatedly 2 calc/rand-const)))
-                               [:N :N])))
+                               [:n :n])))
   (s/conform ::evolution
              (take 10 (iterate (fn [xs]
                                  (into []
                                        (repeatedly
                                         2 #(into [] (repeatedly
                                                      2 calc/rand-const)))))
-                               [[:N :N] [:N :N]])))
+                               [[:n :n] [:n :n]])))
   ,)

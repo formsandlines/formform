@@ -54,7 +54,7 @@
   [species-type snapshots dna]
   (let [snapshot-evol (mapv :data snapshots)
         {:keys [data size]} (snapshots 0)
-        ini (make-ini :figure :N data {})
+        ini (make-ini :figure :n data {})
         ca-spec
         (condp = species-type
           :lifeform (make-lifeform {:overwrites {:ini-spec ini}}
@@ -250,10 +250,10 @@
     (apply equiv-automaton-evolution? ca-data))
 
   (def atm (create-ca (make-species :selfi
-                                    [:N :N :N :N
-                                     :N :I :N :I
-                                     :I :I :I :I
-                                     :I :U :I :U]
+                                    [:n :n :n :n
+                                     :n :i :n :i
+                                     :i :i :i :i
+                                     :i :u :i :u]
                                     (make-ini :ball))
                       [10]))
   (get-system-time atm)

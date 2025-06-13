@@ -11,94 +11,94 @@
 
 (deftest filter-dna-seq-test
   (testing "Correctness and completeness of selection"
-    (are [x y] (= (filter-dna-seq [:N :U :I :M] x) y)
-      [0] [:N] [1] [:U] [2] [:I] [3] [:M])
-    (are [x y] (= (filter-dna-seq [:N :U :I :M
-                                   :U :I :M :I
-                                   :I :M :I :U
-                                   :M :I :U :N] x) y)
-      [0 0] [:N] [0 1] [:U] [0 2] [:I] [0 3] [:M]
-      [1 0] [:U] [1 1] [:I] [1 2] [:M] [1 3] [:I]
-      [2 0] [:I] [2 1] [:M] [2 2] [:I] [2 3] [:U]
-      [3 0] [:M] [3 1] [:I] [3 2] [:U] [3 3] [:N]
-      [0 -1] [:N :U :I :M]
-      [1 -1] [:U :I :M :I]
-      [2 -1] [:I :M :I :U]
-      [3 -1] [:M :I :U :N]
-      [-1 0] [:N :U :I :M]
-      [-1 1] [:U :I :M :I]
-      [-1 2] [:I :M :I :U]
-      [-1 3] [:M :I :U :N]
-      [-1 -1] [:N :U :I :M :U :I :M :I :I :M :I :U :M :I :U :N]))
+    (are [x y] (= (filter-dna-seq [:n :u :i :m] x) y)
+      [0] [:n] [1] [:u] [2] [:i] [3] [:m])
+    (are [x y] (= (filter-dna-seq [:n :u :i :m
+                                   :u :i :m :i
+                                   :i :m :i :u
+                                   :m :i :u :n] x) y)
+      [0 0] [:n] [0 1] [:u] [0 2] [:i] [0 3] [:m]
+      [1 0] [:u] [1 1] [:i] [1 2] [:m] [1 3] [:i]
+      [2 0] [:i] [2 1] [:m] [2 2] [:i] [2 3] [:u]
+      [3 0] [:m] [3 1] [:i] [3 2] [:u] [3 3] [:n]
+      [0 -1] [:n :u :i :m]
+      [1 -1] [:u :i :m :i]
+      [2 -1] [:i :m :i :u]
+      [3 -1] [:m :i :u :n]
+      [-1 0] [:n :u :i :m]
+      [-1 1] [:u :i :m :i]
+      [-1 2] [:i :m :i :u]
+      [-1 3] [:m :i :u :n]
+      [-1 -1] [:n :u :i :m :u :i :m :i :i :m :i :u :m :i :u :n]))
 
   (testing "Selection in higher dimensions"
     (are [x y] (= (filter-dna-seq
-                   [:I :U :N :N  :U :I :M :U  :I :M :I :I  :M :I :U :M
-                    :U :N :N :U  :I :M :U :I  :M :I :I :M  :I :U :M :I
-                    :N :N :U :I  :M :U :I :M  :I :I :M :I  :U :M :I :U
-                    :N :U :I :M  :U :I :M :I  :I :M :I :U  :M :I :U :N]
+                   [:i :u :n :n  :u :i :m :u  :i :m :i :i  :m :i :u :m
+                    :u :n :n :u  :i :m :u :i  :m :i :i :m  :i :u :m :i
+                    :n :n :u :i  :m :u :i :m  :i :i :m :i  :u :m :i :u
+                    :n :u :i :m  :u :i :m :i  :i :m :i :u  :m :i :u :n]
                    x) y)
-      [3 1 2] [:M]
-      [1 0 1] [:N]
-      [-1 2 1] [:M :I :I :M]
-      [3 -1 2] [:I :M :I :U]
-      [0 3 -1] [:M :I :U :M]
-      [1 -1 -1] [:U :N :N :U :I :M :U :I :M :I :I :M :I :U :M :I]
-      [-1 2 -1] [:I :M :I :I
-                 :M :I :I :M
-                 :I :I :M :I
-                 :I :M :I :U]
-      [-1 -1 3] [:N :U :I :M
-                 :U :I :M :I
-                 :I :M :I :U
-                 :M :I :U :N]
-      [-1 -1 -1] [:I :U :N :N  :U :I :M :U  :I :M :I :I  :M :I :U :M
-                  :U :N :N :U  :I :M :U :I  :M :I :I :M  :I :U :M :I
-                  :N :N :U :I  :M :U :I :M  :I :I :M :I  :U :M :I :U
-                  :N :U :I :M  :U :I :M :I  :I :M :I :U  :M :I :U :N])
+      [3 1 2] [:m]
+      [1 0 1] [:n]
+      [-1 2 1] [:m :i :i :m]
+      [3 -1 2] [:i :m :i :u]
+      [0 3 -1] [:m :i :u :m]
+      [1 -1 -1] [:u :n :n :u :i :m :u :i :m :i :i :m :i :u :m :i]
+      [-1 2 -1] [:i :m :i :i
+                 :m :i :i :m
+                 :i :i :m :i
+                 :i :m :i :u]
+      [-1 -1 3] [:n :u :i :m
+                 :u :i :m :i
+                 :i :m :i :u
+                 :m :i :u :n]
+      [-1 -1 -1] [:i :u :n :n  :u :i :m :u  :i :m :i :i  :m :i :u :m
+                  :u :n :n :u  :i :m :u :i  :m :i :i :m  :i :u :m :i
+                  :n :n :u :i  :m :u :i :m  :i :i :m :i  :u :m :i :u
+                  :n :u :i :m  :u :i :m :i  :i :m :i :u  :m :i :u :n])
 
     (are [x y] (= (filter-dna-seq
-                   [:U :I :M :U  :I :M :I :I  :M :I :U :M  :I :U :N :N
-                    :I :M :U :I  :M :I :I :M  :I :U :M :I  :U :N :N :U
-                    :M :U :I :M  :I :I :M :I  :U :M :I :U  :N :N :U :I
-                    :U :I :M :I  :I :M :I :U  :M :I :U :N  :N :U :I :M
+                   [:u :i :m :u  :i :m :i :i  :m :i :u :m  :i :u :n :n
+                    :i :m :u :i  :m :i :i :m  :i :u :m :i  :u :n :n :u
+                    :m :u :i :m  :i :i :m :i  :u :m :i :u  :n :n :u :i
+                    :u :i :m :i  :i :m :i :u  :m :i :u :n  :n :u :i :m
 
-                    :I :M :I :I  :M :I :U :M  :I :U :N :N  :U :I :M :U
-                    :M :I :I :M  :I :U :M :I  :U :N :N :U  :I :M :U :I
-                    :I :I :M :I  :U :M :I :U  :N :N :U :I  :M :U :I :M
-                    :I :M :I :U  :M :I :U :N  :N :U :I :M  :U :I :M :I
+                    :i :m :i :i  :m :i :u :m  :i :u :n :n  :u :i :m :u
+                    :m :i :i :m  :i :u :m :i  :u :n :n :u  :i :m :u :i
+                    :i :i :m :i  :u :m :i :u  :n :n :u :i  :m :u :i :m
+                    :i :m :i :u  :m :i :u :n  :n :u :i :m  :u :i :m :i
 
-                    :M :I :U :M  :I :U :N :N  :U :I :M :U  :I :M :I :I
-                    :I :U :M :I  :U :N :N :U  :I :M :U :I  :M :I :I :M
-                    :U :M :I :U  :N :N :U :I  :M :U :I :M  :I :I :M :I
-                    :M :I :U :N  :N :U :I :M  :U :I :M :I  :I :M :I :U
+                    :m :i :u :m  :i :u :n :n  :u :i :m :u  :i :m :i :i
+                    :i :u :m :i  :u :n :n :u  :i :m :u :i  :m :i :i :m
+                    :u :m :i :u  :n :n :u :i  :m :u :i :m  :i :i :m :i
+                    :m :i :u :n  :n :u :i :m  :u :i :m :i  :i :m :i :u
 
-                    :I :U :N :N  :U :I :M :U  :I :M :I :I  :M :I :U :M
-                    :U :N :N :U  :I :M :U :I  :M :I :I :M  :I :U :M :I
-                    :N :N :U :I  :M :U :I :M  :I :I :M :I  :U :M :I :U
-                    :N :U :I :M  :U :I :M :I  :I :M :I :U  :M :I :U :N]
+                    :i :u :n :n  :u :i :m :u  :i :m :i :i  :m :i :u :m
+                    :u :n :n :u  :i :m :u :i  :m :i :i :m  :i :u :m :i
+                    :n :n :u :i  :m :u :i :m  :i :i :m :i  :u :m :i :u
+                    :n :u :i :m  :u :i :m :i  :i :m :i :u  :m :i :u :n]
                    x) y)
 
-      [2 1 3 0] [:M]
-      [1 3 1 2] [:U]
-      [-1 1 -1 3] [:I :M :I :U  :M :I :U :I  :I :U :I :M  :U :I :M :I]
-      [2 -1 -1 -1] [:M :I :U :M  :I :U :N :N  :U :I :M :U  :I :M :I :I
-                    :I :U :M :I  :U :N :N :U  :I :M :U :I  :M :I :I :M
-                    :U :M :I :U  :N :N :U :I  :M :U :I :M  :I :I :M :I
-                    :M :I :U :N  :N :U :I :M  :U :I :M :I  :I :M :I :U])))
+      [2 1 3 0] [:m]
+      [1 3 1 2] [:u]
+      [-1 1 -1 3] [:i :m :i :u  :m :i :u :i  :i :u :i :m  :u :i :m :i]
+      [2 -1 -1 -1] [:m :i :u :m  :i :u :n :n  :u :i :m :u  :i :m :i :i
+                    :i :u :m :i  :u :n :n :u  :i :m :u :i  :m :i :i :m
+                    :u :m :i :u  :n :n :u :i  :m :u :i :m  :i :i :m :i
+                    :m :i :u :n  :n :u :i :m  :u :i :m :i  :i :m :i :u])))
 
 
 (deftest consts->quaternary-test
   (testing "Correctness of conversion"
-    (is (= "0123" (consts->quaternary [:N :U :I :M])))
-    (is (= "1232232232232232" (consts->quaternary [:U :I :M :I
-                                                   :I :M :I :I
-                                                   :M :I :I :M
-                                                   :I :I :M :I])))
-    (is (= "0312" (consts->quaternary [:N :M :U :I])))
+    (is (= "0123" (consts->quaternary [:n :u :i :m])))
+    (is (= "1232232232232232" (consts->quaternary [:u :i :m :i
+                                                   :i :m :i :i
+                                                   :m :i :i :m
+                                                   :i :i :m :i])))
+    (is (= "0312" (consts->quaternary [:n :m :u :i])))
     ;; should this return nil?
-    (is (= "23" (consts->quaternary [:I :M])))
-    (is (= "0" (consts->quaternary [:N])))
+    (is (= "23" (consts->quaternary [:i :m])))
+    (is (= "0" (consts->quaternary [:n])))
     (is (thrown? clojure.lang.ExceptionInfo
                  (consts->quaternary [:_])))
     (is (thrown? clojure.lang.ExceptionInfo
@@ -109,22 +109,22 @@
   (testing "Correctness of permutation"
     (is (= (permute-dna-seq
             {}
-            [:M :M :M :M :I :I :I :I :U :U :U :U :N :N :N :N] [1 0])
-           [[1 0] [:M :I :U :N :M :I :U :N :M :I :U :N :M :I :U :N]])))
+            [:m :m :m :m :i :i :i :i :u :u :u :u :n :n :n :n] [1 0])
+           [[1 0] [:m :i :u :n :m :i :u :n :m :i :u :n :m :i :u :n]])))
   (testing "Correctness of a complete set of permutations"
     (let [perms
           [;; a b c
-           [[0 1 2] [:N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :N :U :N :U :U :U :U :U :N :U :N :U :I :I :I :I :I :I :I :I :N :N :I :I :N :N :I :I :M :M :M :M :I :M :I :M :U :U :M :M :N :U :I :M]]
+           [[0 1 2] [:n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :u :u :u :u :n :u :n :u :u :u :u :u :n :u :n :u :i :i :i :i :i :i :i :i :n :n :i :i :n :n :i :i :m :m :m :m :i :m :i :m :u :u :m :m :n :u :i :m]]
            ;; a c b
-           [[0 2 1] [:N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :N :U :N :U :U :U :U :U :N :U :N :U :U :U :U :I :I :N :N :I :I :N :N :I :I :I :I :I :I :I :I :M :I :U :N :M :M :U :U :M :I :M :I :M :M :M :M]]
+           [[0 2 1] [:n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :u :n :u :n :u :u :u :u :u :n :u :n :u :u :u :u :i :i :n :n :i :i :n :n :i :i :i :i :i :i :i :i :m :i :u :n :m :m :u :u :m :i :m :i :m :m :m :m]]
            ;; b a c
-           [[1 0 2] [:N :N :N :N :U :U :U :U :I :I :I :I :M :M :M :M :N :N :N :N :N :U :N :U :I :I :I :I :I :M :I :M :N :N :N :N :U :U :U :U :N :N :I :I :U :U :M :M :N :N :N :N :N :U :N :U :N :N :I :I :N :U :I :M]]
+           [[1 0 2] [:n :n :n :n :u :u :u :u :i :i :i :i :m :m :m :m :n :n :n :n :n :u :n :u :i :i :i :i :i :m :i :m :n :n :n :n :u :u :u :u :n :n :i :i :u :u :m :m :n :n :n :n :n :u :n :u :n :n :i :i :n :u :i :m]]
            ;; b c a
-           [[1 2 0] [:N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :N :I :I :N :U :I :M :N :N :I :I :N :U :I :M :N :U :N :U :N :U :N :U :N :U :I :M :N :U :I :M :N :N :N :N :N :U :N :U :N :N :I :I :N :U :I :M]]
+           [[1 2 0] [:n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :n :i :i :n :u :i :m :n :n :i :i :n :u :i :m :n :u :n :u :n :u :n :u :n :u :i :m :n :u :i :m :n :n :n :n :n :u :n :u :n :n :i :i :n :u :i :m]]
            ;; c a b
-           [[2 0 1] [:N :N :N :N :U :N :U :N :I :I :N :N :M :I :U :N :N :N :N :N :U :U :U :U :I :I :N :N :M :M :U :U :N :N :N :N :U :N :U :N :I :I :I :I :M :I :M :I :N :N :N :N :U :U :U :U :I :I :I :I :M :M :M :M]]
+           [[2 0 1] [:n :n :n :n :u :n :u :n :i :i :n :n :m :i :u :n :n :n :n :n :u :u :u :u :i :i :n :n :m :m :u :u :n :n :n :n :u :n :u :n :i :i :i :i :m :i :m :i :n :n :n :n :u :u :u :u :i :i :i :i :m :m :m :m]]
            ;; c b a
-           [[2 1 0] [:N :U :I :M :N :N :I :I :N :U :N :U :N :N :N :N :N :U :I :M :N :U :I :M :N :U :N :U :N :U :N :U :N :U :I :M :N :N :I :I :N :U :I :M :N :N :I :I :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M]]]]
+           [[2 1 0] [:n :u :i :m :n :n :i :i :n :u :n :u :n :n :n :n :n :u :i :m :n :u :i :m :n :u :n :u :n :u :n :u :n :u :i :m :n :n :i :i :n :u :i :m :n :n :i :i :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m]]]]
       (doseq
           [[porder dna :as p] perms]
         (is (= (permute-dna-seq {} (second (first perms)) porder)
@@ -135,20 +135,20 @@
   (testing "Correctness of permutations"
     (is (= (dna-seq-perspectives
             {}
-            [:M :M :M :M :I :I :I :I :U :U :U :U :N :N :N :N])
-           [[[0 1] [:M :M :M :M :I :I :I :I :U :U :U :U :N :N :N :N]]
-            [[1 0] [:M :I :U :N :M :I :U :N :M :I :U :N :M :I :U :N]]])))
+            [:m :m :m :m :i :i :i :i :u :u :u :u :n :n :n :n])
+           [[[0 1] [:m :m :m :m :i :i :i :i :u :u :u :u :n :n :n :n]]
+            [[1 0] [:m :i :u :n :m :i :u :n :m :i :u :n :m :i :u :n]]])))
   (testing "Expected permutation properties"
     (let [psps (dna-seq-perspectives ;; (a (b (c))) , a → b → c
                 {}
-                [:N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N
-                 :U :U :U :U :N :U :N :U :U :U :U :U :N :U :N :U
-                 :I :I :I :I :I :I :I :I :N :N :I :I :N :N :I :I
-                 :M :M :M :M :I :M :I :M :U :U :M :M :N :U :I :M])]
+                [:n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n
+                 :u :u :u :u :n :u :n :u :u :u :u :u :n :u :n :u
+                 :i :i :i :i :i :i :i :i :n :n :i :i :n :n :i :i
+                 :m :m :m :m :i :m :i :m :u :u :m :m :n :u :i :m])]
       ;; expected value ordering
       (is (= (map first psps)
              [[0 1 2] [0 2 1] [1 0 2] [1 2 0] [2 0 1] [2 1 0]]))
       ;; every permutation should have the same value frequencies
-      (is (= #{{:N 25, :U 15, :I 15, :M 9}}
+      (is (= #{{:n 25, :u 15, :i 15, :m 9}}
              (into #{} (map (comp frequencies second) psps)))))))
 

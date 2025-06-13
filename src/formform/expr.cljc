@@ -670,10 +670,10 @@
 
   ;; ? should `::sp/struct-expr` and/or `::sp/context` designate their matches
   (s/conform ::sp/expression [:foo [] []]) ;=> [:form [:foo [] []]]
-  (s/conform ::sp/expression [[:M] [:- 'a ['b]]]) ;=> [:form [[:M] [:- a [b]]]]
+  (s/conform ::sp/expression [[:m] [:- 'a ['b]]]) ;=> [:form [[:m] [:- a [b]]]]
 
-  (s/conform ::sp/context [[:M] [:- 'a ['b]] 'x :U nil])
-  ;;=> [[:form [:M]] [:operator {:tag :-, :args-unchecked [a [b]]}] [:variable [:sym x]] [:expr-symbol :U] [:empty nil]]
+  (s/conform ::sp/context [[:m] [:- 'a ['b]] 'x :u nil])
+  ;;=> [[:form [:m]] [:operator {:tag :-, :args-unchecked [a [b]]}] [:variable [:sym x]] [:expr-symbol :u] [:empty nil]]
 
 
   (s/valid? ::sp/operator (seq-re {} nil))

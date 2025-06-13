@@ -245,7 +245,7 @@
        :rule-spec   (core/->Rule-Life {} dna)
        :umwelt-spec (core/->Umwelt-Moore {} :column-first false)
        :ini-spec    (core/->Ini-RandFigure ini-opts
-                                           (core/->Ini-Constant ini-opts :N)
+                                           (core/->Ini-Constant ini-opts :n)
                                            init-size
                                            {:pos :center
                                             :align :center})}
@@ -308,7 +308,7 @@
       :rule-spec   (core/->Rule-Life {} dna)
       :umwelt-spec (core/->Umwelt-Moore {} :column-first false)
       :ini-spec    (core/->Ini-RandFigure ini-opts
-                                          (core/->Ini-Constant ini-opts :N)
+                                          (core/->Ini-Constant ini-opts :n)
                                           init-size
                                           {:pos :center
                                            :align :center})}
@@ -342,7 +342,7 @@
 (def common-specimen
   "Common specimen to specify cellular automata. Lists all the SelFis introduced by Ralf Peyn in ‘uFORM iFORM’."
   (let [selfi #(apply make-selfi {:overwrites {:label (str "SelFi/" %1)}} %&)
-        ini-ball (make-ini :ball :N nil {:pos :center :align :center})
+        ini-ball (make-ini :ball :n nil {:pos :center :align :center})
         ini-rand (make-ini :random 0.5)
         l 'a, e 'b, r 'c]
     {:Mark1
@@ -510,7 +510,7 @@
   (keys (get-in-types [:ini]))
   (make-ini :fill-center :help)
 
-  (make-ini :fill-center {:res [10 4] :val :U} :M)
+  (make-ini :fill-center {:res [10 4] :val :u} :m)
   (make-rule :match (calc/rand-dna 2))
   (make-instance :rule :match (calc/rand-dna 2))
   (make-selfi (calc/rand-dna 2) (make-ini :random 0.5))
@@ -541,51 +541,51 @@
   (sys-ini (make-ini :rand-center 2) 10 10)
   (sys-ini (make-ini :ball) 10)
   (sys-ini (make-ini :ball) 10 10)
-  (sys-ini (make-ini :fill-all :N) 10)
-  (sys-ini (make-ini :fill-all :N) 10 4)
+  (sys-ini (make-ini :fill-all :n) 10)
+  (sys-ini (make-ini :fill-all :n) 10 4)
   (sys-ini (make-ini :fill-all :rand) 10)
   (sys-ini (make-ini :fill-all :rand) 10 4)
-  (sys-ini (make-ini :fill-all [:N :U :I :M]) 4)
-  (sys-ini (make-ini :fill-all [[:_ :_ :_ :N]
-                                [:_ :_ :U :_]
-                                [:_ :I :_ :_]
-                                [:M :_ :_ :_]]) 4 4)
+  (sys-ini (make-ini :fill-all [:n :u :i :m]) 4)
+  (sys-ini (make-ini :fill-all [[:_ :_ :_ :n]
+                                [:_ :_ :u :_]
+                                [:_ :i :_ :_]
+                                [:m :_ :_ :_]]) 4 4)
   (sys-ini (make-ini :fill-all (fn [x] (if (= 0 (mod x 3))
-                                         :U :_))) 10)
+                                         :u :_))) 10)
   (sys-ini (make-ini :fill-all (fn [x y] (if (and (= 0 (mod x 3))
                                                   (= 0 (mod y 3)))
-                                           :U :_))) 10 10)
-  (sys-ini (make-ini :fill-center {:res [4] :val :U} :_) 10)
+                                           :u :_))) 10 10)
+  (sys-ini (make-ini :fill-center {:res [4] :val :u} :_) 10)
   (sys-ini (make-ini :fill-center {:res [4 3] :val :rand} :_) 10 10)
-  (sys-ini (make-ini :fill-center [:U :I :M] :_) 10)
-  (sys-ini (make-ini :fill-center [[:U :I :M] [:M :N :I] [:I :U :M]] :_) 5 5)
+  (sys-ini (make-ini :fill-center [:u :i :m] :_) 10)
+  (sys-ini (make-ini :fill-center [[:u :i :m] [:m :n :i] [:i :u :m]] :_) 5 5)
 
-  (apply-rule (make-rule :match [:N :N :N :N
-                                 :N :N :N :N
-                                 :N :M :N :N
-                                 :N :N :N :N])
+  (apply-rule (make-rule :match [:n :n :n :n
+                                 :n :n :n :n
+                                 :n :m :n :n
+                                 :n :n :n :n])
               (observe-umwelt (make-umwelt :select-ltr 2)
                               (sys-ini (make-ini :fill-center
-                                                 [:U :N :I] :N) 5)
-                              ;;=> [:N :U :N :I :N]
-                              [[2] :_]) ;;=> [:U :I]
-              :_) ;;=> :M
+                                                 [:u :n :i] :n) 5)
+                              ;;=> [:n :u :n :i :n]
+                              [[2] :_]) ;;=> [:u :i]
+              :_) ;;=> :m
   
   ,)
 
 (comment
   (sys-ini (make-ini :random 0.5)
            10 10)
-  ;; [[:M :I :M :N :N :U :M :U :U :U]
-  ;;  [:M :I :M :I :N :M :I :I :U :M]
-  ;;  [:N :I :N :I :M :U :U :N :I :U]
-  ;;  [:U :N :M :U :I :U :U :U :U :I]
-  ;;  [:U :N :M :U :M :I :M :N :U :M]
-  ;;  [:I :I :I :M :M :U :M :M :N :I]
-  ;;  [:I :I :N :N :N :N :I :N :N :M]
-  ;;  [:M :N :N :U :N :U :I :I :N :U]
-  ;;  [:N :I :M :I :N :N :N :M :I :M]
-  ;;  [:I :N :N :U :N :U :M :U :I :N]]
+  ;; [[:m :i :m :n :n :u :m :u :u :u]
+  ;;  [:m :i :m :i :n :m :i :i :u :m]
+  ;;  [:n :i :n :i :m :u :u :n :i :u]
+  ;;  [:u :n :m :u :i :u :u :u :u :i]
+  ;;  [:u :n :m :u :m :i :m :n :u :m]
+  ;;  [:i :i :i :m :m :u :m :m :n :i]
+  ;;  [:i :i :n :n :n :n :i :n :n :m]
+  ;;  [:m :n :n :u :n :u :i :i :n :u]
+  ;;  [:n :i :m :i :n :n :n :m :i :m]
+  ;;  [:i :n :n :u :n :u :m :u :i :n]]
 
   (ca-iterator (make-lifeform {:seed 100}
                               (calc/rand-dna 2))
@@ -599,8 +599,8 @@
   (get-current-generation ca false)
   
 
-  (sys-ini ((:constructor (get-in @!types [:ini :fill-all])) :U) 10 3)
-  (make-ini :fill-all :I)
+  (sys-ini ((:constructor (get-in @!types [:ini :fill-all])) :u) 10 3)
+  (make-ini :fill-all :i)
   (make-ini :fill-all :help)
   (make-ini :fill-all :help)
   ,)
@@ -626,63 +626,63 @@
   (def slit (common-specimen :Slit))
   (meta slit)
   (take 10 (ca-iterator slit [20]))
-  '([:N :N :N :N :N :N :N :N :I :U :M :U :I :N :N :N :N :N :N :N]
-    [:N :N :N :N :N :N :N :I :U :U :N :U :U :I :N :N :N :N :N :N]
-    [:N :N :N :N :N :N :I :U :M :U :N :U :M :U :I :N :N :N :N :N]
-    [:N :N :N :N :N :I :U :U :N :M :N :M :N :U :U :I :N :N :N :N]
-    [:N :N :N :N :I :U :M :U :I :N :N :N :I :U :M :U :I :N :N :N]
-    [:N :N :N :I :U :U :N :U :U :I :N :I :U :U :N :U :U :I :N :N]
-    [:N :N :I :U :M :U :N :U :M :U :N :U :M :U :N :U :M :U :I :N]
-    [:N :I :U :U :N :M :N :M :N :M :N :M :N :M :N :M :N :U :U :I]
-    [:N :U :M :U :I :N :N :N :N :N :N :N :N :N :N :N :I :U :M :U]
-    [:N :M :N :U :U :I :N :N :N :N :N :N :N :N :N :I :U :U :N :M])
+  '([:n :n :n :n :n :n :n :n :i :u :m :u :i :n :n :n :n :n :n :n]
+    [:n :n :n :n :n :n :n :i :u :u :n :u :u :i :n :n :n :n :n :n]
+    [:n :n :n :n :n :n :i :u :m :u :n :u :m :u :i :n :n :n :n :n]
+    [:n :n :n :n :n :i :u :u :n :m :n :m :n :u :u :i :n :n :n :n]
+    [:n :n :n :n :i :u :m :u :i :n :n :n :i :u :m :u :i :n :n :n]
+    [:n :n :n :i :u :u :n :u :u :i :n :i :u :u :n :u :u :i :n :n]
+    [:n :n :i :u :m :u :n :u :m :u :n :u :m :u :n :u :m :u :i :n]
+    [:n :i :u :u :n :m :n :m :n :m :n :m :n :m :n :m :n :u :u :i]
+    [:n :u :m :u :i :n :n :n :n :n :n :n :n :n :n :n :i :u :m :u]
+    [:n :m :n :u :u :i :n :n :n :n :n :n :n :n :n :i :u :u :n :m])
   (assoc slit :label "Slit")
   ,)
 
 (comment
   
   (observe-umwelt (make-umwelt :select-ltr 3)
-                  [:N :M :U :I :N :M :I]
-                  [[3] :U])
+                  [:n :m :u :i :n :m :i]
+                  [[3] :u])
   (observe-umwelt (make-umwelt :self-select-ltr 3)
-                  [[:N :I :N :U :I]
-                   [:U :M :N :I :M]
-                   [:M :N :I :M :U]
-                   [:N :N :U :I :M]
-                   [:M :U :I :I :N]]
-                  [[2 2] :I])
+                  [[:n :i :n :u :i]
+                   [:u :m :n :i :m]
+                   [:m :n :i :m :u]
+                   [:n :n :u :i :m]
+                   [:m :u :i :i :n]]
+                  [[2 2] :i])
 
-  (let [gen [:N :M :U :I :N :M :I]
-        cell [[3] :U]
-        dna [:N :U :I :M  :N :N :I :I  :N :U :N :U  :N :N :N :N
-             :N :U :I :M  :N :U :I :M  :N :U :N :U  :N :U :N :U
-             :N :U :I :M  :N :N :I :I  :N :U :I :M  :N :N :I :I
-             :N :U :I :M  :N :U :I :M  :N :U :I :M  :N :U :I :M]
+  (let [gen [:n :m :u :i :n :m :i]
+        cell [[3] :u]
+        dna [:n :u :i :m  :n :n :i :i  :n :u :n :u  :n :n :n :n
+             :n :u :i :m  :n :u :i :m  :n :u :n :u  :n :u :n :u
+             :n :u :i :m  :n :n :i :i  :n :u :i :m  :n :n :i :i
+             :n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :m]
         env (observe-umwelt (make-umwelt :select-ltr 3) gen cell)]
     (apply-rule (make-rule :match dna) env (last cell)))
 
-  (let [dna [:N :U :I :M  :N :N :I :I  :N :U :N :U  :N :N :N :N
-             :N :U :I :M  :N :U :I :M  :N :U :N :U  :N :U :N :U
-             :N :U :I :M  :N :N :I :I  :N :U :I :M  :N :N :I :I
-             :N :U :I :M  :N :U :I :M  :N :U :I :M  :N :U :I :M]]
+  (let [dna [:n :u :i :m  :n :n :i :i  :n :u :n :u  :n :n :n :n
+             :n :u :i :m  :n :u :i :m  :n :u :n :u  :n :u :n :u
+             :n :u :i :m  :n :n :i :i  :n :u :i :m  :n :n :i :i
+             :n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :m]]
     (sys-next (make-rule :match dna)
               (make-umwelt :select-ltr 3)
-              (sys-ini (make-ini :fill-center {:res [1] :val :M} :N) 7)))
-  ;; ini: [:N :N :N :M :N :N :N]
-  ;;=>    [:M :M :N :M :N :M :M]
+              (sys-ini (make-ini :fill-center {:res [1] :val :m} :n) 7)))
+  ;; ini: [:n :n :n :m :n :n :n]
+  ;;=>    [:m :m :n :m :n :m :m]
 
-  (let [dna [:N :U :I :M  :N :N :I :I  :N :U :N :U  :N :N :N :N
-             :N :U :I :M  :N :U :I :M  :N :U :N :U  :N :U :N :U
-             :N :U :I :M  :N :N :I :I  :N :U :I :M  :N :N :I :I
-             :N :U :I :M  :N :U :I :M  :N :U :I :M  :N :U :I :M]
+  (let [dna [:n :u :i :m  :n :n :i :i  :n :u :n :u  :n :n :n :n
+             :n :u :i :m  :n :u :i :m  :n :u :n :u  :n :u :n :u
+             :n :u :i :m  :n :n :i :i  :n :u :i :m  :n :n :i :i
+             :n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :m]
         selfi (make-selfi dna
-                          (make-ini :fill-center {:res [1] :val :M} :N))]
+                          (make-ini :fill-center {:res [1] :val :m} :n))]
     (take 5 (ca-iterator selfi [7])))
-  '([:N :N :N :M :N :N :N]
-    [:M :M :N :M :N :M :M]
-    [:N :M :N :M :N :N :N]
-    [:N :M :N :M :N :M :M]
-    [:N :M :N :M :N :N :M])
+  '([:n :n :n :m :n :n :n]
+    [:m :m :n :m :n :m :m]
+    [:n :m :n :m :n :n :n]
+    [:n :m :n :m :n :m :m]
+    [:n :m :n :m :n :n :m])
   ,)
 
 #_
@@ -694,7 +694,7 @@
   (defn pp-gen [gen]
     (let [pp-val (fn [c]
                    (case c
-                     :N "⁠█" :U "▒" :I "░" :M "▓" "?"))]
+                     :n "⁠█" :u "▒" :i "░" :m "▓" "?"))]
       (string/join "" (mapv pp-val gen))))
 
   (def coa (expr/make '[:seq-re :<r a b c]

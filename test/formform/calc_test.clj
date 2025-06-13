@@ -26,22 +26,22 @@
 
 (deftest dna?-test
   (testing "Content validity"
-    (is (dna? [:N :U :U :M]))
-    (is (not (dna? :NUUM)))
+    (is (dna? [:n :u :u :m]))
+    (is (not (dna? :nuum)))
     (is (not (dna? [:_])))
-    (is (not (dna? [:N :A :I :M])))
+    (is (not (dna? [:n :a :i :m])))
     (is (not (dna? [0 1 2 3])))
-    (is (not (dna? ["N"]))))
+    (is (not (dna? ["n"]))))
 
   (testing "Dimension validity"
-    (is (dna? '(:N)))
-    (is (dna? [:U :N :I :U
-               :I :U :N :U
-               :U :U :N :U
-               :N :N :U :U]))
-    (is (not (dna? '(:M :N))))
+    (is (dna? '(:n)))
+    (is (dna? [:u :n :i :u
+               :i :u :n :u
+               :u :u :n :u
+               :n :n :u :u]))
+    (is (not (dna? '(:m :n))))
     (is (not (dna? '())))
-    (is (not (dna? '(:N :U :I))))))
+    (is (not (dna? '(:n :u :i))))))
 
 
 (deftest rand-dna-test
@@ -59,13 +59,13 @@
 
 (deftest make-dna-test
   (testing "Correct transformation of mixed element types"
-    (is (= (make-dna :M \U \I 0 [1 2 1 3] :U :U :I \n [1 2 1 3])
-           [:M :U :I :N :U :I :U :M :U :U :I :N :U :I :U :M])
-        (= (make-dna \n \1 :U \M
-                     :I :U \n \M
-                     [:M :U 2 :N]
+    (is (= (make-dna :m \U \I 0 [1 2 1 3] :u :u :i \n [1 2 1 3])
+           [:m :u :i :n :u :i :u :m :u :u :i :n :u :i :u :m])
+        (= (make-dna \n \1 :u \M
+                     :i :u \n \M
+                     [:m :u 2 :n]
                      [\n \n \u 3])
-           [:N :U :U :M :I :U :N :M :M :U :I :N :N :N :U :M])))
+           [:n :u :u :m :i :u :n :m :m :u :i :n :n :n :u :m])))
   (testing "Correct dna-dimension for nested dna-seqs"
     (is (= (dna-dimension
             (make-dna (rand-dna 2) (rand-dna 2) (rand-dna 2) (rand-dna 2)))
@@ -92,14 +92,14 @@
 
 (deftest dna->digits-test
   (testing "Correctness of conversion"
-    (is (= (dna->digits [:N :U :I :M]) '(0 1 2 3)))
-    (is (= (dna->digits nmui-code [:N :U :I :M]) '(0 1 2 3)))
+    (is (= (dna->digits [:n :u :i :m]) '(0 1 2 3)))
+    (is (= (dna->digits nmui-code [:n :u :i :m]) '(0 1 2 3)))
     (is (= (dna->digits
             nmui-code
-            [:M :M :M :M  :M :I :M :I  :M :M :U :U  :M :I :U :N
-             :I :I :I :I  :M :M :M :M  :I :I :N :N  :M :M :U :U
-             :U :U :U :U  :U :N :U :N  :M :M :M :M  :M :I :M :I
-             :N :N :N :N  :U :U :U :U  :I :I :I :I  :M :M :M :M])
+            [:m :m :m :m  :m :i :m :i  :m :m :u :u  :m :i :u :n
+             :i :i :i :i  :m :m :m :m  :i :i :n :n  :m :m :u :u
+             :u :u :u :u  :u :n :u :n  :m :m :m :m  :m :i :m :i
+             :n :n :n :n  :u :u :u :u  :i :i :i :i  :m :m :m :m])
            [1 1 1 1  1 0 3 2  1 3 3 1  1 2 1 2
             0 0 0 0  1 1 1 1  2 2 2 2  3 3 3 3
             3 3 3 3  1 2 1 2  1 1 1 1  3 0 3 0  
@@ -108,93 +108,93 @@
 
 (deftest digits->dna-test
   (testing "Correctness of conversion"
-    (is (= (digits->dna [0 1 2 3]) [:N :U :I :M]))
-    (is (= (digits->dna nmui-code [1 2 0 3]) [:M :N :I :U]))
+    (is (= (digits->dna [0 1 2 3]) [:n :u :i :m]))
+    (is (= (digits->dna nmui-code [1 2 0 3]) [:m :n :i :u]))
     (is (= (digits->dna nmui-code '(1 0 3 2  0 1 2 3  3 2 1 0  2 3 0 1))
-           [:M :I :U :N  :I :M :N :U  :U :N :M :I  :N :U :I :M]))
+           [:m :i :u :n  :i :m :n :u  :u :n :m :i  :n :u :i :m]))
     (is (= (digits->dna nmui-code
                         [2 3 0 1  2 0 0 2  2 3 0 1  2 0 0 2
                          0 3 0 3  2 3 0 1  2 3 0 1  0 3 0 3
                          0 3 0 3  2 0 0 2  2 3 0 1  0 0 0 0
                          2 3 0 1  2 3 0 1  2 3 0 1  2 3 0 1])
-           [:U :N :M :I  :U :N :M :I  :U :N :U :N  :U :N :U :N
-            :N :N :I :I  :U :N :M :I  :N :N :N :N  :U :N :U :N
-            :U :N :M :I  :U :N :M :I  :U :N :M :I  :U :N :M :I
-            :N :N :I :I  :U :N :M :I  :N :N :I :I  :U :N :M :I]))))
+           [:u :n :m :i  :u :n :m :i  :u :n :u :n  :u :n :u :n
+            :n :n :i :i  :u :n :m :i  :n :n :n :n  :u :n :u :n
+            :u :n :m :i  :u :n :m :i  :u :n :m :i  :u :n :m :i
+            :n :n :i :i  :u :n :m :i  :n :n :i :i  :u :n :m :i]))))
 
 
 (deftest reorder-dna-seq-test
   (testing "Correctness of reordered dna-seq"
     (is (= (reorder-dna-seq
-            [:N :N :N :N :U :U :U :U :I :I :I :I :M :M :M :M]
+            [:n :n :n :n :u :u :u :u :i :i :i :i :m :m :m :m]
             nuim-code nmui-code)
-           [:N :N :N :N :M :M :M :M :U :U :U :U :I :I :I :I]))
+           [:n :n :n :n :m :m :m :m :u :u :u :u :i :i :i :i]))
     (is (= (reorder-dna-seq
-            [:N :U :I :M  :U :I :M :N  :I :M :N :U  :M :N :U :I]
+            [:n :u :i :m  :u :i :m :n  :i :m :n :u  :m :n :u :i]
             nuim-code nmui-code)
-           [:N :M :U :I  :M :I :N :U  :U :N :I :M  :I :U :M :N]))
+           [:n :m :u :i  :m :i :n :u  :u :n :i :m  :i :u :m :n]))
     (is (= (reorder-dna-seq
-            [:N :N :N :N  :U :U :U :U  :I :I :I :I  :M :M :M :M
-             :U :U :U :U  :I :I :I :I  :M :M :M :M  :N :N :N :N
-             :I :I :I :I  :M :M :M :M  :N :N :N :N  :U :U :U :U
-             :M :M :M :M  :N :N :N :N  :U :U :U :U  :I :I :I :I]
+            [:n :n :n :n  :u :u :u :u  :i :i :i :i  :m :m :m :m
+             :u :u :u :u  :i :i :i :i  :m :m :m :m  :n :n :n :n
+             :i :i :i :i  :m :m :m :m  :n :n :n :n  :u :u :u :u
+             :m :m :m :m  :n :n :n :n  :u :u :u :u  :i :i :i :i]
             nuim-code nmui-code)
-           [:N :N :N :N  :M :M :M :M  :U :U :U :U  :I :I :I :I
-            :M :M :M :M  :I :I :I :I  :N :N :N :N  :U :U :U :U
-            :U :U :U :U  :N :N :N :N  :I :I :I :I  :M :M :M :M
-            :I :I :I :I  :U :U :U :U  :M :M :M :M  :N :N :N :N]))
+           [:n :n :n :n  :m :m :m :m  :u :u :u :u  :i :i :i :i
+            :m :m :m :m  :i :i :i :i  :n :n :n :n  :u :u :u :u
+            :u :u :u :u  :n :n :n :n  :i :i :i :i  :m :m :m :m
+            :i :i :i :i  :u :u :u :u  :m :m :m :m  :n :n :n :n]))
     (is (= (reorder-dna-seq
-            [:N :U :I :M  :U :I :M :N  :I :M :N :U  :M :N :U :I
-             :U :I :M :N  :I :M :N :U  :M :N :U :I  :N :U :I :M
-             :I :M :N :U  :M :N :U :I  :N :U :I :M  :U :I :M :N
-             :M :N :U :I  :N :U :I :M  :U :I :M :N  :I :M :N :U]
+            [:n :u :i :m  :u :i :m :n  :i :m :n :u  :m :n :u :i
+             :u :i :m :n  :i :m :n :u  :m :n :u :i  :n :u :i :m
+             :i :m :n :u  :m :n :u :i  :n :u :i :m  :u :i :m :n
+             :m :n :u :i  :n :u :i :m  :u :i :m :n  :i :m :n :u]
             nuim-code nmui-code)
-           [:N :M :U :I  :M :I :N :U  :U :N :I :M  :I :U :M :N
-            :M :I :N :U  :I :U :M :N  :N :M :U :I  :U :N :I :M  
-            :U :N :I :M  :N :M :U :I  :I :U :M :N  :M :I :N :U
-            :I :U :M :N  :U :N :I :M  :M :I :N :U  :N :M :U :I]))
+           [:n :m :u :i  :m :i :n :u  :u :n :i :m  :i :u :m :n
+            :m :i :n :u  :i :u :m :n  :n :m :u :i  :u :n :i :m  
+            :u :n :i :m  :n :m :u :i  :i :u :m :n  :m :i :n :u
+            :i :u :m :n  :u :n :i :m  :m :i :n :u  :n :m :u :i]))
     (is (= (reorder-dna-seq
-            [:N :U :I :M  :U :I :M :N  :I :M :N :U  :M :N :U :I]
+            [:n :u :i :m  :u :i :m :n  :i :m :n :u  :m :n :u :i]
             nuim-code nuim-code)
-           [:N :U :I :M  :U :I :M :N  :I :M :N :U  :M :N :U :I])))
+           [:n :u :i :m  :u :i :m :n  :i :m :n :u  :m :n :u :i])))
   (testing "List reorders exactly the same as vector"
     (is (= (reorder-dna-seq
-            '(:N :U :I :M  :U :I :M :N  :I :M :N :U  :M :N :U :I)
+            '(:n :u :i :m  :u :i :m :n  :i :m :n :u  :m :n :u :i)
             nmui-code nuim-code)
-           [:N :I :M :U  :I :N :U :M  :M :U :I :N  :U :M :N :I]))))
+           [:n :i :m :u  :i :n :u :m  :m :u :i :n  :u :m :n :i]))))
 
 
 (deftest compare-consts-test
   (testing "Correctness of sorted order"
     (is (= [] (sort compare-consts [])))
-    (is (= [:N] (sort compare-consts [:N])))
-    (is (= [:N :M] (sort compare-consts [:M :N])))
-    (is (= [:N :U :I :M :M] (sort compare-consts [:U :M :N :I :M]))))
-  (testing "Correct order of compared sequences"
-    (is (= [[:M] [:N :U :I :M] [:N :M :U :I]]
+    (is (= [:n] (sort compare-consts [:n])))
+    (is (= [:n :m] (sort compare-consts [:m :n])))
+    (is (= [:n :u :i :m :m] (sort compare-consts [:u :m :n :i :m]))))
+  (testing "correct order of compared sequences"
+    (is (= [[:m] [:n :u :i :m] [:n :m :u :i]]
            (sort compare-consts
-                 [[:N :M :U :I] [:N :U :I :M] [:M]])))
-    (is (= [[:I :M] [:N :U :I :M] [:U :M :I] [:M :N :U]]
+                 [[:n :m :u :i] [:n :u :i :m] [:m]])))
+    (is (= [[:i :m] [:n :u :i :m] [:u :m :i] [:m :n :u]]
            (sort compare-consts
-                 [[:N :U :I :M] [:I :M] [:U :M :I] [:M :N :U]])))))
+                 [[:n :u :i :m] [:i :m] [:u :m :i] [:m :n :u]])))))
 
 
 (deftest expand-dna-seq-test
   (testing "Correctness of expansion"
-    (is (= (expand-dna-seq [:M :I :U :N] 2)
-           [:M :M :M :M :I :I :I :I :U :U :U :U :N :N :N :N]))
-    (is (= (expand-dna-seq [:N :U :I :M
-                            :U :I :M :I
-                            :I :M :I :U
-                            :M :I :U :N] 3)
-           (expand-dna-seq (list :N :U :I :M
-                                 :U :I :M :I
-                                 :I :M :I :U
-                                 :M :I :U :N) 3)
-           [:N :N :N :N :U :U :U :U :I :I :I :I :M :M :M :M
-            :U :U :U :U :I :I :I :I :M :M :M :M :I :I :I :I
-            :I :I :I :I :M :M :M :M :I :I :I :I :U :U :U :U
-            :M :M :M :M :I :I :I :I :U :U :U :U :N :N :N :N]))))
+    (is (= (expand-dna-seq [:m :i :u :n] 2)
+           [:m :m :m :m :i :i :i :i :u :u :u :u :n :n :n :n]))
+    (is (= (expand-dna-seq [:n :u :i :m
+                            :u :i :m :i
+                            :i :m :i :u
+                            :m :i :u :n] 3)
+           (expand-dna-seq (list :n :u :i :m
+                                 :u :i :m :i
+                                 :i :m :i :u
+                                 :m :i :u :n) 3)
+           [:n :n :n :n :u :u :u :u :i :i :i :i :m :m :m :m
+            :u :u :u :u :i :i :i :i :m :m :m :m :i :i :i :i
+            :i :i :i :i :m :m :m :m :i :i :i :i :u :u :u :u
+            :m :m :m :m :i :i :i :i :u :u :u :u :n :n :n :n]))))
 
 (deftest reduce-dna-seq-test
   (testing "Correct reduction for 3->2 dimensions"
@@ -232,249 +232,249 @@
   (testing "Correct reduction for 3->1 dimensions"
     (is (= (reduce-dna-seq
             '[a b c]
-            [:N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N
-             :U :U :U :U  :U :U :U :U  :U :U :U :U  :U :U :U :U
-             :I :I :I :I  :I :I :I :I  :I :I :I :I  :I :I :I :I
-             :M :M :M :M  :M :M :M :M  :M :M :M :M  :M :M :M :M])
+            [:n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
+             :u :u :u :u  :u :u :u :u  :u :u :u :u  :u :u :u :u
+             :i :i :i :i  :i :i :i :i  :i :i :i :i  :i :i :i :i
+             :m :m :m :m  :m :m :m :m  :m :m :m :m  :m :m :m :m])
            (reduce-dna-seq
             '[c b a]
-            [:N :U :I :M  :N :U :I :M  :N :U :I :M  :N :U :I :M
-             :N :U :I :M  :N :U :I :M  :N :U :I :M  :N :U :I :M
-             :N :U :I :M  :N :U :I :M  :N :U :I :M  :N :U :I :M
-             :N :U :I :M  :N :U :I :M  :N :U :I :M  :N :U :I :M])
+            [:n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :m
+             :n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :m
+             :n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :m
+             :n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :m])
            (reduce-dna-seq
             '[b a c]
-            [:N :N :N :N  :U :U :U :U  :I :I :I :I  :M :M :M :M
-             :N :N :N :N  :U :U :U :U  :I :I :I :I  :M :M :M :M
-             :N :N :N :N  :U :U :U :U  :I :I :I :I  :M :M :M :M
-             :N :N :N :N  :U :U :U :U  :I :I :I :I  :M :M :M :M])
-           '[[a] [:N :U :I :M]])))
+            [:n :n :n :n  :u :u :u :u  :i :i :i :i  :m :m :m :m
+             :n :n :n :n  :u :u :u :u  :i :i :i :i  :m :m :m :m
+             :n :n :n :n  :u :u :u :u  :i :i :i :i  :m :m :m :m
+             :n :n :n :n  :u :u :u :u  :i :i :i :i  :m :m :m :m])
+           '[[a] [:n :u :i :m]])))
 
   (testing "Correct reduction for n->0 dimensions"
     (is (= (reduce-dna-seq
             '[a b c d]
-            [:N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N
-             :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N
-             :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N
-             :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N
+            [:n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
+             :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
+             :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
+             :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
 
-             :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N
-             :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N
-             :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N
-             :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N
+             :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
+             :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
+             :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
+             :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
 
-             :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N
-             :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N
-             :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N
-             :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N
+             :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
+             :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
+             :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
+             :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
 
-             :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N
-             :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N
-             :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N
-             :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N])
+             :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
+             :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
+             :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
+             :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n])
            (reduce-dna-seq
             '[a b c]
-            [:N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N
-             :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N
-             :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N
-             :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N])
+            [:n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
+             :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
+             :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
+             :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n])
            (reduce-dna-seq
-            [:N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N])
-           (reduce-dna-seq ['x] [:N :N :N :N])
-           (reduce-dna-seq [:N])
-           [[] [:N]])))
+            [:n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n])
+           (reduce-dna-seq ['x] [:n :n :n :n])
+           (reduce-dna-seq [:n])
+           [[] [:n]])))
 
   (testing "Irreducable formDNA"
-    (is (let [dna [:N :U :I :M  :U :I :M :I  :I :M :I :U  :M :I :U :N
-                   :U :I :M :U  :I :M :I :I  :M :I :U :M  :I :U :N :N
-                   :I :M :U :I  :M :I :I :M  :I :U :M :I  :U :N :N :U
-                   :M :U :I :M  :I :I :M :I  :U :M :I :U  :N :N :U :I]]
+    (is (let [dna [:n :u :i :m  :u :i :m :i  :i :m :i :u  :m :i :u :n
+                   :u :i :m :u  :i :m :i :i  :m :i :u :m  :i :u :n :n
+                   :i :m :u :i  :m :i :i :m  :i :u :m :i  :u :n :n :u
+                   :m :u :i :m  :i :i :m :i  :u :m :i :u  :n :n :u :i]]
           (= (reduce-dna-seq dna) [[0 1 2] dna]))))
 
   (testing "Almost possible reductions"
-    (is (let [dna [:N :U :N :N]] (= (reduce-dna-seq dna) [[0] dna])))
-    (is (let [dna [:N :N :N :N
-                   :N :N :N :N
-                   :N :N :N :N
-                   :N :N :N :U]] (= (reduce-dna-seq dna) [[0 1] dna])))
-    (is (let [dna [:U :U :U :U  :U :U :U :U  :U :U :U :U  :U :U :U :U
-                   :U :I :U :U  :U :U :U :U  :U :U :U :U  :U :U :U :U
-                   :U :U :U :U  :U :U :U :U  :U :U :U :U  :U :U :U :U
-                   :U :U :U :U  :U :U :U :U  :U :U :U :U  :U :U :U :U]]
+    (is (let [dna [:n :u :n :n]] (= (reduce-dna-seq dna) [[0] dna])))
+    (is (let [dna [:n :n :n :n
+                   :n :n :n :n
+                   :n :n :n :n
+                   :n :n :n :u]] (= (reduce-dna-seq dna) [[0 1] dna])))
+    (is (let [dna [:u :u :u :u  :u :u :u :u  :u :u :u :u  :u :u :u :u
+                   :u :i :u :u  :u :u :u :u  :u :u :u :u  :u :u :u :u
+                   :u :u :u :u  :u :u :u :u  :u :u :u :u  :u :u :u :u
+                   :u :u :u :u  :u :u :u :u  :u :u :u :u  :u :u :u :u]]
           (= (reduce-dna-seq dna) [[0 1 2] dna])))
-    (is (let [dna [:U :I :U :U  :U :I :U :U  :U :I :U :U  :U :I :U :U
-                   :U :I :I :U  :U :I :I :U  :U :I :I :U  :U :I :I :U
-                   :U :I :U :U  :U :I :U :U  :U :I :U :U  :U :I :U :U
-                   :U :I :U :U  :U :I :U :U  :U :I :U :U  :U :I :U :U]]
+    (is (let [dna [:u :i :u :u  :u :i :u :u  :u :i :u :u  :u :i :u :u
+                   :u :i :i :u  :u :i :i :u  :u :i :i :u  :u :i :i :u
+                   :u :i :u :u  :u :i :u :u  :u :i :u :u  :u :i :u :u
+                   :u :i :u :u  :u :i :u :u  :u :i :u :u  :u :i :u :u]]
           (= (reduce-dna-seq dna)
-             [[0 2] [:U :I :U :U
-                     :U :I :I :U
-                     :U :I :U :U
-                     :U :I :U :U]])))
-    (is (let [dna [:N :N :N :N  :U :U :U :U  :I :I :I :I  :M :M :M :M
-                   :N :N :N :N  :U :U :U :U  :I :I :I :I  :M :M :M :M
-                   :N :N :N :N  :U :U :U :U  :I :I :I :I  :M :M :M :M
-                   :N :N :N :N  :I :I :I :I  :I :I :I :I  :M :M :M :M]]
+             [[0 2] [:u :i :u :u
+                     :u :i :i :u
+                     :u :i :u :u
+                     :u :i :u :u]])))
+    (is (let [dna [:n :n :n :n  :u :u :u :u  :i :i :i :i  :m :m :m :m
+                   :n :n :n :n  :u :u :u :u  :i :i :i :i  :m :m :m :m
+                   :n :n :n :n  :u :u :u :u  :i :i :i :i  :m :m :m :m
+                   :n :n :n :n  :i :i :i :i  :i :i :i :i  :m :m :m :m]]
           (= (reduce-dna-seq dna)
-             [[0 1] [:N :U :I :M
-                     :N :U :I :M
-                     :N :U :I :M
-                     :N :I :I :M]])))
-    (is (let [dna [:N :U :I :M  :N :U :I :M  :N :U :I :M  :N :U :I :N
-                   :N :U :I :M  :N :U :I :M  :N :U :I :M  :N :U :I :N
-                   :N :U :I :M  :N :U :I :M  :N :U :I :M  :N :U :I :N
-                   :N :U :I :M  :N :U :I :M  :N :U :I :M  :N :U :I :N]]
+             [[0 1] [:n :u :i :m
+                     :n :u :i :m
+                     :n :u :i :m
+                     :n :i :i :m]])))
+    (is (let [dna [:n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :n
+                   :n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :n
+                   :n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :n
+                   :n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :n]]
           (= (reduce-dna-seq dna)
-             [[1 2] [:N :U :I :M  :N :U :I :M  :N :U :I :M  :N :U :I :N]]))))
+             [[1 2] [:n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :n]]))))
 
   (testing "Equivalence of reduction paths"
-    (is (= (reduce-dna-seq [:N :U :I :M])
-           (reduce-dna-seq [:N :U :I :M])
-           [[0] [:N :U :I :M]]))
-    (is (= (reduce-dna-seq [:U])
-           (reduce-dna-seq [:U :U :U :U])
-           (reduce-dna-seq [:U :U :U :U
-                            :U :U :U :U
-                            :U :U :U :U
-                            :U :U :U :U])
+    (is (= (reduce-dna-seq [:n :u :i :m])
+           (reduce-dna-seq [:n :u :i :m])
+           [[0] [:n :u :i :m]]))
+    (is (= (reduce-dna-seq [:u])
+           (reduce-dna-seq [:u :u :u :u])
+           (reduce-dna-seq [:u :u :u :u
+                            :u :u :u :u
+                            :u :u :u :u
+                            :u :u :u :u])
            (reduce-dna-seq
-            [:U :U :U :U  :U :U :U :U  :U :U :U :U  :U :U :U :U
-             :U :U :U :U  :U :U :U :U  :U :U :U :U  :U :U :U :U
-             :U :U :U :U  :U :U :U :U  :U :U :U :U  :U :U :U :U
-             :U :U :U :U  :U :U :U :U  :U :U :U :U  :U :U :U :U])
-           [[] [:U]]))
-    (is (= (reduce-dna-seq [1] [:U :I :N :M])
-           (reduce-dna-seq [:U :I :N :M
-                            :U :I :N :M
-                            :U :I :N :M
-                            :U :I :N :M])
-           (reduce-dna-seq [1 0] [:U :U :U :U
-                                  :I :I :I :I
-                                  :N :N :N :N
-                                  :M :M :M :M])
-           [[1] [:U :I :N :M]]))
-    (is (= (reduce-dna-seq [:U :I :N :M])
-           (reduce-dna-seq [:U :U :U :U
-                            :I :I :I :I
-                            :N :N :N :N
-                            :M :M :M :M])
-           (reduce-dna-seq [1 0] [:U :I :N :M
-                                  :U :I :N :M
-                                  :U :I :N :M
-                                  :U :I :N :M])
-           [[0] [:U :I :N :M]]))))
+            [:u :u :u :u  :u :u :u :u  :u :u :u :u  :u :u :u :u
+             :u :u :u :u  :u :u :u :u  :u :u :u :u  :u :u :u :u
+             :u :u :u :u  :u :u :u :u  :u :u :u :u  :u :u :u :u
+             :u :u :u :u  :u :u :u :u  :u :u :u :u  :u :u :u :u])
+           [[] [:u]]))
+    (is (= (reduce-dna-seq [1] [:u :i :n :m])
+           (reduce-dna-seq [:u :i :n :m
+                            :u :i :n :m
+                            :u :i :n :m
+                            :u :i :n :m])
+           (reduce-dna-seq [1 0] [:u :u :u :u
+                                  :i :i :i :i
+                                  :n :n :n :n
+                                  :m :m :m :m])
+           [[1] [:u :i :n :m]]))
+    (is (= (reduce-dna-seq [:u :i :n :m])
+           (reduce-dna-seq [:u :u :u :u
+                            :i :i :i :i
+                            :n :n :n :n
+                            :m :m :m :m])
+           (reduce-dna-seq [1 0] [:u :i :n :m
+                                  :u :i :n :m
+                                  :u :i :n :m
+                                  :u :i :n :m])
+           [[0] [:u :i :n :m]]))))
 
 
 
 (deftest equiv-dna-test
   (testing "Equivalence of identity"
     (are [x] (equiv-dna x)
-      [:N] [:N :U :I :M] [:N :U :I :M
-                          :U :I :M :N
-                          :I :M :N :U
-                          :M :N :U :I])
+      [:n] [:n :u :i :m] [:n :u :i :m
+                          :u :i :m :n
+                          :i :m :n :u
+                          :m :n :u :i])
     (are [x] (equiv-dna x x)
-      [:N] [:U] [:I] [:M])
+      [:n] [:u] [:i] [:m])
     (are [x] (equiv-dna x x)
-      [:N :N :N :N] [:U :U :U :U] [:I :I :I :I] [:M :M :M :M])
+      [:n :n :n :n] [:u :u :u :u] [:i :i :i :i] [:m :m :m :m])
     (are [x] (equiv-dna x x)
-      [:N :U :I :M] [:N :U :I :M
-                     :U :I :M :N
-                     :I :M :N :U
-                     :M :N :U :I])
-    (is (equiv-dna [:N :U :I :M] '(:N :U :I :M))))
+      [:n :u :i :m] [:n :u :i :m
+                     :u :i :m :n
+                     :i :m :n :u
+                     :m :n :u :i])
+    (is (equiv-dna [:n :u :i :m] '(:n :u :i :m))))
 
   (testing "Non-equivalence"
-    (is (not (equiv-dna [:U] [:I]))) (is (not (equiv-dna [:M] [:N])))
-    (is (not (equiv-dna [:M] [:U]))) (is (not (equiv-dna [:M] [:I])))
-    (is (not (equiv-dna [:N] [:U]))) (is (not (equiv-dna [:N] [:I])))
-    (is (not (equiv-dna [:N] [:N :N :N :M])))
-    (is (not (equiv-dna [:N :N :N :N] [:N :N :N :M])))
-    (is (not (equiv-dna [:N :N :N :N :U :U :U :U :U :U :I :I :U :I :I :M]
-                        [:N :U :U :U :N :U :U :I :N :U :I :I :N :U :I :N]))))
+    (is (not (equiv-dna [:u] [:i]))) (is (not (equiv-dna [:m] [:n])))
+    (is (not (equiv-dna [:m] [:u]))) (is (not (equiv-dna [:m] [:i])))
+    (is (not (equiv-dna [:n] [:u]))) (is (not (equiv-dna [:n] [:i])))
+    (is (not (equiv-dna [:n] [:n :n :n :m])))
+    (is (not (equiv-dna [:n :n :n :n] [:n :n :n :m])))
+    (is (not (equiv-dna [:n :n :n :n :u :u :u :u :u :u :i :i :u :i :i :m]
+                        [:n :u :u :u :n :u :u :i :n :u :i :i :n :u :i :n]))))
   
 
   (testing "Equivalence of permutation"
     (are [x] (apply equiv-dna (vals (dna-perspectives x)))
-      [:M :I :U :N :M :M :U :U :M :I :M :I :M :M :M :M]
-      [:M :I :U :N :I :I :N :N :U :N :U :N :N :N :N :N :M :I :U :N :M :I :U :N :U :N :U :N :U :N :U :N :M :I :U :N :I :I :N :N :M :I :U :N :I :I :N :N :M :I :U :N :M :I :U :N :M :I :U :N :M :I :U :N]))
+      [:m :i :u :n :m :m :u :u :m :i :m :i :m :m :m :m]
+      [:m :i :u :n :i :i :n :n :u :n :u :n :n :n :n :n :m :i :u :n :m :i :u :n :u :n :u :n :u :n :u :n :m :i :u :n :i :i :n :n :m :i :u :n :i :i :n :n :m :i :u :n :m :i :u :n :m :i :u :n :m :i :u :n]))
 
   (testing "Equivalence of tautology reduction"
-    (is (equiv-dna [:N] (repeat 4 :N) (repeat 16 :N) (repeat 64 :N)))
-    (is (equiv-dna [:U] (repeat 4 :U) (repeat 16 :U) (repeat 64 :U)))
-    (is (equiv-dna [:I] (repeat 4 :I) (repeat 16 :I) (repeat 64 :I)))
-    (is (equiv-dna [:M] (repeat 4 :M) (repeat 16 :M) (repeat 64 :M)))
-    (is (equiv-dna [:N :U :I :M]
-                   [:N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M]))
-    (is (equiv-dna [:N :N :N :N  :U :U :U :U  :I :I :I :I  :M :M :M :M
-                    :N :N :N :N  :N :N :N :N  :I :I :I :I  :I :I :I :I
-                    :N :N :N :N  :U :U :U :U  :N :N :N :N  :U :U :U :U
-                    :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N]
-                   [:N :U :I :M
-                    :N :N :I :I
-                    :N :U :N :U
-                    :N :N :N :N]
+    (is (equiv-dna [:n] (repeat 4 :n) (repeat 16 :n) (repeat 64 :n)))
+    (is (equiv-dna [:u] (repeat 4 :u) (repeat 16 :u) (repeat 64 :u)))
+    (is (equiv-dna [:i] (repeat 4 :i) (repeat 16 :i) (repeat 64 :i)))
+    (is (equiv-dna [:m] (repeat 4 :m) (repeat 16 :m) (repeat 64 :m)))
+    (is (equiv-dna [:n :u :i :m]
+                   [:n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m]))
+    (is (equiv-dna [:n :n :n :n  :u :u :u :u  :i :i :i :i  :m :m :m :m
+                    :n :n :n :n  :n :n :n :n  :i :i :i :i  :i :i :i :i
+                    :n :n :n :n  :u :u :u :u  :n :n :n :n  :u :u :u :u
+                    :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n]
+                   [:n :u :i :m
+                    :n :n :i :i
+                    :n :u :n :u
+                    :n :n :n :n]
                    ;; permutation:
-                   [:N :U :I :M  :N :U :I :M  :N :U :I :M  :N :U :I :M
-                    :N :N :I :I  :N :N :I :I  :N :N :I :I  :N :N :I :I
-                    :N :U :N :U  :N :U :N :U  :N :U :N :U  :N :U :N :U
-                    :N :N :N :N  :N :N :N :N  :N :N :N :N  :N :N :N :N]
-                   [:N :U :I :M
-                    :N :N :I :I
-                    :N :U :N :U
-                    :N :N :N :N]))
-    (is (equiv-dna [:N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :I :I :U :U :I :I :U :U :I :I :U :U :I :I :U :I :I :M :U :I :I :M :U :I :I :M :U :I :I :M :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :I :I :U :U :I :I :U :U :I :I :U :U :I :I :U :I :I :M :U :I :I :M :U :I :I :M :U :I :I :M :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :I :I :U :U :I :I :U :U :I :I :U :U :I :I :U :I :I :M :U :I :I :M :U :I :I :M :U :I :I :M :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :N :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :U :I :I :U :U :I :I :U :U :I :I :U :U :I :I :U :I :I :M :U :I :I :M :U :I :I :M :U :I :I :M]
-                   [:N :N :N :N :U :U :U :U :U :U :I :I :U :I :I :M]
-                   [:N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :U :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :U :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :I :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N :U :I :M]
-                   [:N :U :U :U :N :U :U :I :N :U :I :I :N :U :I :M]))))
+                   [:n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :m
+                    :n :n :i :i  :n :n :i :i  :n :n :i :i  :n :n :i :i
+                    :n :u :n :u  :n :u :n :u  :n :u :n :u  :n :u :n :u
+                    :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n]
+                   [:n :u :i :m
+                    :n :n :i :i
+                    :n :u :n :u
+                    :n :n :n :n]))
+    (is (equiv-dna [:n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :i :i :u :u :i :i :u :u :i :i :u :u :i :i :u :i :i :m :u :i :i :m :u :i :i :m :u :i :i :m :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :i :i :u :u :i :i :u :u :i :i :u :u :i :i :u :i :i :m :u :i :i :m :u :i :i :m :u :i :i :m :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :i :i :u :u :i :i :u :u :i :i :u :u :i :i :u :i :i :m :u :i :i :m :u :i :i :m :u :i :i :m :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :i :i :u :u :i :i :u :u :i :i :u :u :i :i :u :i :i :m :u :i :i :m :u :i :i :m :u :i :i :m]
+                   [:n :n :n :n :u :u :u :u :u :u :i :i :u :i :i :m]
+                   [:n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m]
+                   [:n :u :u :u :n :u :u :i :n :u :i :i :n :u :i :m]))))
 
 
 
 (deftest filter-dna-test
   (testing "Correctness of transformation"
-    (is (= (filter-dna [:N] []) [:N]))
-    (is (= (filter-dna [:I] []) [:I]))
-    (is (= (filter-dna [:I :U :M :N] [:_]) [:I :U :M :N]))
-    (is (= (filter-dna [:I :U :M :N] [:U]) [:U]))
-    (is (= (filter-dna [:I :U :M :N] [:M]) [:N]))
-    (is (= (filter-dna [:I :U :N :N  :U :I :M :U  :I :M :I :I  :M :I :U :M
-                        :U :N :N :U  :I :M :U :I  :M :I :I :M  :I :U :M :I
-                        :N :N :U :I  :M :U :I :M  :I :I :M :I  :U :M :I :U
-                        :N :U :I :M  :U :I :M :I  :I :M :I :U  :M :I :U :N]
-                       [:_ :I :_]) [:I :M :I :I
-                                    :M :I :I :M
-                                    :I :I :M :I
-                                    :I :M :I :U]))))
+    (is (= (filter-dna [:n] []) [:n]))
+    (is (= (filter-dna [:i] []) [:i]))
+    (is (= (filter-dna [:i :u :m :n] [:_]) [:i :u :m :n]))
+    (is (= (filter-dna [:i :u :m :n] [:u]) [:u]))
+    (is (= (filter-dna [:i :u :m :n] [:m]) [:n]))
+    (is (= (filter-dna [:i :u :n :n  :u :i :m :u  :i :m :i :i  :m :i :u :m
+                        :u :n :n :u  :i :m :u :i  :m :i :i :m  :i :u :m :i
+                        :n :n :u :i  :m :u :i :m  :i :i :m :i  :u :m :i :u
+                        :n :u :i :m  :u :i :m :i  :i :m :i :u  :m :i :u :n]
+                       [:_ :i :_]) [:i :m :i :i
+                                    :m :i :i :m
+                                    :i :i :m :i
+                                    :i :m :i :u]))))
 
 (deftest dna-get-test
   ;; is just filter-dna without the vector and no holes in vpoint allowed
   (testing "IO shape"
-    (is (= (dna-get [:U] [])
-           :U))
-    (is (= (dna-get [:I :U :U :N  :U :N :U :N  :I :M :N :M  :I :M :M :M]
-                    [:M :N])
-           :I))
+    (is (= (dna-get [:u] [])
+           :u))
+    (is (= (dna-get [:i :u :u :n  :u :n :u :n  :i :m :n :m  :i :m :m :m]
+                    [:m :n])
+           :i))
     (is (thrown? clojure.lang.ExceptionInfo
-                 (dna-get [:I :U :U :N  :U :N :U :N  :I :M :N :M  :I :M :M :M]
-                          [:M :_])))))
+                 (dna-get [:i :u :u :n  :u :n :u :n  :i :m :n :m  :i :m :m :m]
+                          [:m :_])))))
 
 
 (deftest dna-perspectives-test
   (testing "Correctness of permutations"
-    (is (= (dna-perspectives (make-dna (make-dna :U :I :M :N)
-                                       (make-dna :U :I :M :N)
-                                       (make-dna :U :I :M :N)
-                                       (make-dna :U :I :M :N)))
-           {[0 1] [:U :I :M :N :U :I :M :N :U :I :M :N :U :I :M :N],
-            [1 0] [:U :U :U :U :I :I :I :I :M :M :M :M :N :N :N :N]}))))
+    (is (= (dna-perspectives (make-dna (make-dna :u :i :m :n)
+                                       (make-dna :u :i :m :n)
+                                       (make-dna :u :i :m :n)
+                                       (make-dna :u :i :m :n)))
+           {[0 1] [:u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n],
+            [1 0] [:u :u :u :u :i :i :i :i :m :m :m :m :n :n :n :n]}))))
 
 
 (deftest vpoint-test
   (testing "Validity of vpoint"
     (is (vpoint? []))
-    (is (vpoint? [:N]))
-    (is (vpoint? [:N :U]))
-    (is (not (vpoint? #{:N :U})))))
+    (is (vpoint? [:n]))
+    (is (vpoint? [:n :u]))
+    (is (not (vpoint? #{:n :u})))))
 
 (deftest rand-vpoint-test
   (testing "Validity of vpoint"
@@ -486,20 +486,20 @@
 
 (deftest vspace-test
   (testing "Validity of vspace"
-    (is (vspace? [[:N] [:I] [:U] [:M]]))
-    (is (vspace? #{[:N] [:I] [:U] [:M]})) ;; ? can be a set
-    (is (not (vspace? [[:N :N] [:N :U] [:N :I] [:I :U]])))
+    (is (vspace? [[:n] [:i] [:u] [:m]]))
+    (is (vspace? #{[:n] [:i] [:u] [:m]})) ;; ? can be a set
+    (is (not (vspace? [[:n :n] [:n :u] [:n :i] [:i :u]])))
     (is (vspace? (vspace nuim-code 3)))
     (is (vspace? (vspace nmui-code 3)))))
 
 
 (deftest vdict-test
   (testing "Validity of vdict"
-    (is (vdict? (let [vp->r {[:N :M] :M
-                             [:U :U] :I
-                             ;; [:X :Y] :M
-                             [:U :U :I] :N}]
-                  (vdict {:default-result :U} vp->r))))))
+    (is (vdict? (let [vp->r {[:n :m] :m
+                             [:u :u] :i
+                             ;; [:x :y] :m
+                             [:u :u :i] :n}]
+                  (vdict {:default-result :u} vp->r))))))
 
 
 (deftest dna->vdict-test
@@ -507,66 +507,66 @@
     (is ((every-pred vdict? sorted?)
          (dna->vdict {:sorted? true} (rand-dna 4)))))
   (testing "Correctness of transformation"
-    (is (= (dna->vdict [:M :I :U :N])
-           {[:N] :M, [:U] :I, [:I] :U, [:M] :N}))
-    (is (= (dna->vdict [:N :M :U :U
-                        :I :I :I :M
-                        :M :N :U :I
-                        :I :U :M :N])
-           {[:N :N] :N, [:N :U] :M, [:N :I] :U, [:N :M] :U,
-            [:U :N] :I, [:U :U] :I, [:U :I] :I, [:U :M] :M,
-            [:I :N] :M, [:I :U] :N, [:I :I] :U, [:I :M] :I,
-            [:M :N] :I, [:M :U] :U, [:M :I] :M, [:M :M] :N}))))
+    (is (= (dna->vdict [:m :i :u :n])
+           {[:n] :m, [:u] :i, [:i] :u, [:m] :n}))
+    (is (= (dna->vdict [:n :m :u :u
+                        :i :i :i :m
+                        :m :n :u :i
+                        :i :u :m :n])
+           {[:n :n] :n, [:n :u] :m, [:n :i] :u, [:n :m] :u,
+            [:u :n] :i, [:u :u] :i, [:u :i] :i, [:u :m] :m,
+            [:i :n] :m, [:i :u] :n, [:i :i] :u, [:i :m] :i,
+            [:m :n] :i, [:m :u] :u, [:m :i] :m, [:m :m] :n}))))
 
 
 (deftest vdict->vmap-test
   (testing "Validity of vmap"
-    (is (vmap? (vdict->vmap (dna->vdict {} [:N]))))
-    (is (vmap? (vdict->vmap (dna->vdict {} [:U]))))
-    (is (vmap? (vdict->vmap (dna->vdict {} [:I]))))
-    (is (vmap? (vdict->vmap (dna->vdict {} [:M]))))
+    (is (vmap? (vdict->vmap (dna->vdict {} [:n]))))
+    (is (vmap? (vdict->vmap (dna->vdict {} [:u]))))
+    (is (vmap? (vdict->vmap (dna->vdict {} [:i]))))
+    (is (vmap? (vdict->vmap (dna->vdict {} [:m]))))
     (is (vmap? (vdict->vmap (dna->vdict {} (rand-dna 3))))))
   (testing "Correctness of transformation"
-    (is (= :N
-           (vdict->vmap {[] :N})))
-    (is (= '{:N :M, :U :I, :I :U, :M :N}
-           (vdict->vmap {[:N] :M, [:U] :I, [:I] :U, [:M] :N})))
-    (is (= '{:N {:N :N, :U :M, :I :U, :M :U},
-             :U {:N :I, :U :I, :I :I, :M :M},
-             :I {:N :M, :U :N, :I :U, :M :I},
-             :M {:N :I, :U :U, :I :M, :M :N}}
-           (vdict->vmap {[:N :N] :N, [:N :U] :M, [:N :I] :U, [:N :M] :U,
-                         [:U :N] :I, [:U :U] :I, [:U :I] :I, [:U :M] :M,
-                         [:I :N] :M, [:I :U] :N, [:I :I] :U, [:I :M] :I,
-                         [:M :N] :I, [:M :U] :U, [:M :I] :M, [:M :M] :N})))))
+    (is (= :n
+           (vdict->vmap {[] :n})))
+    (is (= '{:n :m, :u :i, :i :u, :m :n}
+           (vdict->vmap {[:n] :m, [:u] :i, [:i] :u, [:m] :n})))
+    (is (= '{:n {:n :n, :u :m, :i :u, :m :u},
+             :u {:n :i, :u :i, :i :i, :m :m},
+             :i {:n :m, :u :n, :i :u, :m :i},
+             :m {:n :i, :u :u, :i :m, :m :n}}
+           (vdict->vmap {[:n :n] :n, [:n :u] :m, [:n :i] :u, [:n :m] :u,
+                         [:u :n] :i, [:u :u] :i, [:u :i] :i, [:u :m] :m,
+                         [:i :n] :m, [:i :u] :n, [:i :i] :u, [:i :m] :i,
+                         [:m :n] :i, [:m :u] :u, [:m :i] :m, [:m :m] :n})))))
 
 (deftest vmap-dimension-test
   (testing "Cached dimension in vmap meta"
     (is (= 5 (vmap-dimension (dna->vmap (rand-dna 5))))))
   
   (testing "Matching dimension for vmaps without meta"
-    (is (= 0 (vmap-dimension :N)))
-    (is (= 0 (vmap-dimension :U)))
-    (is (= 1 (vmap-dimension {:N :M, :U :I, :I :U, :M :N})))
+    (is (= 0 (vmap-dimension :n)))
+    (is (= 0 (vmap-dimension :u)))
+    (is (= 1 (vmap-dimension {:n :m, :u :i, :i :u, :m :n})))
     (is (= 2 (vmap-dimension
-              {:N {:N :N, :U :M, :I :U, :M :U},
-               :U {:N :I, :U :I, :I :I, :M :M},
-               :I {:N :M, :U :N, :I :U, :M :I},
-               :M {:N :I, :U :U, :I :M, :M :N}}))))) 
+              {:n {:n :n, :u :m, :i :u, :m :u},
+               :u {:n :i, :u :i, :i :i, :m :m},
+               :i {:n :m, :u :n, :i :u, :m :i},
+               :m {:n :i, :u :u, :i :m, :m :n}}))))) 
 
 (deftest vmap-perspectives-test
   (testing "Correct output shape"
-    (is (= {[0 1] {:M {:M :U, :I :I, :U :M, :N :N}
-                   :I {:M :U, :I :I, :U :M, :N :N}
-                   :U {:M :U, :I :I, :U :M, :N :N}
-                   :N {:M :U, :I :I, :U :M, :N :N}}
-            [1 0] {:M {:M :U, :I :U, :U :U, :N :U}
-                   :I {:M :I, :I :I, :U :I, :N :I}
-                   :U {:M :M, :I :M, :U :M, :N :M}
-                   :N {:M :N, :I :N, :U :N, :N :N}}}
+    (is (= {[0 1] {:m {:m :u, :i :i, :u :m, :n :n}
+                   :i {:m :u, :i :i, :u :m, :n :n}
+                   :u {:m :u, :i :i, :u :m, :n :n}
+                   :n {:m :u, :i :i, :u :m, :n :n}}
+            [1 0] {:m {:m :u, :i :u, :u :u, :n :u}
+                   :i {:m :i, :i :i, :u :i, :n :i}
+                   :u {:m :m, :i :m, :u :m, :n :m}
+                   :n {:m :n, :i :n, :u :n, :n :n}}}
            (vmap-perspectives
-            {[0 1] [:N :M :I :U :N :M :I :U :N :M :I :U :N :M :I :U],
-             [1 0] [:N :N :N :N :M :M :M :M :I :I :I :I :U :U :U :U]}))))
+            {[0 1] [:n :m :i :u :n :m :i :u :n :m :i :u :n :m :i :u],
+             [1 0] [:n :n :n :n :m :m :m :m :i :i :i :i :u :u :u :u]}))))
   (testing "Retains dna-perspectives metadata"
     (is (= '([0 1 2 3] [0 1 3 2] [0 2 1 3] [0 2 3 1] [0 3 1 2] [0 3 2 1] [1 0 2 3] [1 0 3 2] [1 2 0 3] [1 2 3 0] [1 3 0 2] [1 3 2 0] [2 0 1 3] [2 0 3 1] [2 1 0 3] [2 1 3 0] [2 3 0 1] [2 3 1 0] [3 0 1 2] [3 0 2 1] [3 1 0 2] [3 1 2 0] [3 2 0 1] [3 2 1 0])
            (:sorted-keys
@@ -574,40 +574,40 @@
 
 (deftest rel-test
   (testing "Correctness of relation"
-    (is (= :N (rel) (rel :N) (rel :N :N)))
-    (is (= :U (rel :U) (rel :U :U) (rel :N :U)))
-    (is (= :I (rel :I) (rel :I :I) (rel :N :I)))
-    (is (= :M (rel :M) (rel :M :M) (rel :N :M)
-           (rel :M :N) (rel :M :U) (rel :M :I) (rel :U :I))))
+    (is (= :n (rel) (rel :n) (rel :n :n)))
+    (is (= :u (rel :u) (rel :u :u) (rel :n :u)))
+    (is (= :i (rel :i) (rel :i :i) (rel :n :i)))
+    (is (= :m (rel :m) (rel :m :m) (rel :n :m)
+           (rel :m :n) (rel :m :u) (rel :m :i) (rel :u :i))))
 
   (testing "Multiple arguments"
-    (is (= :M (rel :U :I :U :N))))
+    (is (= :m (rel :u :i :u :n))))
 
   (testing "formDNA relation"
-    (is (= (rel [:N :M :U :I] [:M :N :I :N]) [:M :M :M :I]))
-    (is (= (rel [:N :M :U :I  :I :U :N :M  :M :I :I :I  :U :U :M :N]
-                [:N :U :I :M] [:N :U :I :M])
-           [:N :M :U :I  :M :U :U :M  :M :I :I :I  :M :M :M :M]))
+    (is (= (rel [:n :m :u :i] [:m :n :i :n]) [:m :m :m :i]))
+    (is (= (rel [:n :m :u :i  :i :u :n :m  :m :i :i :i  :u :u :m :n]
+                [:n :u :i :m] [:n :u :i :m])
+           [:n :m :u :i  :m :u :u :m  :m :i :i :i  :m :m :m :m]))
     (is (= (rel
-            [:N :U :I :M  :N :N :I :I  :N :U :N :U  :N :N :N :N
-             :N :U :I :M  :N :U :I :M  :N :U :N :U  :N :U :N :U
-             :N :U :I :M  :N :N :I :I  :N :U :I :M  :N :N :I :I
-             :N :U :I :M  :N :U :I :M  :N :U :I :M  :N :U :I :M]
-            [:M :I :U :N  :I :M :N :U  :U :N :M :I  :N :U :I :M])
-           [:M :M :M :M  :I :I :I :I  :U :U :U :U  :N :N :N :N
-            :I :M :I :M  :M :M :M :M  :N :U :N :U  :U :U :U :U
-            :U :U :M :M  :N :N :I :I  :M :M :M :M  :I :I :I :I
-            :N :U :I :M  :U :U :M :M  :I :M :I :M  :M :M :M :M]))))
+            [:n :u :i :m  :n :n :i :i  :n :u :n :u  :n :n :n :n
+             :n :u :i :m  :n :u :i :m  :n :u :n :u  :n :u :n :u
+             :n :u :i :m  :n :n :i :i  :n :u :i :m  :n :n :i :i
+             :n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :m]
+            [:m :i :u :n  :i :m :n :u  :u :n :m :i  :n :u :i :m])
+           [:m :m :m :m  :i :i :i :i  :u :u :u :u  :n :n :n :n
+            :i :m :i :m  :m :m :m :m  :n :u :n :u  :u :u :u :u
+            :u :u :m :m  :n :n :i :i  :m :m :m :m  :i :i :i :i
+            :n :u :i :m  :u :u :m :m  :i :m :i :m  :m :m :m :m]))))
 
 
 (deftest inv-test
   (testing "Correctness of inversion"
-    (is (= :M (inv) (inv :N)))
-    (is (= :I (inv :U)))
-    (is (= :U (inv :I)))
-    (is (= :N (inv :M))))
+    (is (= :m (inv) (inv :n)))
+    (is (= :i (inv :u)))
+    (is (= :u (inv :i)))
+    (is (= :n (inv :m))))
 
   (testing "formDNA inversion"
-    (is (= [:M :I :U :N] (inv [:N :U :I :M])))
-    (is (= [:M :N :I :U  :U :I :M :N  :N :U :U :U  :I :I :N :M]
-           (inv [:N :M :U :I  :I :U :N :M  :M :I :I :I  :U :U :M :N])))))
+    (is (= [:m :i :u :n] (inv [:n :u :i :m])))
+    (is (= [:m :n :i :u  :u :i :m :n  :n :u :u :u  :i :i :n :m]
+           (inv [:n :m :u :i  :i :u :n :m  :m :i :i :i  :u :u :m :n])))))

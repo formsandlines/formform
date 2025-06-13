@@ -11,14 +11,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Constant
 
-(def consts #{:N :U :I :M})
+(def consts #{:n :u :i :m})
 (def var-const :_)
 
 (def const? (comp some? consts))
 
 ;; predefined sort-codes
-(def nuim-code [:N :U :I :M])
-(def nmui-code [:N :M :U :I])
+(def nuim-code [:n :u :i :m])
+(def nmui-code [:n :m :u :i])
 
 
 (defn digit->const
@@ -32,10 +32,10 @@
   ([c] (char->const nuim-code c))
   ([sort-code c]
    (case c
-     (\n \N) :N
-     (\u \U) :U
-     (\i \I) :I
-     (\m \M) :M
+     (\n \N) :n
+     (\u \U) :u
+     (\i \I) :i
+     (\m \M) :m
      \_      var-const
      (when-let [n (utils/parse-int-maybe (str c))]
        (digit->const sort-code n)))))
@@ -45,8 +45,8 @@
   ([sort-code c]
    ;; {:pre [(consts c)]}
    (condp = sort-code
-     nuim-code (case c :N 0 :U 1 :I 2 :M 3)
-     nmui-code (case c :N 0 :M 1 :U 2 :I 3)
+     nuim-code (case c :n 0 :u 1 :i 2 :m 3)
+     nmui-code (case c :n 0 :m 1 :u 2 :i 3)
      ((zipmap sort-code (range)) c))))
 
 (defn const?->digit
@@ -152,9 +152,9 @@
 
 (comment
 
-  (reorder-dna-seq [:N :U :I :M  :U :I :M :N  :I :M :N :U  :M :N :U :I]
+  (reorder-dna-seq [:n :u :i :m  :u :i :m :n  :i :m :n :u  :m :n :u :i]
                    nuim-code nmui-code)
-  [:N :M :U :I  :M :I :N :U  :U :N :I :M  :I :U :M :N]
+  [:n :m :u :i  :m :i :n :u  :u :n :i :m  :i :u :m :n]
 
   (let [sort-code-from nuim-code
         sort-code-to nmui-code]
@@ -390,11 +390,11 @@
 
 
 (defn vdict
-  [{:keys [default-result sorted?] :or {default-result :N sorted? false}}
+  [{:keys [default-result sorted?] :or {default-result :n sorted? false}}
    vp->r]
   (let [dim   (count (ffirst vp->r))
         vspc  (vspace dim)
-        def-r (if (const? default-result) default-result :N)]
+        def-r (if (const? default-result) default-result :n)]
     (->> (map #(let [r (vp->r %)]
                  (if (const? r)
                    [% r]
@@ -445,7 +445,7 @@
     (cond
       (some? cached)  cached
       (keyword? vmap) dim
-      :else           (let [vmap-part (:N vmap)]
+      :else           (let [vmap-part (:n vmap)]
                         (recur vmap-part
                                (:dim (meta vmap-part))
                                (inc dim))))))
@@ -456,18 +456,18 @@
 
 (defn relc [a b]
   (case a
-    :M :M
-    :N b
+    :m :m
+    :n b
     (case b
-      :M :M
-      :N a
+      :m :m
+      :n a
       (case [a b]
-        [:U :U] :U
-        [:I :I] :I
-        ([:U :I] [:I :U]) :M))))
+        [:u :u] :u
+        [:i :i] :i
+        ([:u :i] [:i :u]) :m))))
 
 (defn rel
-  ([]  :N)
+  ([]  :n)
   ([a] a)
   ([a b] (if (and (const? a) (const? b))
            (relc a b)
@@ -482,13 +482,13 @@
 
 (defn invc [a]
   (case a
-    :N :M
-    :U :I
-    :I :U
-    :M :N))
+    :n :m
+    :u :i
+    :i :u
+    :m :n))
 
 (defn inv
-  ([]  :M)
+  ([]  :m)
   ([a] (if (const? a)
          (invc a)
          (mapv inv a)))
@@ -497,7 +497,7 @@
 
 (comment
   
-  (inv :M)
+  (inv :m)
   
   ;; (set! *print-length* 50)
   ;; (require '[criterium.core :as crt])

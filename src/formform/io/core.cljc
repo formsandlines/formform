@@ -29,9 +29,6 @@
                  (calc/digit->const sort-code)
                  (calc/const->digit)
                  str)
-            s)
-        s (if (#{"n" "u" "i" "m"} s) ;; !TEMP
-            (str/upper-case s)
             s)]
     (keyword s)))
 
@@ -45,9 +42,7 @@
   [sort-code prefixed-s]
   (let [s       (-> (subs prefixed-s 2))
         digits?
-        (case (first s) (\n \u \i \m  \N \U \I \M) false true) ;; !TEMP
-        ;; (case (first s) (\N \U \I \M) false true)
-        ]
+        (case (first s) (\n \u \i \m) false true)]
     (if digits?
       ;; ? allow numeric formDNA
       (calc/digits->dna sort-code (mapv (comp clojure.edn/read-string str) s))
@@ -280,7 +275,7 @@
           (and use-unclear?
                (= expr-common/tag_unclear op-sym))
           {:type :unclear
-           :value :U
+           :value :u
            :label (:label data)}
           (and use-seq-reentry?
                (= expr-common/tag_seq-reentry op-sym))
@@ -340,14 +335,14 @@
   (expr/seq-reentry-opts? {:parity :even, :open? false, :interpr :rec-instr})
 
 
-  (uniform-expr {:branchname :space} [[:M] 'a])
+  (uniform-expr {:branchname :space} [[:m] 'a])
 
   (uniform-expr {:use-unmarked? true
                  :use-seq-reentry? true} (expr/seq-re :<r 'a 'b '(c d)))
 
   (uniform-expr {:use-unmarked? true} [:- 'a 'b])
 
-  (uniform-expr {:use-const? true} [:M :_])
+  (uniform-expr {:use-const? true} [:m :_])
 
 
   (let [g (fn [arg m]

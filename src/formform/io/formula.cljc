@@ -45,7 +45,7 @@ RE_SIGN     = #'@~?_?' | #'\\.\\.@~?\\.?_?';
 RE_OPTS     = RE_OPT {<'|'> RE_OPT};
 <RE_OPT>    = #'2r(\\+1)?' | 'alt' | 'open';
 
-FDNA        = #'::[nuimNUIM]+' | #'::[0123]+'; (* !TEMP *)
+FDNA        = #'::[nuim]+' | #'::[0123]+';
 FDNA_LIT    = FDNA;
 FDNA_SYM    = ':fdna';
 <FDNA_SPEC> = VARLIST FDNA;

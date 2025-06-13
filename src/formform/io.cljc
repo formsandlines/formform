@@ -101,12 +101,12 @@
   (print-expr (expr/seq-re :<r 'a,'b,'c))
   "{@ a, b, c}"
 
-  "::IIINUIUNUIINMIUNIINNUIUNIINNMIUNININUNUNUIINMIUNNNNNUNUNIINNMIUN"
+  "::iiinuiunuiinmiuniinnuiuniinnmiunininununuiinmiunnnnnununiinnmiun"
 
   (read-expr {:sort-code calc/nmui-code}
              (str "::" (str/reverse "3302200223013003030323022301030303032002230100003302230223013303")))
-  (print-dna [:I :I :I :N :U :I :U :N :U :I :I :N :M :I :U :N :I :I :N :N :U :I :U :N :I :I :N :N :M :I :U :N :I :N :I :N :U :N :U :N :U :I :I :N :M :I :U :N :N :N :N :N :U :N :U :N :I :I :N :N :M :I :U :N])
-  "::IIINUIUNUIINMIUNIINNUIUNIINNMIUNININUNUNUIINMIUNNNNNUNUNIINNMIUN"
+  (print-dna [:i :i :i :n :u :i :u :n :u :i :i :n :m :i :u :n :i :i :n :n :u :i :u :n :i :i :n :n :m :i :u :n :i :n :i :n :u :n :u :n :u :i :i :n :m :i :u :n :n :n :n :n :u :n :u :n :i :i :n :n :m :i :u :n])
+  "::iiinuiunuiinmiuniinnuiuniinnmiunininununuiinmiunnnnnununiinnmiun"
   
   
   ,)

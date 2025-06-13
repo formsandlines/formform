@@ -73,7 +73,7 @@
   :predicate unclear?
   :reducer
   (fn [[_ label] env]
-    (let [fdna [tag_formDNA [label] [:U :U :U :N]]]
+    (let [fdna [tag_formDNA [label] [:u :u :u :n]]]
       (simplify-op fdna env))))
 
 ;;-------------------------------------------------------------------------
@@ -199,7 +199,7 @@
         sign  (op-get seq-re :sign)
         exprs (op-get seq-re :nested-exprs)
         {:keys [parity open? interpr]} (seq-reentry-sign->opts sign)
-        ;; ! check if :U from environment can be equivalent to :U in exprs
+        ;; ! check if :u from environment can be equivalent to :u in exprs
         [re-entry? exprs]
         (let [re-expr     (if (symx/arrangement? (first exprs))
                             (symx/arr-prepend sign (first exprs))
@@ -224,36 +224,36 @@
               [x y z] (map #(get exprs % :∅) (range 3))]
           (match [interpr open? parity  x y z]
                  ;; primitive cases:
-                 [_ _     :even nil :∅  :∅] :U ;; ((f))
-                 [_ _     _     nil :∅  :∅] [:U] ;; (f)
-                 [_ false _     nil nil :∅] :U ;; ((f))
-                 [_ true  _     nil nil :∅] [:U] ;; (((f))) => (f)
+                 [_ _     :even nil :∅  :∅] :u ;; ((f))
+                 [_ _     _     nil :∅  :∅] [:u] ;; (f)
+                 [_ false _     nil nil :∅] :u ;; ((f))
+                 [_ true  _     nil nil :∅] [:u] ;; (((f))) => (f)
 
                  ;; if interpretation of `mn` is “recursive identity”
                  ;; and `f = ((f))` can be separated from the rest:
                  ;; f x      |  (f) x 
-                 [:rec-ident true  :even xs :∅ :∅] (>< (make :U xs))
-                 [:rec-ident true  _     xs :∅ :∅] (>< (make :I xs))
+                 [:rec-ident true  :even xs :∅ :∅] (>< (make :u xs))
+                 [:rec-ident true  _     xs :∅ :∅] (>< (make :i xs))
                  ;; (f) x    |  ((f x))
-                 [:rec-ident true  _     nil ys :∅] (>< (make :I ys))
-                 [:rec-ident false _     xs nil :∅] (>< (make :U xs))
+                 [:rec-ident true  _     nil ys :∅] (>< (make :i ys))
+                 [:rec-ident false _     xs nil :∅] (>< (make :u xs))
                  ;; ((f x))  |  (((f) x))
-                 [:rec-ident false :even nil ys nil] (>< (make :U ys))
-                 [:rec-ident false _     nil ys nil] (>< (make :I ys))
+                 [:rec-ident false :even nil ys nil] (>< (make :u ys))
+                 [:rec-ident false _     nil ys nil] (>< (make :i ys))
 
                  ;; by case distinction:
-                 [_ _     _     (:or :U ([:U] :seq)) nil :∅] [:U] ;; ((f U/I))
-                 [_ _     _     nil (:or :U ([:U] :seq)) :∅] :U ;; ((f) U/I)
+                 [_ _     _     (:or :u ([:u] :seq)) nil :∅] [:u] ;; ((f U/I))
+                 [_ _     _     nil (:or :u ([:u] :seq)) :∅] :u ;; ((f) U/I)
 
-                 [_ false :even (:or :U ([:U] :seq)) :∅ :∅] :U ;; (f U/I)
-                 [_ true  :even (:or :U ([:U] :seq)) :∅ :∅] [:U] ;; (f U/I)
-                 [_ true  _     (:or :U ([:U] :seq)) :∅ :∅] :U ;; (f U/I)
-                 [_ false _     (:or :U ([:U] :seq)) :∅ :∅] [:U] ;; (f U/I)
+                 [_ false :even (:or :u ([:u] :seq)) :∅ :∅] :u ;; (f U/I)
+                 [_ true  :even (:or :u ([:u] :seq)) :∅ :∅] [:u] ;; (f U/I)
+                 [_ true  _     (:or :u ([:u] :seq)) :∅ :∅] :u ;; (f U/I)
+                 [_ false _     (:or :u ([:u] :seq)) :∅ :∅] [:u] ;; (f U/I)
 
-                 [_ false :even nil (:or :U ([:U] :seq)) nil] [:U] ;; (((f) U/I))
-                 [_ true  :even nil (:or :U ([:U] :seq)) nil] :U ;; (((f) U/I))
-                 [_ true  _     nil (:or :U ([:U] :seq)) nil] [:U] ;; (((f) U/I))
-                 [_ false _     nil (:or :U ([:U] :seq)) nil] :U ;; (((f) U/I))
+                 [_ false :even nil (:or :u ([:u] :seq)) nil] [:u] ;; (((f) U/I))
+                 [_ true  :even nil (:or :u ([:u] :seq)) nil] :u ;; (((f) U/I))
+                 [_ true  _     nil (:or :u ([:u] :seq)) nil] [:u] ;; (((f) U/I))
+                 [_ false _     nil (:or :u ([:u] :seq)) nil] :u ;; (((f) U/I))
 
                  ;; if nothing applies, return the reduced seq-reentry FORM:
                  :else (apply make tag_seq-reentry sign exprs)))
@@ -330,19 +330,19 @@
 ;; Compound expressions
 
 ;; Isolator FORMs/class
-(defoperator :N->M [x] (form (seq-re :<r (form x))
+(defoperator :n->m [x] (form (seq-re :<r (form x))
                              (seq-re :<..r (form x))))
-(defoperator :M->M [x] (form (seq-re :<r x)
+(defoperator :m->m [x] (form (seq-re :<r x)
                              (seq-re :<..r x)))
-(defoperator :U->M [x] (form (form (seq-re :<r (form x)) x)
+(defoperator :u->m [x] (form (form (seq-re :<r (form x)) x)
                              (form (seq-re :<..r x) (form x))))
-(defoperator :I->M [x] (form (form (seq-re :<r x) (form x))
+(defoperator :i->m [x] (form (form (seq-re :<r x) (form x))
                              (form (seq-re :<..r (form x)) x)))
 
-(def const->isolator {:N (partial make :N->M)
-                      :M (partial make :M->M)
-                      :U (partial make :U->M)
-                      :I (partial make :I->M)})
+(def const->isolator {:n (partial make :n->m)
+                      :m (partial make :m->m)
+                      :u (partial make :u->m)
+                      :i (partial make :i->m)})
 
 ;; ! refactor
 ;; Selector FORMs/class
@@ -350,14 +350,14 @@
 (defn selector
   ([vars->consts] (selector vars->consts true))
   ([vars->consts simplify?]
-   (if (and simplify? (every? #{:M :N} (vals vars->consts)))
+   (if (and simplify? (every? #{:m :n} (vals vars->consts)))
      (apply form (map (fn [[v c]]
-                        (if (= c :M) (form v) v)) vars->consts))
+                        (if (= c :m) (form v) v)) vars->consts))
      (let [select-UI (fn [[v c]] (case c
-                                   :N [(form v) (form v)]
-                                   :M [v v]
-                                   :U [v (form v)]
-                                   :I [(form v) v]))
+                                   :n [(form v) (form v)]
+                                   :m [v v]
+                                   :u [v (form v)]
+                                   :i [(form v) v]))
            all-selections (map select-UI vars->consts)]
        (make (form (apply make (map first all-selections))
                    (form tag_seq-reentry :<..r))
@@ -372,14 +372,14 @@
     (apply make xs)))
 
 (comment
-  (selector {'a :U 'b :N 'c :M})
+  (selector {'a :u 'b :n 'c :m})
   '[:- [a [b] c [[:seq-re :<..r nil]]] [[a] [b] c [[:seq-re :<r nil]]]]
 
-  (selector {'a :M [['a] 'b] :N})
+  (selector {'a :m [['a] 'b] :n})
 
-  [:sel ['a :M] ['b :N] ['c :U]]
+  [:sel ['a :m] ['b :n] ['c :u]]
 
-  [:sel ['a 'b 'c] [:M :N :U] [:U :M :N] [:U :U :I]]
+  [:sel ['a 'b 'c] [:m :n :u] [:u :m :n] [:u :u :i]]
 
   "[:sel [a,b,c] mnu umn uui]"
 
@@ -387,10 +387,10 @@
 
   "[:mem [a [[x] y]] [b {@.. x,z}] ([:sel [a,b] mu] [:sel [a,b] ni])]"
 
-  [:sel [[:M :N :U] [:U :M :N] [:U :U :I]] ['a 'b 'c]]
+  [:sel [[:m :n :u] [:u :m :n] [:u :u :i]] ['a 'b 'c]]
   "[:sel [mnu umn uui] a,b,c]"
 
-  (let [selections [[:M :N :U] [:U :M :N] [:U :U :I]]
+  (let [selections [[:m :n :u] [:u :m :n] [:u :u :i]]
         exprs ['a 'b 'c]]
     (let [xs (mapv (comp selector zipmap)
                    (repeat (count selections) exprs) selections)]
@@ -408,21 +408,21 @@
 
 (defoperator :<n> [& exprs]
   (let [n-exprs (apply form exprs)]
-    (make (form n-exprs :U) (form n-exprs :I))))
+    (make (form n-exprs :u) (form n-exprs :i))))
 
 (defoperator :<m> [& exprs]
   (let [m-exprs (apply make (map form exprs))]
-    (make (form m-exprs :U) (form m-exprs :I))))
+    (make (form m-exprs :u) (form m-exprs :i))))
 
 (defoperator :<u> [& exprs]
   (let [n-exprs (apply form exprs)
         m-exprs (apply make (map form exprs))]
-    (make (form n-exprs :U) (form m-exprs :I))))
+    (make (form n-exprs :u) (form m-exprs :i))))
 
 (defoperator :<i> [& exprs]
   (let [n-exprs (apply form exprs)
         m-exprs (apply make (map form exprs))]
-    (make (form m-exprs :U) (form n-exprs :I))))
+    (make (form m-exprs :u) (form n-exprs :i))))
 
 
 ;;-------------------------------------------------------------------------
@@ -457,7 +457,7 @@
       filtered-fdna)))
 
 (defn- construct-formDNA
-  ([op-k] (construct-formDNA op-k [] [:N]))
+  ([op-k] (construct-formDNA op-k [] [:n]))
   ([op-k dna] (let [varorder (vec (core/gen-vars (calc/dna-dimension dna)))]
                 (construct-formDNA op-k varorder dna)))
   ([op-k varorder dna]
@@ -500,35 +500,35 @@
   (op-data [:seq-re 'a])
 
 
-  (core/simplify [:fdna ['a] [:N :U :I :M]]
-                 {'a :U})
+  (core/simplify [:fdna ['a] [:n :u :i :m]]
+                 {'a :u})
 
-  (core/simplify ['a [:fdna ['b] [:N :U :I :M]]]
-                 {'a :U})
-  ;;=> (:U [:fdna [b] [:N :U :I :M]])
-  '[[:fdna [b] [:U :U :M :M]]]
+  (core/simplify ['a [:fdna ['b] [:n :u :i :m]]]
+                 {'a :u})
+  ;;=> (:u [:fdna [b] [:n :u :i :m]])
+  '[[:fdna [b] [:u :u :m :m]]]
 
-  (core/simplify ['a [:fdna ['b] [:N :U :I :M]]])
-  ;;=> (a [:fdna [b] [:N :U :I :M]])
-  '[[:fdna [a b] [:M :M :M :M
-                  :I :M :I :M
-                  :U :U :M :M
-                  :N :U :I :M]]]
+  (core/simplify ['a [:fdna ['b] [:n :u :i :m]]])
+  ;;=> (a [:fdna [b] [:n :u :i :m]])
+  '[[:fdna [a b] [:m :m :m :m
+                  :i :m :i :m
+                  :u :u :m :m
+                  :n :u :i :m]]]
 
-  (core/simplify ['a 'b [:fdna ['c] [:N :U :I :M]]])
-  ;;=> (a b [:fdna [c] [:N :U :I :M]])
+  (core/simplify ['a 'b [:fdna ['c] [:n :u :i :m]]])
+  ;;=> (a b [:fdna [c] [:n :u :i :m]])
   '[[:fdna [a b c]
-     [:M :M :M :M  :M :M :M :M  :M :M :M :M  :M :M :M :M
-      :M :M :M :M  :I :M :I :M  :M :M :M :M  :I :M :I :M
-      :M :M :M :M  :M :M :M :M  :U :U :M :M  :U :U :M :M
-      :M :M :M :M  :I :M :I :M  :U :U :M :M  :N :U :I :M]]]
+     [:m :m :m :m  :m :m :m :m  :m :m :m :m  :m :m :m :m
+      :m :m :m :m  :i :m :i :m  :m :m :m :m  :i :m :i :m
+      :m :m :m :m  :m :m :m :m  :u :u :m :m  :u :u :m :m
+      :m :m :m :m  :i :m :i :m  :u :u :m :m  :n :u :i :m]]]
 
-  (meta (core/evaluate ['a 'b] {'b :U}))
-  (core/evaluate ['a 'b] {'a :M})
-  (core/eval-all ['a 'b] {'a :M})
+  (meta (core/evaluate ['a 'b] {'b :u}))
+  (core/evaluate ['a 'b] {'a :m})
+  (core/eval-all ['a 'b] {'a :m})
   (core/=> ['a 'b])
   (core/=>* ['a 'b])
-  (core/=>* ['a 'b [:fdna ['c] [:N :U :I :M]]])
+  (core/=>* ['a 'b [:fdna ['c] [:n :u :i :m]]])
 
   (core/=>* {:varorder ['l 'e 'r]}
             (make (seq-re :<r 'l 'e 'r)
@@ -537,21 +537,21 @@
   (defoperator :x5 [x] (repeat 5 x))
   (defoperator :xn [n x] (repeat n x))
   (defoperator :inv [x] (case x
-                          :N :M
-                          :U :I
-                          :I :U
-                          :M :N nil))
+                          :n :m
+                          :u :i
+                          :i :u
+                          :m :n nil))
 
   ;; ? how to deal with uninterpretable operators
   (defoperator :if [pred x t f] [:if pred x t f]
     :reducer (fn [[_ pred x t f] env]
                (if (pred (simplify x env)) t f)))
 
-  (core/interpret [:x5 [:U]])
-  (core/interpret [:xn 6 :U])
-  (core/simplify [:inv :U])
+  (core/interpret [:x5 [:u]])
+  (core/interpret [:xn 6 :u])
+  (core/simplify [:inv :u])
 
-  (core/simplify [:mem [[:x []]] [:if #(= % []) :x :M :U]])
+  (core/simplify [:mem [[:x []]] [:if #(= % []) :x :m :u]])
 
   (str (calc/vdict->vmap
         (calc/dna->vdict

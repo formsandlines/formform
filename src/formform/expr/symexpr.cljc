@@ -227,22 +227,22 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Core Symbols
 
-(defsymbol :N nil)
-(defsymbol :M [])
-(defsymbol :U [:seq-re :<r nil nil] :reducer (fn [u _] u)) ;; ! not DRY
-(defsymbol :I [:U])
+(defsymbol :n nil)
+(defsymbol :m [])
+(defsymbol :u [:seq-re :<r nil nil] :reducer (fn [u _] u)) ;; ! not DRY
+(defsymbol :i [:u])
 
-(defsymbol :0 :N)
-(defsymbol :1 :U)
-(defsymbol :2 :I)
-(defsymbol :3 :M)
+(defsymbol :0 :n)
+(defsymbol :1 :u)
+(defsymbol :2 :i)
+(defsymbol :3 :m)
 
-(defsymbol :mn :U)
+(defsymbol :mn :u)
 
-(def expr->const {nil                     :N
-                  []                      :M
-                  [:seq-re :<r nil nil]   :U
-                  [[:seq-re :<r nil nil]] :I
-                  [:U]                    :I})
+(def expr->const {nil                     :n
+                  []                      :m
+                  [:seq-re :<r nil nil]   :u
+                  [[:seq-re :<r nil nil]] :i
+                  [:u]                    :i})
 
 

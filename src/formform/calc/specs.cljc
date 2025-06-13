@@ -12,8 +12,8 @@
 
 (s/def ::const
   (s/with-gen
-    #(case % (:N :U :I :M) true false)
-    #(gen/elements [:N :U :I :M])))
+    #(case % (:n :u :i :m) true false)
+    #(gen/elements [:n :u :i :m])))
 
 (s/def ::consts (s/every ::const
                          :kind sequential?
@@ -25,7 +25,7 @@
   (s/with-gen
     (s/or :const     ::const
           :var-const ::var-const)
-    #(gen/elements [:N :U :I :M core/var-const])))
+    #(gen/elements [:n :u :i :m core/var-const])))
 
 (s/def ::const-int (s/int-in 0 4))
 (s/def ::const-int? (s/or :int ::const-int
@@ -39,8 +39,8 @@
   (s/with-gen
     (s/and vector?
            #(== 4 (count %))
-           #(= #{:N :U :I :M} (set %)))
-    #(gen/shuffle [:N :U :I :M])))
+           #(= #{:n :u :i :m} (set %)))
+    #(gen/shuffle [:n :u :i :m])))
 
 ;;-------------------------------------------------------------------------
 ;; formDNA

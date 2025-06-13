@@ -30,10 +30,10 @@
 ;; 
 ;; It is always assumed to be in `nuim-code` by default:
 ;; ```
-;;   0 = :N → unmarked
-;;   1 = :U → undetermined
-;;   2 = :I → imaginary
-;;   3 = :M → marked
+;;   0 = :n → unmarked
+;;   1 = :u → undetermined
+;;   2 = :i → imaginary
+;;   3 = :m → marked
 ;; ```
 ;; Make sure you convert to/from `nuim-code` when using different codes!
 
@@ -167,7 +167,7 @@
 
   * valid chars are: \\n \\u \\i \\m (upper- or lowercase) and \\0 \\1 \\2 \\3
   * valid integers are: 0 1 2 3
-  * valid keywords are: :N :U :I :M
+  * valid keywords are: :n :u :i :m
   * total argument count (including count of sequence args) must match a valid formDNA length, which is 4^d, where d is a natural number"
   [& xs]
   (apply core/make-dna xs))
@@ -447,7 +447,7 @@
 (defn vdict
   "Generates a vdict given a map vpoint->result (result is a constant).
 
-  * if the corresponding vspace is not a subset of the set of keys from `vp->r`, the remaining results will be filled with :N or a given default constant
+  * if the corresponding vspace is not a subset of the set of keys from `vp->r`, the remaining results will be filled with :n or a given default constant
   * optional `sorted?` defaults to false since sorting large vspace dimensions can be expensive"
   ([vpoint->result] (vdict {} vpoint->result))
   ([opts vpoint->result]
