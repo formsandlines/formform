@@ -1,3 +1,4 @@
+;; VVV
 ;; ========================================================================
 ;;     formform emulation module
 ;;     -- created 02/2025, (c) Peter Hofmann
@@ -773,21 +774,23 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
 #_
 (def match-dna (comp first calc-core/filter-dna))
 
+;; VVV
 (defn match-dna
   [dna umwelt]
   (if (== (count dna) 1)
     (dna 0)
     (let [qtn (apply str (mapv calc-core/const?->digit umwelt))
-          idx (- (count dna) 1
-                 (utils/parse-int qtn 4))]
+          idx (utils/parse-int qtn 4)]
       (dna idx))))
 
+;; VVV
 (defn match-dna--fast
   [dna umwelt-qtn]
   (if (== (count dna) 1)
     (dna 0)
-    (dna (- (count dna) 1 (utils/parse-int umwelt-qtn 4)))))
+    (dna (utils/parse-int umwelt-qtn 4))))
 
+;; VVV
 (defrule :match [-opts dna]
   "Matches an `umwelt` (of cell values) directly against the given `dna`, which is equivalent to interpreting and calculating a corresponding expression."
   (apply-rule
@@ -799,6 +802,7 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
    [_ umwelt-qtn _]
    (match-dna--fast dna umwelt-qtn)))
 
+;; VVV
 (defrule :life [-opts dna]
   "Modeled after the rules for the “Game of Life”:
 - a cell is “alive” when its value is not `:N`
@@ -823,78 +827,6 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
 
 
 (defrecord CASpec [rule-spec umwelt-spec ini-spec])
-
-#_
-(comment
-  (defspecies :selfi [-opts dna ini]
-    "1D cellular automaton. Takes a `dna` for its rule function (type `:match`) and an `ini` type (via `make-ini`). Its ‘umwelt’ is of type `:select-ltr`."
-    (specify-ca
-     [this options w]
-     (let [{:keys [overwrites]} options
-           umwelt-size (calc-core/dna-dimension dna)]
-       (with-meta
-         (map->CASpec (merge
-                       {:label       "SelFi"
-                        :resolution  [w]
-                        :rule-spec   (->Rule-Match dna)
-                        :umwelt-spec (->Umwelt-SelectLtr umwelt-size)
-                        :ini-spec    ini}
-                       overwrites))
-         {:constructor this}))))
-
-
-  (defspecies :mindform [-opts dna ini]
-    "2D cellular automaton. Takes a `dna` for its rule function (type `:match`) and an `ini` type (via `make-ini`). Its ‘umwelt’ is of type `:self-select-ltr`."
-    (specify-ca
-     [this options w h]
-     (let [{:keys [overwrites]} options
-           umwelt-size (calc-core/dna-dimension dna)]
-       (with-meta
-         (map->CASpec (merge
-                       {:label       "MindFORM"
-                        :resolution  [w h]
-                        :rule-spec   (->Rule-Match dna)
-                        :umwelt-spec (->Umwelt-SelfSelectLtr umwelt-size)
-                        :ini-spec    ini}
-                       overwrites))
-         {:constructor this}))))
-
-  (defspecies :lifeform [-opts dna]
-    "2D cellular automaton. Takes a `dna` as part of its rule function, which is of type `:life`. Its ‘umwelt’ is of type `:moore`."
-    (specify-ca
-     [this options w h]
-     (let [{:keys [overwrites]} options]
-       (with-meta
-         (map->CASpec (merge
-                       {:label       "LifeFORM"
-                        :resolution  [w h]
-                        :rule-spec   (->Rule-Life dna)
-                        :umwelt-spec (->Umwelt-Moore :column-first false)
-                        :ini-spec    (->Ini-Random -opts)}
-                       overwrites))
-         {:constructor this}))))
-
-  (defspecies :decisionform [-opts dna init-size]
-    "2D cellular automaton. Takes a `dna` as part of its rule function, which is of type `:life`, and an initial size for its `:rand-center` type ini. Its ‘umwelt’ is of type `:moore`."
-    (specify-ca
-     [this options w h]
-     (let [{:keys [overwrites]} options]
-       (with-meta
-         (map->CASpec (merge
-                       {:label       "DecisionFORM"
-                        :resolution  [w h]
-                        :rule-spec   (->Rule-Life dna)
-                        :umwelt-spec (->Umwelt-Moore :column-first false)
-                        :ini-spec    (->Ini-RandFigure -opts
-                                                       (->Ini-Constant -opts :N)
-                                                       init-size
-                                                       {:pos :center
-                                                        :align :center})}
-                       overwrites))
-         {:constructor this}))))
-
-  ,)
-
 
 (def sys-ini i/make-gen)
 
