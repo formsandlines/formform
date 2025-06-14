@@ -65,17 +65,17 @@
 (clerk/table {:nextjournal.clerk/width :prose}
              (clerk/use-headers
               (into [["" "Constant" "FORM interpretation"]]
-                    (let [vals [:N :M :U :I]]
+                    (let [vals [:n :m :u :i]]
                       (apply map vector
                              [["Unmarked" "Marked" "Undetermined" "Imaginary"]
                               vals
                               (map interpret vals)])))))
 
-;; Don’t get confused by the interpretation of `:U`, we will get to that very soon. `nil` is Clojures expression for “nothing” and it serves to represent the empty space in formform as well (which, of course, cannot really be represented).
+;; Don’t get confused by the interpretation of `:u`, we will get to that very soon. `nil` is Clojures expression for “nothing” and it serves to represent the empty space in formform as well (which, of course, cannot really be represented).
 
 ;; You might use constants in an expression like this:
 
-(def form-ex1 [[:M] :N])
+(def form-ex1 [[:m] :n])
 
 ;; Looking at the interpretation …
 
@@ -85,7 +85,7 @@
 
 (simplify form-ex1)
 
-;; And evaluates back to the constant `:M`:
+;; And evaluates back to the constant `:m`:
 
 (=> form-ex1)
 
@@ -105,7 +105,7 @@
 
 ;; But it can be interpreted by a given environment:
 
-(interpret {'x :U} 'x)
+(interpret {'x :u} 'x)
 
 ;; An uninterpretable variable or symbolic expression evaluates to a “hole” (represented by an underscore `:_`), which is a placeholder for any constant value:
 
@@ -126,7 +126,7 @@
 
 ;; Expressions of constant values are actually expression symbols, which is why they have an interpretation:
 
-(interpret :M)
+(interpret :m)
 
 ;; The _arrangement_ expression which captures the idea of the unmarked FORM is an example of an operator and gets interpreted as (you may have guessed it) a double-marked FORM:
 
@@ -138,9 +138,9 @@
 
 ;; You may at some point want to represent some of the *self-equivalent re-entry FORMs* that Ralf Peyn introduced in _uFORM iFORM_.
 
-;; Now we will come back to that strange interpretation of `:U`, which you can now identify as an operator with the keyword `:seq-re` (short for “self-equivalent re-entry FORM”):
+;; Now we will come back to that strange interpretation of `:u`, which you can now identify as an operator with the keyword `:seq-re` (short for “self-equivalent re-entry FORM”):
 
-(interpret :U)
+(interpret :u)
 
 ;; This is our *uFORM*. The two `nil` at the end are the empty nested spaces in $f = ((f .) .)$ (marked with a dot here).
 
@@ -215,15 +215,15 @@
 
 ;; `simplify` can take an _environment_ to interpret variables directly:
 
-(simplify ['a ['b]] {'a :U 'b :I})
+(simplify ['a ['b]] {'a :u 'b :i})
 
-;; As you can see, `:U` cannot be further simplified, since it is a primitive value, just like _mn_ (‘m’ on top of ‘n’) in uFORM iFORM:
+;; As you can see, `:u` cannot be further simplified, since it is a primitive value, just like _mn_ (‘m’ on top of ‘n’) in uFORM iFORM:
 
 ^{::clerk/visibility {:code :hide :result :show}}
 (clerk/table {:nextjournal.clerk/width :prose}
              (clerk/use-headers
               (into [["" "Constant" "Simplification"]]
-                    (let [vals [:N :M :U :I]]
+                    (let [vals [:n :m :u :i]]
                       (apply map vector
                              [["Unmarked" "Marked" "Undetermined" "Imaginary"]
                               vals
@@ -231,7 +231,7 @@
 
 (simplify [:seq-re :<r nil nil])
 
-;; > To keep things simple, I have chosen `:U` to represent the _uFORM_ aka ‘mn’ and `:I` for the _iFORM_ aka ‘(mn)’, but there is an alias `:mn` for `:U`, if you want to use this symbol instead.
+;; > To keep things simple, I have chosen `:u` to represent the _uFORM_ aka ‘mn’ and `:i` for the _iFORM_ aka ‘(mn)’, but there is an alias `:mn` for `:u`, if you want to use this symbol instead.
 
 ;; Arrangements using the `:-` operator will be simplified to either merge into the parent expression (if possible) or become double marked FORMs:
 
@@ -269,7 +269,7 @@
 
 ;; However, just like with `simplify`, you can provide an environment to interpret variables and determine the result:
 
-(evaluate [:uncl "love"] {"love" :M})
+(evaluate [:uncl "love"] {"love" :m})
 
 ;; Or you can use `eval-all` to evaluate the expression with all possible interpretation of all variables. The `:results` are provided as key-value pairs, where the key is a list of interpretations for each variable in the order specified by `:varorder`.
 
@@ -297,7 +297,7 @@
 
 ;; Constants and other expression symbols are written just like in Clojure:
 
-(io/read-expr ":M :U :mn")
+(io/read-expr ":m :u :mn")
 
 ;; Note that without the colon prefix, constants are interpreted as variables instead. This is by design, to be able to distinguish constants (and expression symbols in general) from variables more easily.
 
@@ -318,7 +318,7 @@ calc/nmui-code
 ;; Self-equivalent re-entry FORMs have a short notation with curly brackets, where each nested space is separated by a comma:
 
 (io/read-expr "{}")
-(io/read-expr "{a, (b {,}) {:M,}, c}")
+(io/read-expr "{a, (b {,}) {:m,}, c}")
 
 ;; As you can see, the default signature is `:<r`, but of course, you can provide your own:
 
@@ -339,7 +339,7 @@ calc/nmui-code
 
 (io/print-expr [[["a"] "b"] "black cat 🐈‍⬛"])
 
-(io/print-expr [:- :N [:U] [:I [:M]]])
+(io/print-expr [:- :n [:u] [:i [:m]]])
 
 ;; > Note that a formula that is being read and then printed from this data may not result in the same formula string (e.g. some whitespace may be added or removed), but structure and semantics should still be equal.
 

@@ -96,11 +96,11 @@
 ;; - `make-lifeform`
 ;; - `make-decisionform`
 
-;; Here is a _mindFORM_ whose rule acts on the results of the familiar _Slit_ expression and whose initialization looks like the _“ball”_ ini you may know from _uFORM iFORM_ (`:I :U :M :U :I`), but translated into 2D:
+;; Here is a _mindFORM_ whose rule acts on the results of the familiar _Slit_ expression and whose initialization looks like the _“ball”_ ini you may know from _uFORM iFORM_ (`:i :u :m :u :i`), but translated into 2D:
 
 (def slit2d-spec
   (make-mindform (exprs->dna '[[a] b] '[[b] a])
-                 (make-ini :ball :N nil {:pos :center :align :center})))
+                 (make-ini :ball :n nil {:pos :center :align :center})))
 
 ^{::clerk/viewer viewer-ca2d
   ::clerk/render-opts {:formform/cellsize 6}}
@@ -139,7 +139,7 @@ dna-slit
    (update viewer-vspace :add-viewers v/add-viewers [viewer-rule])
    (mapv vector
          (calc/vspace (calc/dna-dimension dna-coa))
-         (rseq dna-coa))))
+         dna-coa)))
 
 #_
 ^{::clerk/visibility {:code :hide}
@@ -237,19 +237,19 @@ dna-slit
   (make-ini :figure :help))
 
 ^{::clerk/viewer viewer-gen1d}
-(sys-ini (make-ini :ball :N nil {})
+(sys-ini (make-ini :ball :n nil {})
          61)
 
 ^{::clerk/viewer viewer-gen1d}
-(sys-ini (make-ini :ball :N nil {:pos :center :align :center})
+(sys-ini (make-ini :ball :n nil {:pos :center :align :center})
          61)
 
 ^{::clerk/viewer viewer-gen1d}
-(sys-ini (make-ini :ball :N nil {:pos :left :align :left})
+(sys-ini (make-ini :ball :n nil {:pos :left :align :left})
          61)
 
 ^{::clerk/viewer viewer-gen2d}
-(sys-ini (make-ini :ball :N nil {:pos :bottomright :align :bottomright})
+(sys-ini (make-ini :ball :n nil {:pos :bottomright :align :bottomright})
          31 17)
 
 

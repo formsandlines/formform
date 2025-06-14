@@ -4,10 +4,10 @@
 
 (defn- const->col [c]
   (case c
-    :N "black"
-    :U "red-500"
-    :I "green-500"
-    :M "blue-500"))
+    :n "black"
+    :u "red-500"
+    :i "green-500"
+    :m "blue-500"))
 
 (defn render-vcell-svg [c {:keys [formform/cellsize
                                   formform/grid-px
