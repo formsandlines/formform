@@ -10,16 +10,23 @@ All notable changes to this project will be documented in this file. This change
 - `expr/formDNA-perspectives` as a complement to `calc/dna-perspectives` which does the same thing but while transforming a formDNA expressions into an arrangement of formDNA expressions as its perspectives (keeping variable names)
 - `io/print-dna` and `io/print-const` functions such that formDNA and constants not wrapped in expressions can be printed properly in formula notation
 - `calc/dna-get` as a convenience function to quickly get a specific value from a dna (also because it isn’t straightforward that `filter-dna` can do the same thing with a little more effort)
+- `calc/vmap-perspectives` to complement `calc/dna-perspectives` (which it takes as input)
+- New operator `:tsds` provides a syntactic shortcut to build triple selective decision systems with binary selections. The 3 terms can be arbitrary expressions. Its FORMula notation looks like this: `[:tsds 100100 L,E,R]`
+- New `formform.emul` module to (declaratively) represent, compose and calculate cellular automata with FORM logic. The API is mostly complete, but small changes may still happen. An introduction and more detailled explanation is in progress.
+- `nuim-code` and `nmui-code` definitions in the API for convenience
 
 ### Changed
 
 - `=>*` aka `eval->expr-all` does now return formDNA as a proper vector that is already reversed at creation-time instead of adding performance cost with an `rseq`
+- Changed constant/formDNA to lowercase in FORMula notation as well as in formform syntax. It is now much more pleasent to read than with uppercase and more aligned with the conventions in mathematical texts such as uFORM iFORM and LoF, which was the primary reason for this breaking change. Please also read about the change to formDNA notation below that went along with this one.
+- Reversed the order of formDNA, which now reads left-to-right instead of right-to-left. The main reason for this change is to make formDNA more intuitive in reading and writing and reduce the mental load to reverse the order in your head. I apologize for this breaking change if you were already using formDNA; there will most certainly be no further changes to the notation. It went along with the new lowercase convention for constants, so that your existing formDNA data will not suddenly become incorrect and instead throws an exception, so you can safely make the transition. 
 
 ### Fixed
 
 - Macros not recognized in ClojureScript
 - `calc/permute-dna-seq`, which had an incorrect implementation and lack of testing
 - `calc/filter-dna` to handle the edge-case where formDNA dimension is 0, i.e. the dna is equivalent to a constant
+- `calc/dna-perspectives` now retains its original key-order in metadata after being converted to a map, which is useful if the order in which perspectives are listed matters
 
 ## [0.1.0] - 2023-05-07
 

@@ -70,6 +70,6 @@ If you want to support my work, consider [buying me a coffee](https://www.buymea
 
 ---
 
-(c) 2018–2024 by Peter Hofmann
+(c) 2018–2025 by Peter Hofmann
 
 License: MIT
