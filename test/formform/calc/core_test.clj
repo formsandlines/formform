@@ -2,12 +2,29 @@
   (:require [clojure.test :as t :refer [deftest is are testing]]
             [formform.calc.specs :refer [fns-with-specs]]
             [formform.calc.core :refer :all]
+            [formform.utils :as utils]
             [orchestra.spec.test :as stest]))
 
 (doseq [fsym fns-with-specs] (stest/instrument fsym))
 
-(def rv (comp vec reverse))
 
+(defn weight-sample-approximation
+  [n weights]
+  (->> (utils/rng-select-n (utils/make-rng)
+                           [\a \b \c \d]
+                           n
+                           weights)
+       (frequencies)
+       (sort-by key)
+       (mapv (fn [[k v]] [k (Math/round (/ v (/ (float n) 10)))]))))
+
+(deftest random-weights-test
+  (testing "weight argument normalization"
+    (is (= (conform-nuim-weights {:m 3 :u 2}) [0 2 0 3]))
+    (is (= (conform-nuim-weights 0.2) [0.8 0.2 0.2 0.2])))
+  (testing "weights approximation with sufficient sample size"
+    (is (= (weight-sample-approximation 1000 [1 2 3 4])
+           [[\a 1] [\b 2] [\c 3] [\d 4]]))))
 
 (deftest filter-dna-seq-test
   (testing "Correctness and completeness of selection"

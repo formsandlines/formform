@@ -20,6 +20,46 @@
 (def nuim-code [:n :u :i :m])
 (def nmui-code [:n :m :u :i])
 
+(defn conform-nuim-weights
+  [w]
+  (cond
+    (number? w)
+    (if (<= 0.0 w 1.0)
+      [(- 1.0 w) w w w]
+      (throw (ex-info "Single weight must be between 0.0 and 1.0."
+                      {:weight w})))
+
+    (sequential? w)
+    (if (= (count w) 4)
+      w
+      (throw (ex-info "Must be exactly 4 weights: [n u i m]"
+                      {:weights w})))
+
+    (and (map? w) (seq w))
+    (if (every? consts (keys w))
+      (mapv #(get w % 0) nuim-code)
+      (throw (ex-info "Keys for map weights must be in `#{:n :u :i :m}.`"
+                      {:weights w})))
+
+    :else (throw (ex-info "Invalid weights format."
+                          {:weights w}))))
+
+(defn rand-const
+  ([rng] (rand-const rng nil))
+  ([rng weights]
+   (if weights
+     (let [weights (conform-nuim-weights weights)]
+       (utils/rng-select rng nuim-code weights))
+     (utils/rng-select rng nuim-code))))
+
+(defn rand-consts
+  ([rng n] (rand-consts rng n nil))
+  ([rng n weights]
+   (if weights
+     (let [weights (conform-nuim-weights weights)]
+       (vec (utils/rng-select-n rng nuim-code n weights)))
+     (vec (utils/rng-select-n rng nuim-code n)))))
+
 
 (defn digit->const
   ([n] (digit->const nuim-code n))
@@ -265,15 +305,34 @@
       dna
       (throw (ex-info "invalid dna length" {:dna dna})))))
 
-;; ? use clojure.test.check.random for seeds
+
 (defn rand-dna
-  ([dim] (rand-dna dim nil))
-  ([dim elems]
-   (let [len    (apply * (repeat dim 4))
-         gen-fn #(rand-nth (if (and (some? elems) (<= (count elems) 4))
-                             elems
-                             nuim-code))]
-     (vec (repeatedly len gen-fn)))))
+  ([rng dim] (rand-dna rng dim nil))
+  ([rng dim weights]
+   (let [len (apply * (repeat dim 4))]
+     (if weights
+       (let [weights (conform-nuim-weights weights)]
+         (rand-consts rng len weights))
+       (rand-consts rng len)))))
+
+(defn rand-vpoint
+  ([rng dim] (rand-vpoint rng dim nil))
+  ([rng dim weights]
+   (if weights
+     (let [weights (conform-nuim-weights weights)]
+       (rand-consts rng dim weights))
+     (rand-consts rng dim))))
+
+#_
+(defn rand-dna
+  ([rng dim] (rand-dna rng dim nil))
+  ([rng dim elems]
+   (let [len  (apply * (repeat dim 4))
+         coll (if (and (some? elems) (<= (count elems) 4))
+                elems
+                nuim-code)]
+     (vec (utils/rng-select-n rng coll len)))))
+
 
 (defn filter-dna-seq
   [dna-seq depth-selections]

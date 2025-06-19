@@ -52,9 +52,29 @@
   "Checks if the argument is a valid constant."
   (partial s/valid? ::sp/const))
 
-(def rand-const
-  "Generates a random constant."
-  #(rand-nth nuim-code))
+(s/fdef rand-const
+  :args (s/alt :ar0 (s/cat)
+               :ar1 (s/cat :seed :rand/seed))
+  :ret  ::sp/const)
+(defn rand-const
+  "Generates a random constant. A seed (an integer) can be provided as a second argument for reproducability."
+  ([] (core/rand-const (utils/make-rng)))
+  ([seed] (core/rand-const (utils/make-rng seed))))
+
+(s/fdef rand-const-weighted
+  :args (s/alt :ar1 (s/cat :weights ::sp/const-weights)
+               :ar2 (s/cat :weights ::sp/const-weights
+                           :seed :rand/seed))
+  :ret  ::sp/const)
+(defn rand-const-weighted
+  "Same as `rand-const`, but takes a `weights` argument to specify the relative probability of each of the four constants to be randomly chosen.
+
+Weights can be provided either as:
+- a sequence of 4 non-negative numbers (e.g. `[1 0 2 5]`) in n-u-i-m order
+- a map (e.g. `{:i 1 :u 2}`), where missing weights are 0
+- a single number in the interval [0.0, 1.0] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)"
+  ([const-weights] (core/rand-const (utils/make-rng) const-weights))
+  ([const-weights seed] (core/rand-const (utils/make-rng seed) const-weights)))
 
 
 ;; Compare constants
@@ -175,15 +195,49 @@
 (s/fdef rand-dna
   :args (s/alt :ar1 (s/cat :dim ::sp/dna-dimension)
                :ar2 (s/cat :dim ::sp/dna-dimension
-                           :elems (s/or :seq (s/and sequential?
-                                                    #(<= 1 (count %) 4))
-                                        :nil nil?)))
+                           :seed :rand/seed))
   :ret  ::sp/dna-seq)
 (defn rand-dna
-  "Generates a random formDNA/`dna-seq` of dimension `dim`. A vector of 4 custom elements can be provided as a second argument."
-  ([dim] (core/rand-dna dim nil))
-  ([dim elems]
-   (core/rand-dna dim elems)))
+  "Generates a random formDNA/`dna-seq` of dimension `dim`. A seed (an integer) can be provided as a second argument for reproducability."
+  ([dim] (core/rand-dna (utils/make-rng) dim))
+  ([dim seed] (core/rand-dna (utils/make-rng seed) dim)))
+
+(s/fdef rand-dna-weighted
+  :args (s/alt :ar2 (s/cat :dim ::sp/dna-dimension
+                           :weights ::sp/const-weights)
+               :ar3 (s/cat :dim ::sp/dna-dimension
+                           :weights ::sp/const-weights
+                           :seed :rand/seed))
+  :ret  ::sp/dna-seq)
+(defn rand-dna-weighted
+  "Same as `rand-dna`, but takes a `weights` argument to specify the relative probability of each of the four constants to be randomly chosen.
+
+Weights can be provided either as:
+- a sequence of 4 non-negative numbers (e.g. `[1 0 2 5]`) in n-u-i-m order
+- a map (e.g. `{:i 1 :u 2}`), where missing weights are 0
+- a single number in the interval [0.0, 1.0] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)"
+  ([dim const-weights]
+   (core/rand-dna (utils/make-rng) dim const-weights))
+  ([dim const-weights seed]
+   (core/rand-dna (utils/make-rng seed) dim const-weights)))
+
+#_#_
+(s/fdef rand-dna-from
+  :args (s/alt :ar2 (s/cat :dim ::sp/dna-dimension
+                           :elems (s/or :seq (s/and sequential?
+                                                    #(<= 1 (count %) 4))
+                                        :nil nil?))
+               :ar3 (s/cat :dim ::sp/dna-dimension
+                           :elems (s/or :seq (s/and sequential?
+                                                    #(<= 1 (count %) 4))
+                                        :nil nil?)
+                           :seed :rand/seed))
+  :ret  ::sp/dna-seq)
+(defn rand-dna-from
+  "Like `rand-dna` but selects from a vector of 1 (min) to 4 (max) custom elements instead of `[:n :m :u :i]` (e.g. to restrict generated values). A random seed can be provided as a second argument for reproducability."
+  ([dim elems] (core/rand-dna (utils/make-rng) dim elems))
+  ([dim elems seed]
+   (core/rand-dna (utils/make-rng seed) dim elems)))
 
 
 ;; Sort formDNA
@@ -397,12 +451,33 @@
 (def vpoint? (partial s/valid? ::sp/vpoint))
 
 (s/fdef rand-vpoint
-  :args (s/? nat-int?)
+  :args (s/alt :ar1 (s/cat :dim nat-int?)
+               :ar2 (s/cat :dim nat-int?
+                           :seed :rand/seed))
   :ret  ::sp/vpoint)
 (defn rand-vpoint
-  "Generates a random vpoint either as an infinite lazy seq or with given dimension `dim`."
-  ([]    (repeatedly #(rand-nth nuim-code)))
-  ([dim] (repeatedly dim #(rand-nth nuim-code))))
+  "Generates a random vpoint with given dimension `dim` (= length of the vpoint). A seed (an integer) can be provided as a second argument for reproducability."
+  ([dim] (core/rand-vpoint (utils/make-rng) dim))
+  ([dim seed] (core/rand-vpoint (utils/make-rng seed) dim)))
+
+(s/fdef rand-vpoint-weighted
+  :args (s/alt :ar2 (s/cat :dim nat-int?
+                           :weights ::sp/const-weights)
+               :ar3 (s/cat :dim nat-int?
+                           :weights ::sp/const-weights
+                           :seed :rand/seed))
+  :ret  ::sp/vpoint)
+(defn rand-vpoint-weighted
+  "Same as `rand-vpoint`, but takes a `weights` argument to specify the relative probability of each of the four constants to be randomly chosen.
+
+Weights can be provided either as:
+- a sequence of 4 non-negative numbers (e.g. `[1 0 2 5]`) in n-u-i-m order
+- a map (e.g. `{:i 1 :u 2}`), where missing weights are 0
+- a single number in the interval [0.0, 1.0] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)"
+  ([dim const-weights]
+   (core/rand-vpoint (utils/make-rng) dim const-weights))
+  ([dim const-weights seed]
+   (core/rand-vpoint (utils/make-rng seed) dim const-weights)))
 
 
 ;;-------------------------------------------------------------------------

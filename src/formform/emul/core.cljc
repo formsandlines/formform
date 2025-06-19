@@ -5,15 +5,12 @@
 
 (ns ^:no-doc formform.emul.core
   (:require [formform.calc.core :as calc-core]
-            [clojure.test.check.random :as random]
-            ;; [formform.expr :as expr]
             #?(:clj  [formform.emul.interfaces :as i
                       :refer [defini defumwelt defrule
                               UmweltOptimized RuleOptimized]]
                :cljs [formform.emul.interfaces :as i
                       :refer [UmweltOptimized RuleOptimized]
                       :refer-macros [defini defumwelt defrule]])
-            #?(:cljs [goog.math.Long :as glong])
             [formform.utils :as utils])
   ;; #?(:clj (:import [formform.emul.interfaces UmweltOptimized RuleOptimized]))
   )
@@ -27,24 +24,6 @@
         (recur x (conj res (count x)))
         res))))
 
-(defn make-rng
-  ([] (make-rng nil))
-  ([seed] (if seed
-            (random/make-random seed)
-            (random/make-random))))
-
-(defn rng-select
-  [rng coll]
-  (let [n #?(:clj  (mod (random/rand-long rng) 4)
-             ;; goog.math.Long `.modulo` behaves more like `rem` in Clojure
-             ;; so we need to do some math to make it behave like `mod`:
-             :cljs (let [^goog.math.Long gl
-                         (.modulo ^goog.math.Long (random/rand-long rng)
-                                  ^goog.math.Long (glong/fromNumber 4))
-                         ^js/Number nrem (.toInt gl)]
-                     (if (< nrem 0) (+ nrem 4) nrem)))]
-    (coll n)))
-
 (defn transduce-ini
   ([{:keys [no-rng? seed]} xform w]
    (into [] (comp (map-indexed (fn [i rng']
@@ -56,7 +35,7 @@
                   (map :v))
          (if no-rng?
            (repeat w nil)
-           (random/split-n (make-rng seed) w))))
+           (utils/rng-rand-n (utils/make-rng seed) w))))
 
   ([{:keys [no-rng? seed]} xform w h]
    (into [] (comp (map-indexed (fn [i rng']
@@ -71,7 +50,7 @@
                   (partition-all w))
          (if no-rng?
            (repeat (* w h) nil)
-           (random/split-n (make-rng seed) (* w h))))))
+           (utils/rng-rand-n (utils/make-rng seed) (* w h))))))
 
 (defn- ini-transducer?
   [ini]
@@ -93,14 +72,9 @@
   (ini-xform2d [this] (i/ini-xform1d this)))
 
 
-#_
 (defn val-random
   [{:keys [rng]}]
-  (rng-select rng calc-core/nuim-code))
-
-(defn val-random
-  [{:keys [rng]}]
-  (rng-select rng calc-core/nuim-code))
+  (calc-core/rand-const rng))
 
 (defini :random [-opts distribution]
   "Fills a generation with random values. Takes a `distribution`, which is either a map of `:n`/`:u`/`:i`/`:m` keys to ratios from 0.0 to 1.0 (representing the proportion of the respective constant in relation to all random values) or a single decimal number that defines an equal ratio for `:n`/`:u`/`:i` against `:n` (e.g. `0.0` → all `:n`, `1.0` → no `:n`, `0.5` → all evenly distributed).
@@ -1079,34 +1053,6 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
   ;; [:i :m :u] ← → ↗
 
   ,)
-
-(comment
-
-  (require '[clojure.test.check.random :as random])
-
-  (def rng (random/make-random 40))
-  (random/rand-long ((random/split-n rng 3) 2))
-
-  (random/rand-long rng)
-  (random/rand-long (random/make-random (random/rand-long rng)))
-
-  (let [[init-rng next-rng] (random/split rng)]
-    [(random/rand-long init-rng)
-     next-rng])
-
-  (defn random-nums
-    [rng]
-    (lazy-seq
-     (let [[rng1 rng2] (random/split rng)
-           x (random/rand-long rng1)]
-       (cons x (random-nums rng2)))))
-
-  (take 10 (random-nums rng))
-
-  (rng-select rng calc-core/nuim-code)
-
-  ,)
-
 
 
 (comment

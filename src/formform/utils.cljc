@@ -2,7 +2,9 @@
   (:require
    [clojure.math :as math]
    [clojure.string :as string]
-   [clojure.spec.alpha :as s]))
+   [clojure.test.check.random :as random]
+   [clojure.spec.alpha :as s]
+   #?(:cljs [goog.math.Long :as glong])))
 
 (defn has-decimal? [n] (< (int n) n))
 
@@ -197,6 +199,140 @@
   (if (is-array? arr)
     (mapv array-to-vector arr)
     arr))
+
+
+;; RNG (random number generator) Wrapper
+
+(defn make-rng
+  "Returns a new random number generator with an optional `seed`."
+  ([] (make-rng nil))
+  ([seed] (if seed
+            (random/make-random seed)
+            (random/make-random))))
+
+(defn rng-split-n
+  "Splits a given random number generator into `n` different random number generators."
+  [rng n]
+  (random/split-n rng n))
+
+(defn rng-rand-long
+  "Generates a random integer given a random number generator."
+  [rng]
+  (random/rand-long rng))
+
+(defn rng-rand-double
+  "Generates a random double in the interval [0.0 1.0) given a random number generator."
+  [rng]
+  (random/rand-double rng))
+
+(defn long-modulo
+  "Returns the result of the modulo operation on a Long integer (native to the host platform) modulo some integer `n`."
+  #?(:clj  [native-long n]
+     :cljs [^goog.math.Long native-long n])
+  #?(:clj  (mod native-long n)
+     ;; goog.math.Long `.modulo` behaves more like `rem` in Clojure
+     ;; so we need to do some math to make it behave like `mod`:
+     :cljs (let [^goog.math.Long gl
+                 (.modulo native-long
+                          ^goog.math.Long (glong/fromNumber n))
+                 ^js/Number nrem (.toInt gl)]
+             (if (< nrem 0) (+ nrem n) nrem))))
+
+;; Random functions
+
+(defn rng-select
+  "Selects a random item from `coll`, given a random number generator."
+  ([rng coll]
+   (let [n (long-modulo (rng-rand-long rng) 4)]
+     (coll n)))
+  ([rng coll weights]
+   (when (some #(< % 0) weights)
+     (throw (ex-info "Weights cannot be negative!" {:weights weights})))
+   (let [total (+ 0.0 (reduce + weights))]
+     (if (zero? total)
+       (throw (ex-info "Sum of weights must be positive!" {:weights weights}))
+       (let [normal-weights (mapv #(/ % total) weights)
+             cumulative (vec (reductions + normal-weights))
+             r (rng-rand-double rng)]
+         (loop [i 0]
+           (let [threshold (cumulative i)]
+             (if (or (<= r threshold)
+                     (>= i (count weights)))
+               (coll i)
+               (recur (inc i))))))))))
+
+(defn rng-rand-n
+  "Generates `n` different random numbers given a random number generator."
+  [rng n]
+  (mapv rng-rand-long (random/split-n rng n)))
+
+(defn rng-select-n
+  "Selects `n` different random items from `coll`, given a random number generator."
+  ([rng coll n]
+   (into [] (map #(rng-select % coll))
+         (rng-split-n rng n)))
+  ([rng coll n weights]
+   (into [] (map #(rng-select % coll weights))
+         (rng-split-n rng n))))
+
+(comment
+  (->> (repeatedly 100000 #(rng-select (make-rng) [:n :u :i :m] [1 2 3 4]))
+       (frequencies))
+
+  (->> (rng-select-n (make-rng) [:n :u :i :m] 100000 [1 2 3 4])
+       (frequencies))
+
+  (let [coll [:n :u :i :m]
+        weights [1 0 4 3]
+        total (reduce + weights)
+        normal-weights (mapv #(/ (+ % 0.0) total) weights)
+        cumulative (vec (reductions + normal-weights))
+        freqs (frequencies
+               (for [_ (range 100000)
+                     :let [r (rand)]]
+                 (loop [i 0]
+                   (let [threshold (cumulative i)]
+                     (if (or (<= r threshold)
+                             (>= i (count weights)))
+                       (coll i)
+                       (recur (inc i)))))))
+        freq-total (reduce + (vals freqs))]
+    [(mapv (fn [[k n]]
+             [k (+ 0.0 (/ n freq-total))])
+           freqs)
+     normal-weights])
+
+  ,)
+
+(comment
+
+  (def rng (random/make-random 40))
+
+  (rng-split-n rng 4)
+  (long-modulo (rng-rand rng) 4)
+  (rng-select rng [:a :b :c :d])
+  (mapv #(long-modulo % 4) (rng-rand-n rng 100))
+  (rng-select-n rng [:a :b :c :d] 10)
+  
+  (random/rand-long ((random/split-n rng 3) 2))
+
+  (random/rand-long rng)
+  (random/rand-long (random/make-random (random/rand-long rng)))
+
+  (let [[init-rng next-rng] (random/split rng)]
+    [(random/rand-long init-rng)
+     next-rng])
+
+  (defn random-nums
+    [rng]
+    (lazy-seq
+     (let [[rng1 rng2] (random/split rng)
+           x (random/rand-long rng1)]
+       (cons x (random-nums rng2)))))
+
+  (take 10 (random-nums rng))
+
+  ,)
 
 (comment
   (aget (keywords-to-array [:n :u :i :m]) 1)

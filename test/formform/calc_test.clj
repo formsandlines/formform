@@ -5,8 +5,6 @@
 
 (doseq [fsym fns-with-specs] (stest/instrument fsym))
 
-(def rv (comp vec reverse))
-
 ;; ? should test dna functions with lists too
 
 (deftest dna-dimension-test
@@ -43,18 +41,46 @@
     (is (not (dna? '())))
     (is (not (dna? '(:n :u :i))))))
 
+(deftest rand-const-test
+  (testing "constant validity"
+    (is (const? (rand-const))))
+  (testing "random variation"
+    (is (not= (rand-const) (rand-const) (rand-const) (rand-const) (rand-const) (rand-const) (rand-const) (rand-const))))
+  (testing "stable reproducability with given seed"
+    (is (= (rand-const 102) (rand-const 102) (rand-const 102) :n))
+    (is (= (rand-const 69) (rand-const 69) (rand-const 69) :m))
+    (is (= (rand-const 42) (rand-const 42) (rand-const 42) :u))))
 
 (deftest rand-dna-test
   (testing "dna validity"
     (doseq [n (range 6)]
       (is (dna? (rand-dna n))))
-    (is (dna-dimension? (rand-dna 4 [0 1 2])))
-    (is (dna-dimension? (rand-dna 6 [nil])))
-    (is (thrown? clojure.lang.ExceptionInfo
-                 (rand-dna 4 [:x :y :z :v :w])))
-    (is (thrown? clojure.lang.ExceptionInfo
-                 (rand-dna 1 [])))))
+    (is (dna-dimension? (rand-dna 4)))
+    (is (dna-dimension? (rand-dna 6))))
+  (testing "random variation"
+    (is (not= (rand-dna 1) (rand-dna 1) (rand-dna 1))))
+  (testing "stable reproducability with given seed"
+    (is (= (rand-dna 6 102) (rand-dna 6 102) (rand-dna 6 102)))
+    (is (= (rand-dna 3 69) (rand-dna 3 69) (rand-dna 3 69)
+           [:m :u :i :u :i :m :i :i :i :n :n :m :u :i :u :n :n :m :i :u :m :m :i :m :u :n :n :n :n :u :n :i :u :u :i :u :i :u :u :m :n :m :m :m :u :n :i :u :u :u :i :n :m :i :m :n :i :i :u :n :u :m :u :m]))
+    (is (= (rand-dna 2 42) (rand-dna 2 42) (rand-dna 2 42) (rand-dna 2 42)
+           (rand-dna 2 42) (rand-dna 2 42) (rand-dna 2 42) (rand-dna 2 42)
+           [:u :u :m :n :i :i :n :i :u :u :m :n :u :m :i :u]))))
 
+(deftest rand-dna-weighted-test
+  ;; weights input tests in calc/core-test.clj
+  (testing "dna validity"
+    (is (dna-dimension? (rand-dna-weighted 4 [0 1 2 0])))
+    (is (dna-dimension? (rand-dna-weighted 6 [0.0 0.5 1.0 0]))))
+  (testing "weights validity"
+    (is (thrown? clojure.lang.ExceptionInfo
+                 (rand-dna-weighted 1 [])))
+    (is (thrown? clojure.lang.ExceptionInfo
+                 (rand-dna-weighted 1 [1 2 3])))
+    (is (thrown? clojure.lang.ExceptionInfo
+                 (rand-dna-weighted 1 [1 2 3 4 5])))
+    (is (thrown? clojure.lang.ExceptionInfo
+                 (rand-dna-weighted 1 [:n :u :i :m])))))
 
 
 (deftest make-dna-test
@@ -476,12 +502,26 @@
     (is (vpoint? [:n :u]))
     (is (not (vpoint? #{:n :u})))))
 
+
 (deftest rand-vpoint-test
-  (testing "Validity of vpoint"
+  (testing "vpoint validity"
     (is (vpoint? (rand-vpoint 0)))
     (is (vpoint? (rand-vpoint 1)))
     (is (vpoint? (rand-vpoint 5)))
-    (take 10 (rand-vpoint))))
+    (is (= 0 (count (rand-vpoint 0))))
+    (is (= 10 (count (rand-vpoint 10)))))
+  (testing "random variation"
+    (is (not= (rand-vpoint 3) (rand-vpoint 3) (rand-vpoint 3))))
+  (testing "stable reproducability with given seed"
+    (is (= (rand-vpoint 6 102) (rand-vpoint 6 102) (rand-vpoint 6 102)))
+    (is (= (rand-vpoint 3 69) (rand-vpoint 3 69) (rand-vpoint 3 69) [:m :u :n]))
+    (is (= (rand-vpoint 2 42) (rand-vpoint 2 42) (rand-vpoint 2 42)
+           (rand-vpoint 2 42) (rand-vpoint 2 42) (rand-vpoint 2 42) [:u :i]))))
+
+(deftest rand-vpoint-weighted-test
+  ;; weights input tests in calc/core-test.clj
+  (testing "vpoint validity"
+    (is (vpoint? (rand-vpoint-weighted 10 [1 2 4 2])))))
 
 
 (deftest vspace-test

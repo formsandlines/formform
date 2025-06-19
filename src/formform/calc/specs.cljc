@@ -35,6 +35,13 @@
 (s/def ::const-char? (s/or :char ::const-char
                            :var-char #(= % \_)))
 
+(s/def :rand/seed (s/nilable nat-int?))
+
+(s/def ::const-weights ;; random weights
+  (s/or :sequence (s/coll-of number? :kind sequential? :count 4)
+        :map (s/map-of #{:n :u :i :m} number?)
+        :ratio (s/and number? #(<= 0.0 % 1.0))))
+
 (s/def ::sort-code
   (s/with-gen
     (s/and vector?
