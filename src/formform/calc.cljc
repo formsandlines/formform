@@ -157,8 +157,8 @@ Weights can be provided either as:
 
 ;;-------------------------------------------------------------------------
 ;; formDNA
-;; → quaternary code/number/list from _constant_ elements
 ;; → representation of a _value structure_ in FORM logic
+;; → becomes a quaternary number when reversed and converted to digits
 ;;
 ;; - value structure → specific structure in _value system_
 
@@ -196,9 +196,9 @@ Weights can be provided either as:
   :args (s/alt :ar1 (s/cat :dim ::sp/dna-dimension)
                :ar2 (s/cat :dim ::sp/dna-dimension
                            :seed :rand/seed))
-  :ret  ::sp/dna-seq)
+  :ret  ::sp/dna)
 (defn rand-dna
-  "Generates a random formDNA/`dna-seq` of dimension `dim`. A seed (an integer) can be provided as a second argument for reproducability."
+  "Generates a random formDNA of dimension `dim`. A seed (an integer) can be provided as a second argument for reproducability."
   ([dim] (core/rand-dna (utils/make-rng) dim))
   ([dim seed] (core/rand-dna (utils/make-rng seed) dim)))
 
@@ -208,7 +208,7 @@ Weights can be provided either as:
                :ar3 (s/cat :dim ::sp/dna-dimension
                            :weights ::sp/const-weights
                            :seed :rand/seed))
-  :ret  ::sp/dna-seq)
+  :ret  ::sp/dna)
 (defn rand-dna-weighted
   "Same as `rand-dna`, but takes a `weights` argument to specify the relative probability of each of the four constants to be randomly chosen.
 
@@ -222,7 +222,7 @@ Weights can be provided either as:
    (core/rand-dna (utils/make-rng seed) dim const-weights)))
 
 #_#_
-(s/fdef rand-dna-from
+(s/fdef rand-dna-seq-from
   :args (s/alt :ar2 (s/cat :dim ::sp/dna-dimension
                            :elems (s/or :seq (s/and sequential?
                                                     #(<= 1 (count %) 4))
@@ -233,7 +233,7 @@ Weights can be provided either as:
                                         :nil nil?)
                            :seed :rand/seed))
   :ret  ::sp/dna-seq)
-(defn rand-dna-from
+(defn rand-dna-seq-from
   "Like `rand-dna` but selects from a vector of 1 (min) to 4 (max) custom elements instead of `[:n :m :u :i]` (e.g. to restrict generated values). A random seed can be provided as a second argument for reproducability."
   ([dim elems] (core/rand-dna (utils/make-rng) dim elems))
   ([dim elems seed]

@@ -159,7 +159,9 @@
   (s/def ::quaternary-str (s/and string? (partial every? digits))))
 
 (s/fdef core/consts->quaternary
-  :args (s/cat :consts ::consts)
+  :args (s/alt :ar1 (s/cat :consts ::consts)
+               :ar2 (s/cat :consts ::consts
+                           :rtl? boolean?))
   :ret  ::quaternary-str)
 
 

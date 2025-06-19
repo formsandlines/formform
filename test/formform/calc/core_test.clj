@@ -106,15 +106,16 @@
 
 
 (deftest consts->quaternary-test
+  ;; order is reversed in numbers!
   (testing "Correctness of conversion"
-    (is (= "0123" (consts->quaternary [:n :u :i :m])))
-    (is (= "1232232232232232" (consts->quaternary [:u :i :m :i
+    (is (= "3210" (consts->quaternary [:n :u :i :m])))
+    (is (= "2322322322322321" (consts->quaternary [:u :i :m :i
                                                    :i :m :i :i
                                                    :m :i :i :m
                                                    :i :i :m :i])))
-    (is (= "0312" (consts->quaternary [:n :m :u :i])))
+    (is (= "2130" (consts->quaternary [:n :m :u :i])))
     ;; should this return nil?
-    (is (= "23" (consts->quaternary [:i :m])))
+    (is (= "32" (consts->quaternary [:i :m])))
     (is (= "0" (consts->quaternary [:n])))
     (is (thrown? clojure.lang.ExceptionInfo
                  (consts->quaternary [:_])))

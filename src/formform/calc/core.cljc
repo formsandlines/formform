@@ -97,14 +97,17 @@
      (const->digit sort-code c))))
 
 (defn consts->quaternary
-  "Converts a sequence of constants to a corresponding quaternary number (as a string). Used for comparison.
+  "Converts a sequence of constants to a corresponding quaternary number (as a string). Keep in mind that the order (by default) is reversed, because place values in numbers are from right to left. To change this (e.g. for use in a comparator), set `rtl?` (“right-to-left”) to `false`.
 
   * use `read-string` and prepend `\"4r\"` to the number string to obtain the decimal value as a BigInt"
-  [consts]
-  (if (seq consts)
-    (let [digits (mapv const->digit consts)]
-      (apply str digits))
-    (throw (ex-info "Must contain at least one element." {:arg consts}))))
+  ([consts]
+   (consts->quaternary consts true))
+  ([consts rtl?]
+   (if (seq consts)
+     (let [consts (if rtl? (reverse consts) consts)
+           digits (mapv const->digit consts)]
+       (apply str digits))
+     (throw (ex-info "Must contain at least one element." {:arg consts})))))
 
 (defn make-compare-consts
   [sort-code]
@@ -117,7 +120,7 @@
                         ;;   -> maybe use interop with js/BigInt
                         ;;   or a different approach
                         (sequential? x) (utils/parse-int
-                                         (consts->quaternary x) 4)
+                                         (consts->quaternary x false) 4)
                         (const? x) (sort-map x)
                         :else (throw (ex-info "Incompatible type: " {:x x}))))]
       (if (and (map-entry? a) (map-entry? b))

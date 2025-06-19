@@ -14,12 +14,16 @@ All notable changes to this project will be documented in this file. This change
 - New operator `:tsds` provides a syntactic shortcut to build triple selective decision systems with binary selections. The 3 terms can be arbitrary expressions. Its FORMula notation looks like this: `[:tsds 100100 L,E,R]`
 - New `formform.emul` module to (declaratively) represent, compose and calculate cellular automata with FORM logic. The API is mostly complete, but small changes may still happen. An introduction and more detailled explanation is in progress.
 - `nuim-code` and `nmui-code` definitions in the API for convenience
+- `rand-const`, `rand-dna` and `rand-vpoint` can now all take a seed for reproducability in randomization
+- Added `rand-const-weighted`, `rand-dna-weighted` and `rand-vpoint-weighted` variants, which take a weights argument for uneven probability in random constant generation
 
 ### Changed
 
 - `=>*` aka `eval->expr-all` does now return formDNA as a proper vector that is already reversed at creation-time instead of adding performance cost with an `rseq`
 - Changed constant/formDNA to lowercase in FORMula notation as well as in formform syntax. It is now much more pleasent to read than with uppercase and more aligned with the conventions in mathematical texts such as uFORM iFORM and LoF, which was the primary reason for this breaking change. Please also read about the change to formDNA notation below that went along with this one.
 - Reversed the order of formDNA, which now reads left-to-right instead of right-to-left. The main reason for this change is to make formDNA more intuitive in reading and writing and reduce the mental load to reverse the order in your head. I apologize for this breaking change if you were already using formDNA; there will most certainly be no further changes to the notation. It went along with the new lowercase convention for constants, so that your existing formDNA data will not suddenly become incorrect and instead throws an exception, so you can safely make the transition. 
+- Removed 0-arity in `rand-vpoint` because the new random functions don’t return an infinite lazy seq (I believe that has never been useful anyway).
+- `rand-dna` doesn’t take an `elems` vector anymore to select from, which could have arbitrary elements. Its primary function is now better served by the `-weighted` variant and this ensures that it always returns a valid formDNA.
 
 ### Fixed
 
