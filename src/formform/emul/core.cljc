@@ -25,32 +25,36 @@
         res))))
 
 (defn transduce-ini
-  ([{:keys [no-rng? seed]} xform w]
-   (into [] (comp (map-indexed (fn [i rng']
-                                 {:rng rng'
-                                  :i i
-                                  :w w
-                                  :x i}))
-                  xform
-                  (map :v))
-         (if no-rng?
-           (repeat w nil)
-           (utils/rng-rand-n (utils/make-rng seed) w))))
+  ([{:keys [no-rng? seed weights]} xform w]
+   (let [normal-weights (when weights (calc-core/conform-nuim-weights weights))]
+     (into [] (comp (map-indexed (fn [i rng']
+                                   {:rng rng'
+                                    :weights normal-weights
+                                    :i i
+                                    :w w
+                                    :x i}))
+                    xform
+                    (map :v))
+           (if no-rng?
+             (repeat w nil)
+             (utils/rng-split-n (utils/make-rng seed) w)))))
 
-  ([{:keys [no-rng? seed]} xform w h]
-   (into [] (comp (map-indexed (fn [i rng']
-                                 {:rng rng'
-                                  :w w
-                                  :h h
-                                  :i i
-                                  :x (mod i w)
-                                  :y (quot i w)}))
-                  xform
-                  (map :v)
-                  (partition-all w))
-         (if no-rng?
-           (repeat (* w h) nil)
-           (utils/rng-rand-n (utils/make-rng seed) (* w h))))))
+  ([{:keys [no-rng? seed weights]} xform w h]
+   (let [normal-weights (when weights (calc-core/conform-nuim-weights weights))]
+     (into [] (comp (map-indexed (fn [i rng']
+                                   {:rng rng'
+                                    :weights normal-weights
+                                    :w w
+                                    :h h
+                                    :i i
+                                    :x (mod i w)
+                                    :y (quot i w)}))
+                    xform
+                    (map :v)
+                    (partition-all w))
+           (if no-rng?
+             (repeat (* w h) nil)
+             (utils/rng-split-n (utils/make-rng seed) (* w h)))))))
 
 (defn- ini-transducer?
   [ini]
@@ -73,13 +77,16 @@
 
 
 (defn val-random
-  [{:keys [rng]}]
-  (calc-core/rand-const rng))
+  [{:keys [rng weights]}]
+  (calc-core/rand-const rng weights))
 
-(defini :random [-opts distribution]
-  "Fills a generation with random values. Takes a `distribution`, which is either a map of `:n`/`:u`/`:i`/`:m` keys to ratios from 0.0 to 1.0 (representing the proportion of the respective constant in relation to all random values) or a single decimal number that defines an equal ratio for `:n`/`:u`/`:i` against `:n` (e.g. `0.0` → all `:n`, `1.0` → no `:n`, `0.5` → all evenly distributed).
-
-The (first) `-opts` argument is a map that can take a `:seed` entry with an integer number to provide a seed for reproducable random generations."
+(defini :random [-opts]
+  "Fills a generation with random values. The (first) `-opts` argument is a map where you can set the following optional parameters:
+- `:seed` → an integer number to provide a seed for reproducable random generations
+- `:weights` → specifies the relative probability of each of the four constants to be randomly chosen. Can be provided either as:
+  - a sequence of 4 non-negative numbers (e.g. `[1 0 2 5]`) in n-u-i-m order
+  - a map (e.g. `{:i 1 :u 2}`), where missing weights are 0
+  - a single number in the interval [0.0, 1.0] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)"
   (make-gen [this w] (transduce-ini -opts (i/ini-xform1d this) w))
   (make-gen [this w h] (transduce-ini -opts (i/ini-xform2d this) w h))
 
@@ -277,7 +284,7 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
 (defn- parse-bg [-opts bg]
   (cond
     ((set calc-core/nuim-code) bg) (->Ini-Constant -opts bg)
-    (= :? bg) (->Ini-Random -opts 0.5)
+    (= :? bg) (->Ini-Random -opts)
     (ini-transducer? bg) bg
     :else (throw (ex-info "Invalid background ini." {:bg-ini bg}))))
 
@@ -315,7 +322,14 @@ The (first) `-opts` argument is a map that can take a `:seed` entry with an inte
 
 
 (defini :rand-figure [-opts bg size anchor]
-  "Generates a figure of given `size` with random constants at the position specified by `anchor` before a given background ini (see docs of `:figure` ini for further explanation). "
+  "Generates a figure of given `size` with random constants at the position specified by `anchor` before a given background ini (see docs of `:figure` ini for further explanation).
+
+The (first) `-opts` argument is a map where you can set the following optional parameters:
+- `:seed` → an integer number to provide a seed for reproducable random generations
+- `:weights` → specifies the relative probability of each of the four constants to be randomly chosen. Can be provided either as:
+  - a sequence of 4 non-negative numbers (e.g. `[1 0 2 5]`) in n-u-i-m order
+  - a map (e.g. `{:i 1 :u 2}`), where missing weights are 0
+  - a single number in the interval [0.0, 1.0] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)"
   (make-gen [this w]
             (let [bg-ini (parse-bg -opts bg)]
               (transduce-ini -opts

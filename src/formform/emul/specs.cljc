@@ -76,8 +76,7 @@
 (s/def ::figure (s/or :1d ::figure-1d
                       :2d ::figure-2d))
 
-(s/def ::seed pos-int?) ;; random seed for reproducability
-(s/def ::ini-opts (s/keys :opt-un [::seed]))
+(s/def ::ini-opts (s/keys :opt-un [:rand/seed]))
 
 (s/def :ini-pattern/f fn?)
 (s/def :ini-pattern/w pos-int?)
@@ -97,19 +96,11 @@
 (s/def ::anchor
   (s/keys :opt-un [:anchor/pos :anchor/align :anchor/offset]))
 
-(s/def :rand/N float?)
-(s/def :rand/U float?)
-(s/def :rand/I float?)
-(s/def :rand/M float?)
-
-(s/def ::random-distribution
-  (s/or :against-n float?
-        :explicit (s/keys :req-un [:rand/N :rand/U :rand/I :rand/M])))
 
 ;; Note: the `x/y` specs below don’t apply directly to the records, but to the arguments as provided in `emul/make-x` constructors, where they are validated against the specs.
 
 (s/def :ini/constant (s/cat :-opts ::ini-opts :const ::calc-sp/const))
-(s/def :ini/random (s/cat :-opts ::ini-opts :distr ::random-distribution))
+(s/def :ini/random (s/cat :-opts ::ini-opts))
 (s/def :ini/cycle (s/cat :-opts ::ini-opts :pattern vector?))
 
 (s/def :ini/figure (s/cat :-opts ::ini-opts
@@ -160,37 +151,8 @@
 (s/def :rule/life (s/cat :-opts ::rule-opts :dna ::calc-sp/dna))
 
 
-#_
-(comment
-  (s/def :species/overwrites map?)
-  (s/def ::species-opts (s/keys :opt-un [:species/overwrites]))
-
-  (s/def :species/selfi (s/cat :-opts ::species-opts
-                               :dna ::calc-sp/dna
-                               :ini ::ini-spec))
-
-  (s/def :species/mindform (s/cat :-opts ::species-opts
-                                  :dna ::calc-sp/dna
-                                  :ini ::ini-spec))
-
-  (s/def :species/lifeform (s/cat :-opts ::species-opts
-                                  :dna ::calc-sp/dna))
-
-  (s/def :species/decisionform (s/cat :-opts ::species-opts
-                                      :dna ::calc-sp/dna
-                                      :init-size pos-int?)))
-
-(comment
-
-  (s/valid? :rule/match [{} [:n]])
-
-  ,)
-
 (s/def ::ca-spec
   (s/keys :req-un [::resolution ::rule-spec ::umwelt-spec ::ini-spec]))
-
-;; (s/def ::ca-constructor
-;;   #(satisfies? i/Specifier %))
 
 
 (binding [clojure.spec.alpha/*coll-check-limit* 3]

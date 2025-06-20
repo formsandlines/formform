@@ -288,20 +288,19 @@
 
 (defn make-lifeform
   "2D cellular automaton. Takes a `dna` as part of its rule function, which is of type `:life`. Its ‘umwelt’ is of type `:moore`."
-  ([{:keys [overwrites ini-opts]} dna rand-distr]
+  ([{:keys [overwrites ini-opts]} dna]
    (core/map->CASpec
     (merge
      {:label       "LifeFORM"
       :rule-spec   (core/->Rule-Life {} dna)
       :umwelt-spec (core/->Umwelt-Moore {} :column-first false)
-      :ini-spec    (core/->Ini-Random ini-opts (or rand-distr 0.5))}
+      :ini-spec    (core/->Ini-Random ini-opts)}
      overwrites)))
-  ([dna rand-distr]
-   (make-lifeform {} dna rand-distr)))
+  ([dna] (make-lifeform {} dna)))
 
 (defn make-decisionform
   "2D cellular automaton. Takes a `dna` as part of its rule function, which is of type `:life`, and an initial size for its `:rand-center` type ini. Its ‘umwelt’ is of type `:moore`."
-  ([{:keys [overwrites ini-opts]} dna rand-distr init-size]
+  ([{:keys [overwrites ini-opts]} dna init-size]
    (core/map->CASpec
     (merge
      {:label       "DecisionFORM"
@@ -313,8 +312,7 @@
                                           {:pos :center
                                            :align :center})}
      overwrites)))
-  ([dna rand-distr init-size]
-   (make-decisionform {} dna rand-distr init-size)))
+  ([dna init-size] (make-decisionform {} dna init-size)))
 ,
 
 
@@ -343,7 +341,7 @@
   "Common specimen to specify cellular automata. Lists all the SelFis introduced by Ralf Peyn in ‘uFORM iFORM’."
   (let [selfi #(apply make-selfi {:overwrites {:label (str "SelFi/" %1)}} %&)
         ini-ball (make-ini :ball :n nil {:pos :center :align :center})
-        ini-rand (make-ini :random 0.5)
+        ini-rand (make-ini :random)
         l 'a, e 'b, r 'c]
     {:Mark1
      (selfi "Mark1"
@@ -513,7 +511,7 @@
   (make-ini :fill-center {:res [10 4] :val :u} :m)
   (make-rule :match (calc/rand-dna 2))
   (make-instance :rule :match (calc/rand-dna 2))
-  (make-selfi (calc/rand-dna 2) (make-ini :random 0.5))
+  (make-selfi (calc/rand-dna 2) (make-ini :random))
   (make-lifeform (calc/rand-dna 2))
 
   ,)
@@ -535,8 +533,12 @@
   ,)
 
 (comment
-  (sys-ini (make-ini :random 0.5) 10)
-  (sys-ini (make-ini :random 0.5) 10 10)
+  (make-ini :help)
+  (frequencies (sys-ini (make-ini :random {:seed 32 :weights 0.8}) 100))
+  (sys-ini (make-ini :random {:seed 10}) 10)
+  (sys-ini (make-ini :random) 10 10)
+  (sys-ini (make-ini :rand-figure {:weights 0.2} :n 10 {:pos :center :align :center}) 40)
+
   (sys-ini (make-ini :rand-center 2) 10)
   (sys-ini (make-ini :rand-center 2) 10 10)
   (sys-ini (make-ini :ball) 10)
@@ -574,7 +576,7 @@
   ,)
 
 (comment
-  (sys-ini (make-ini :random 0.5)
+  (sys-ini (make-ini :random)
            10 10)
   ;; [[:m :i :m :n :n :u :m :u :u :u]
   ;;  [:m :i :m :i :n :m :i :i :u :m]
@@ -607,7 +609,7 @@
 
 (comment
   (def selfi (make-selfi (calc/rand-dna 2)
-                         (make-ini :random 0.5)))
+                         (make-ini :random)))
   (meta selfi)
   
   (take 3 (ca-iterator selfi [40]))

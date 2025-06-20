@@ -57,10 +57,8 @@
         ini (make-ini :figure :n data {})
         ca-spec
         (condp = species-type
-          :lifeform (make-lifeform {:overwrites {:ini-spec ini}}
-                                   dna 0.5)
-          :decisionform (make-decisionform {:overwrites {:ini-spec ini}}
-                                           dna 0.5 10)
+          :lifeform (make-lifeform {:overwrites {:ini-spec ini}} dna)
+          :decisionform (make-decisionform {:overwrites {:ini-spec ini}} dna 10)
           :selfi (make-selfi dna ini)
           :mindform (make-mindform dna ini)
           :else (throw (ex-info "Invalid species type."
