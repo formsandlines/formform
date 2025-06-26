@@ -122,11 +122,6 @@
   - `(make-rule :t :help)` prints the parameters and docs for given type `:t`"
   (partial make-instance :rule))
 
-(comment
-  (make-ini :ball :help)
-  (make-umwelt :help)
-  ,)
-
 
 (s/fdef sys-ini
   :args (s/alt :ar1 (s/cat :ini-spec ::sp/ini-spec
@@ -176,88 +171,39 @@
                            ))
   :ret  ::calc-sp/const?)
 (def apply-rule
-  "Returns a cell value given a rule specification (via `make-rule`), a ‘umwelt’ (via `get-umwelt`), the current cell value and, depending on the arities the rule spec. supports, one or two resolutions."
+  "Returns a cell value given a rule specification (via `make-rule`), a ‘umwelt’ (via `observe-umwelt`), the current cell value and, depending on the arities the rule spec. supports, one or two resolutions."
   i/apply-rule)
 
-#_
-(comment
-  (s/fdef specify-ca
-    :args (s/alt :ar1 (s/cat :species-spec ::sp/species-spec
-                             :options      map?
-                             :res-w        pos-int?)
-                 :ar2 (s/cat :species-spec ::sp/species-spec
-                             :options      map?
-                             :res-w        pos-int?
-                             :res-h        pos-int?))
-    :ret  ::sp/ca-spec)
-  (def specify-ca
-    "Returns a specification for a cellular automaton given a specification of its ‘species’ (via `make-species`) and, depending on the arities it supports, one or two resolutions."
-    i/specify-ca))
 
-
-#_
-(comment
-  ;; (def specify-ca nil)
-  (defmulti specify-ca (fn [id-k & _] id-k))
-
-  (defmethod specify-ca :default
-    [label specs]
-    (core/map->CASpec
-     (assoc specs :label label)))
-
-  (defmethod specify-ca :selfi
-    [_ {:keys [overwrites]} dna ini]
-    (let [umwelt-size (calc/dna-dimension dna)]
-      (core/map->CASpec
-       (merge
-        {:label       "SelFi"
-         :rule-spec   (core/->Rule-Match {} dna)
-         :umwelt-spec (core/->Umwelt-SelectLtr {} umwelt-size)
-         :ini-spec    ini}
-        overwrites))))
-
-  (defmethod specify-ca :mindform
-    [_ {:keys [overwrites]} dna ini]
-    (let [umwelt-size (calc/dna-dimension dna)]
-      (core/map->CASpec
-       (merge
-        {:label       "MindFORM"
-         :rule-spec   (core/->Rule-Match {} dna)
-         :umwelt-spec (core/->Umwelt-SelfSelectLtr {} umwelt-size)
-         :ini-spec    ini}
-        overwrites))))
-
-  (defmethod specify-ca :lifeform
-    [_ {:keys [overwrites ini-opts]} dna rand-distr]
-    (core/map->CASpec
-     (merge
-      {:label       "LifeFORM"
-       :rule-spec   (core/->Rule-Life {} dna)
-       :umwelt-spec (core/->Umwelt-Moore {} :column-first false)
-       :ini-spec    (core/->Ini-Random ini-opts (or rand-distr 0.5))}
-      overwrites)))
-
-  (defmethod specify-ca :decisionform
-    [_ {:keys [overwrites ini-opts]} dna rand-distr init-size]
-    (core/map->CASpec
-     (merge
-      {:label       "DecisionFORM"
-       :rule-spec   (core/->Rule-Life {} dna)
-       :umwelt-spec (core/->Umwelt-Moore {} :column-first false)
-       :ini-spec    (core/->Ini-RandFigure ini-opts
-                                           (core/->Ini-Constant ini-opts :n)
-                                           init-size
-                                           {:pos :center
-                                            :align :center})}
-      overwrites))))
-
+(s/fdef specify-ca
+  :args (s/cat :label string?
+               :specs-map (s/keys :req-un [::sp/rule-spec
+                                           ::sp/umwelt-spec
+                                           ::sp/ini-spec]))
+  :ret  ::sp/ca-spec)
 (defn specify-ca
+  "Returns a `CASpec` record, given a label and a map of specifications for a custom cellular automaton. This record can be used with `ca-iterator` or `create-ca`. The map needs to have the following keys:
+- `:rule-spec`: a rule specification as per `make-rule`
+- `:umwelt-spec`: an umwelt specification as per `make-umwelt`
+- `:ini-spec`: an ini specification as per `make-ini`
+
+Note that formform.emul has constructors for common ca specs via `make-selfi`, `make-mindform`, `make-lifeform` and `make-decisionform`. Furthermore, there are predefined ca specs in `common-specimen`."
   [label specs-map]
   (core/map->CASpec
    (assoc specs-map :label label)))
 
+
 ;; Constructors for common CA specifications
 
+(s/def :ca-spec/overwrites map?)
+
+(s/fdef make-selfi
+  :args (s/alt :ar2 (s/cat :dna ::calc-sp/dna
+                           :ini  ::sp/ini-spec)
+               :ar3 (s/cat :opts (s/keys :opt-un [:ca-spec/overwrites])
+                           :dna  ::calc-sp/dna
+                           :ini  ::sp/ini-spec))
+  :ret  ::sp/ca-spec)
 (defn make-selfi
   "1D cellular automaton. Takes a `dna` for its rule function (type `:match`) and an `ini` type (via `make-ini`). Its ‘umwelt’ is of type `:select-ltr`."
   ([{:keys [overwrites]} dna ini]
@@ -272,6 +218,13 @@
   ([dna ini]
    (make-selfi {} dna ini)))
 
+(s/fdef make-mindform
+  :args (s/alt :ar2 (s/cat :dna ::calc-sp/dna
+                           :ini  ::sp/ini-spec)
+               :ar3 (s/cat :opts (s/keys :opt-un [:ca-spec/overwrites])
+                           :dna  ::calc-sp/dna
+                           :ini  ::sp/ini-spec))
+  :ret  ::sp/ca-spec)
 (defn make-mindform
   "2D cellular automaton. Takes a `dna` for its rule function (type `:match`) and an `ini` type (via `make-ini`). Its ‘umwelt’ is of type `:self-select-ltr`."
   ([{:keys [overwrites]} dna ini]
@@ -286,6 +239,12 @@
   ([dna ini]
    (make-mindform {} dna ini)))
 
+(s/fdef make-lifeform
+  :args (s/alt :ar1 (s/cat :dna ::calc-sp/dna)
+               :ar2 (s/cat :opts (s/keys :opt-un [:ca-spec/overwrites
+                                                  ::sp/ini-opts])
+                           :dna ::calc-sp/dna))
+  :ret  ::sp/ca-spec)
 (defn make-lifeform
   "2D cellular automaton. Takes a `dna` as part of its rule function, which is of type `:life`. Its ‘umwelt’ is of type `:moore`."
   ([{:keys [overwrites ini-opts]} dna]
@@ -298,6 +257,14 @@
      overwrites)))
   ([dna] (make-lifeform {} dna)))
 
+(s/fdef make-decisionform
+  :args (s/alt :ar2 (s/cat :dna ::calc-sp/dna
+                           :init-size pos-int?)
+               :ar3 (s/cat :opts (s/keys :opt-un [:ca-spec/overwrites
+                                                  ::sp/ini-opts])
+                           :dna ::calc-sp/dna
+                           :init-size pos-int?))
+  :ret  ::sp/ca-spec)
 (defn make-decisionform
   "2D cellular automaton. Takes a `dna` as part of its rule function, which is of type `:life`, and an initial size for its `:rand-center` type ini. Its ‘umwelt’ is of type `:moore`."
   ([{:keys [overwrites ini-opts]} dna init-size]
@@ -333,6 +300,39 @@
     :else (throw
            (ex-info "Input must be either a formDNA of dimension 3 or a 6-element binary selection vector." {:input dna-or-sel}))))
 
+
+(def ini-patterns
+  "A collection of predefined patterns for use with `:figure` inis."
+  {:ball
+   [:i :u :m :u :i]
+   :ball-inverted
+   [:u :i :n :i :u]
+   :ball2d
+   [[:_ :_ :i :_ :_]
+    [:_ :i :u :i :_]
+    [:i :u :m :u :i]
+    [:_ :i :u :i :_]
+    [:_ :_ :i :_ :_]]
+   :ball2d-inverted
+   [[:_ :_ :u :_ :_]
+    [:_ :u :i :u :_]
+    [:u :i :n :i :u]
+    [:_ :u :i :u :_]
+    [:_ :_ :u :_ :_]]
+   :ball2d-square
+   [[:i :i :i :i :i]
+    [:i :u :u :u :i]
+    [:i :u :m :u :i]
+    [:i :u :u :u :i]
+    [:i :i :i :i :i]]
+   :ball2d-square-inverted
+   [[:u :u :u :u :u]
+    [:u :i :i :i :u]
+    [:u :i :n :i :u]
+    [:u :i :i :i :u]
+    [:u :u :u :u :u]]})
+
+
 (defn exprs->dna
   [& exprs]
   (expr/op-get (expr/=>* (apply expr/make exprs)) :dna))
@@ -340,7 +340,7 @@
 (def common-specimen
   "Common specimen to specify cellular automata. Lists all the SelFis introduced by Ralf Peyn in ‘uFORM iFORM’."
   (let [selfi #(apply make-selfi {:overwrites {:label (str "SelFi/" %1)}} %&)
-        ini-ball (make-ini :ball :n nil {:pos :center :align :center})
+        ini-ball (make-ini :figure :n (ini-patterns :ball) :center)
         ini-rand (make-ini :random)
         l 'a, e 'b, r 'c]
     {:Mark1
@@ -505,186 +505,10 @@
 
 
 (comment
-  (keys (get-in-types [:ini]))
-  (make-ini :fill-center :help)
 
-  (make-ini :fill-center {:res [10 4] :val :u} :m)
-  (make-rule :match (calc/rand-dna 2))
-  (make-instance :rule :match (calc/rand-dna 2))
-  (make-selfi (calc/rand-dna 2) (make-ini :random))
-  (make-lifeform (calc/rand-dna 2))
-
-  ,)
-
-(comment
-  (make-rule :match :help)
-  (take 6 (ca-iterator (common-specimen :Mark1) [10]))
-  ,)
-
-(comment
-  (def ca (create-ca
-           (make-mindform (calc/rand-dna 2)
-                          (make-ini :rand-center 10))
-           [40 40]))
-  (.get-resolution ca)
-  (step ca)
-  (get-current-generation ca)
-  (restart ca)
-  ,)
-
-(comment
-  (make-ini :help)
-  (frequencies (sys-ini (make-ini :random {:seed 32 :weights 0.8}) 100))
-  (sys-ini (make-ini :random {:seed 10}) 10)
-  (sys-ini (make-ini :random) 10 10)
-  (sys-ini (make-ini :rand-figure {:weights 0.2} :n 10 {:pos :center :align :center}) 40)
-
-  (sys-ini (make-ini :rand-center 2) 10)
-  (sys-ini (make-ini :rand-center 2) 10 10)
-  (sys-ini (make-ini :ball) 10)
-  (sys-ini (make-ini :ball) 10 10)
-  (sys-ini (make-ini :fill-all :n) 10)
-  (sys-ini (make-ini :fill-all :n) 10 4)
-  (sys-ini (make-ini :fill-all :rand) 10)
-  (sys-ini (make-ini :fill-all :rand) 10 4)
-  (sys-ini (make-ini :fill-all [:n :u :i :m]) 4)
-  (sys-ini (make-ini :fill-all [[:_ :_ :_ :n]
-                                [:_ :_ :u :_]
-                                [:_ :i :_ :_]
-                                [:m :_ :_ :_]]) 4 4)
-  (sys-ini (make-ini :fill-all (fn [x] (if (= 0 (mod x 3))
-                                         :u :_))) 10)
-  (sys-ini (make-ini :fill-all (fn [x y] (if (and (= 0 (mod x 3))
-                                                  (= 0 (mod y 3)))
-                                           :u :_))) 10 10)
-  (sys-ini (make-ini :fill-center {:res [4] :val :u} :_) 10)
-  (sys-ini (make-ini :fill-center {:res [4 3] :val :rand} :_) 10 10)
-  (sys-ini (make-ini :fill-center [:u :i :m] :_) 10)
-  (sys-ini (make-ini :fill-center [[:u :i :m] [:m :n :i] [:i :u :m]] :_) 5 5)
-
-  (apply-rule (make-rule :match [:n :n :n :n
-                                 :n :n :n :n
-                                 :n :m :n :n
-                                 :n :n :n :n])
-              (observe-umwelt (make-umwelt :select-ltr 2)
-                              (sys-ini (make-ini :fill-center
-                                                 [:u :n :i] :n) 5)
-                              ;;=> [:n :u :n :i :n]
-                              [[2] :_]) ;;=> [:u :i]
-              :_) ;;=> :m
-  
-  ,)
-
-(comment
-  (sys-ini (make-ini :random)
-           10 10)
-  ;; [[:m :i :m :n :n :u :m :u :u :u]
-  ;;  [:m :i :m :i :n :m :i :i :u :m]
-  ;;  [:n :i :n :i :m :u :u :n :i :u]
-  ;;  [:u :n :m :u :i :u :u :u :u :i]
-  ;;  [:u :n :m :u :m :i :m :n :u :m]
-  ;;  [:i :i :i :m :m :u :m :m :n :i]
-  ;;  [:i :i :n :n :n :n :i :n :n :m]
-  ;;  [:m :n :n :u :n :u :i :i :n :u]
-  ;;  [:n :i :m :i :n :n :n :m :i :m]
-  ;;  [:i :n :n :u :n :u :m :u :i :n]]
-
-  (ca-iterator (make-lifeform {:seed 100}
-                              (calc/rand-dna 2))
-               [10 10]
-               1)
-  
-  (def ca (create-ca (make-lifeform {:seed 100}
-                                    (calc/rand-dna 2))
-                     [10 10]))
-
-  (get-current-generation ca false)
-  
-
-  (sys-ini ((:constructor (get-in @!types [:ini :fill-all])) :u) 10 3)
-  (make-ini :fill-all :i)
-  (make-ini :fill-all :help)
-  (make-ini :fill-all :help)
-  ,)
-
-(comment
-  (def selfi (make-selfi (calc/rand-dna 2)
-                         (make-ini :random)))
-  (meta selfi)
-  
-  (take 3 (ca-iterator selfi [40]))
-  (def ca (create-ca selfi [40]))
-  (get-resolution ca)
-  (seq (get-current-generation ca))
-  (step ca)
-  (restart ca)
-
-  (.get-resolution ca)
-  (.get-evolution ca)
-  (.step ca)
-  (.restart ca)
-  (type ca)
-  
-  (def slit (common-specimen :Slit))
-  (meta slit)
-  (take 10 (ca-iterator slit [20]))
-  '([:n :n :n :n :n :n :n :n :i :u :m :u :i :n :n :n :n :n :n :n]
-    [:n :n :n :n :n :n :n :i :u :u :n :u :u :i :n :n :n :n :n :n]
-    [:n :n :n :n :n :n :i :u :m :u :n :u :m :u :i :n :n :n :n :n]
-    [:n :n :n :n :n :i :u :u :n :m :n :m :n :u :u :i :n :n :n :n]
-    [:n :n :n :n :i :u :m :u :i :n :n :n :i :u :m :u :i :n :n :n]
-    [:n :n :n :i :u :u :n :u :u :i :n :i :u :u :n :u :u :i :n :n]
-    [:n :n :i :u :m :u :n :u :m :u :n :u :m :u :n :u :m :u :i :n]
-    [:n :i :u :u :n :m :n :m :n :m :n :m :n :m :n :m :n :u :u :i]
-    [:n :u :m :u :i :n :n :n :n :n :n :n :n :n :n :n :i :u :m :u]
-    [:n :m :n :u :u :i :n :n :n :n :n :n :n :n :n :i :u :u :n :m])
-  (assoc slit :label "Slit")
-  ,)
-
-(comment
-  
-  (observe-umwelt (make-umwelt :select-ltr 3)
-                  [:n :m :u :i :n :m :i]
-                  [[3] :u])
-  (observe-umwelt (make-umwelt :self-select-ltr 3)
-                  [[:n :i :n :u :i]
-                   [:u :m :n :i :m]
-                   [:m :n :i :m :u]
-                   [:n :n :u :i :m]
-                   [:m :u :i :i :n]]
-                  [[2 2] :i])
-
-  (let [gen [:n :m :u :i :n :m :i]
-        cell [[3] :u]
-        dna [:n :u :i :m  :n :n :i :i  :n :u :n :u  :n :n :n :n
-             :n :u :i :m  :n :u :i :m  :n :u :n :u  :n :u :n :u
-             :n :u :i :m  :n :n :i :i  :n :u :i :m  :n :n :i :i
-             :n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :m]
-        env (observe-umwelt (make-umwelt :select-ltr 3) gen cell)]
-    (apply-rule (make-rule :match dna) env (last cell)))
-
-  (let [dna [:n :u :i :m  :n :n :i :i  :n :u :n :u  :n :n :n :n
-             :n :u :i :m  :n :u :i :m  :n :u :n :u  :n :u :n :u
-             :n :u :i :m  :n :n :i :i  :n :u :i :m  :n :n :i :i
-             :n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :m]]
-    (sys-next (make-rule :match dna)
-              (make-umwelt :select-ltr 3)
-              (sys-ini (make-ini :fill-center {:res [1] :val :m} :n) 7)))
-  ;; ini: [:n :n :n :m :n :n :n]
-  ;;=>    [:m :m :n :m :n :m :m]
-
-  (let [dna [:n :u :i :m  :n :n :i :i  :n :u :n :u  :n :n :n :n
-             :n :u :i :m  :n :u :i :m  :n :u :n :u  :n :u :n :u
-             :n :u :i :m  :n :n :i :i  :n :u :i :m  :n :n :i :i
-             :n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :m]
-        selfi (make-selfi dna
-                          (make-ini :fill-center {:res [1] :val :m} :n))]
-    (take 5 (ca-iterator selfi [7])))
-  '([:n :n :n :m :n :n :n]
-    [:m :m :n :m :n :m :m]
-    [:n :m :n :m :n :n :n]
-    [:n :m :n :m :n :m :m]
-    [:n :m :n :m :n :n :m])
+  (sys-ini
+   (make-ini :figure :n (ini-patterns :ball2d-square) [3 2])
+   9 9)
   ,)
 
 #_

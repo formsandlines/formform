@@ -660,7 +660,7 @@
 
 
 (comment
-  (interpret (make :tsds [0 1 1 0 1 0] 'l 'e 'r))
+  (interpret (make :tsds [1 0 1 1 0 1] 'l 'e 'r))
 
   ,)
 

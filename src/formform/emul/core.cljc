@@ -112,7 +112,7 @@
   (ini-xform2d [this] (i/ini-xform1d this)))
 
 
-(defn- segment-bounds
+(defn segment-bounds
   "Calculates the start and end index of a subsequence (“segment”) given its position within a sequence and its alignment at that position. The sequence wraps around itself, so when its subsequence indices would be out of bounds, their count continues from the beginning/end.
   - `segm-pos` can be an index or an alignment keyword (see below)
   - `segm-align` must be one of `:start`, `:center` or `:end`"
@@ -160,6 +160,10 @@
 (def align-tuples
   (set (vals align->normalized)))
 
+(def align-keywords
+  (set (keys align->normalized)))
+
+
 (defn- normalize-position [pos]
   (let [v (vec (if-let [norm-align (or (align-tuples pos)
                                        (align->normalized pos))]
@@ -194,14 +198,33 @@
 ;; (defrecord Pattern [gen1d gen2d])
 ;; (defrecord PatternSpec [w h f])
 
-(defn- normalize-anchor [{:keys [pos align offset] :as anchor}]
-  (if (and (:pos-x anchor)
-           (:align-x anchor)
-           (:offset-x anchor))
-    anchor ;; already normalized
-    (merge (normalize-position pos)
-           (normalize-alignment align)
-           (normalize-offset offset))))
+(defn- normalize-anchor [anchor]
+  (cond
+    ;; absolute position/index in generation
+    (or (int? anchor)
+        (sequential? anchor))
+    (merge (normalize-position  anchor)
+           (normalize-alignment nil)
+           (normalize-offset    nil))
+    
+    ;; relative gen. alignment = self-alignment
+    (align-keywords anchor)
+    (merge (normalize-position  anchor)
+           (normalize-alignment anchor)
+           (normalize-offset    nil))
+
+    ;; specific position, alignment and offset
+    (map? anchor)
+    (if (and (:pos-x anchor)
+             (:align-x anchor)
+             (:offset-x anchor))
+      anchor ;; already normalized
+      (merge (normalize-position  (:pos anchor))
+             (normalize-alignment (:align anchor))
+             (normalize-offset    (:offset anchor))))
+
+    :else
+    (throw (ex-info "Invalid anchor type!" {:anchor anchor}))))
 
 (defn- normalize-pattern
   [pattern]
@@ -291,13 +314,18 @@
 (defini :figure [-opts bg pattern anchor]
   "Places a given `pattern` at the position specified by `anchor` before a given background ini.
 - `bg`: a constant or ini that defines the background pattern of this ini
-- `pattern`: either a (1d/2d) vector of figure values (constants, `:_` to fall back to `bg-ini` or `:?` for a random value) or a map that specifies the pattern implicitly with the following keys:
+- `pattern`: either a (1D/2D) vector of figure values (constants, `:_` to fall back to `bg-ini` or `:?` for a random value) or a map that specifies the pattern implicitly with the following keys:
   - `w`/`h`: size of the pattern
   - `f`: function that takes a map of the current `:x`, `:y` coordinates and the background value `:v` (among other parameters) and must return the value at that coordinate
-- `anchor`: map with the following (all optional) keys:
-  - `pos`: can be an index (for x/y), a vector of indices `[x y]` or an alignment keyword (see `align`)
-  - `align`: a keyword, e.g. `:left`, `:center` `:right`, `topleft`, …
-  - `offset`: an integer of the pattern offset (number of cells from `pos`)"
+- `anchor`: one of the following:
+  - absolute position: can be an index (x=y) or a vector of indices `[x y]`
+  - relative position: a keyword, e.g. `:left`, `:center` `:right`, `topleft`, …
+  - a map with (all optional) keys:
+    - `pos`: same as absolute or relative position
+    - `align`: alignment at `pos`, same keywords as in “relative position”
+    - `offset`: integer (x=y) or int vector `[x y]` as number of cells from `pos`
+
+Note: you can find some predefined patterns in `ini-patterns`."
   (make-gen [this w]
             (let [bg-ini (parse-bg -opts bg)]
               (transduce-ini -opts
@@ -321,6 +349,7 @@
      (map #(assoc % :v (val-figure %))))))
 
 
+;; ! `size` should also allow vector
 (defini :rand-figure [-opts bg size anchor]
   "Generates a figure of given `size` with random constants at the position specified by `anchor` before a given background ini (see docs of `:figure` ini for further explanation).
 
@@ -358,54 +387,6 @@ The (first) `-opts` argument is a map where you can set the following optional p
          pattern {:w w :h h :f val-random}]
      (i/ini-xform2d (->Ini-Figure -opts nil pattern anchor)))))
 
-
-(defini :ball [-opts bg style anchor]
-  "Generates a “ball” figure on top of a given background ini (see docs of `:figure` ini for further explanation)."
-  (make-gen [this w]
-            (let [bg-ini (parse-bg -opts bg)]
-              (transduce-ini -opts
-                             (comp (i/ini-xform1d bg-ini)
-                                   (i/ini-xform1d this)) w)))
-  (make-gen [this w h]
-            (let [bg-ini (parse-bg -opts bg)]
-              (transduce-ini -opts (comp (i/ini-xform2d bg-ini)
-                                         (i/ini-xform2d this)) w h)))
-
-  i/IniTransducer
-  (ini-xform1d
-   [_]
-   (let [pattern (case style
-                   (:inverted :moore-inverted)
-                   [:u :i :n :i :u]
-                   [:i :u :m :u :i])]
-     (i/ini-xform1d (->Ini-Figure -opts nil pattern anchor))))
-  (ini-xform2d
-   [_]
-   (let [pattern (case style
-                   :moore
-                   [[:i :i :i :i :i]
-                    [:i :u :u :u :i]
-                    [:i :u :m :u :i]
-                    [:i :u :u :u :i]
-                    [:i :i :i :i :i]]
-                   :moore-inverted
-                   [[:u :u :u :u :u]
-                    [:u :i :i :i :u]
-                    [:u :i :n :i :u]
-                    [:u :i :i :i :u]
-                    [:u :u :u :u :u]]
-                   :inverted
-                   [[:_ :_ :u :_ :_]
-                    [:_ :u :i :u :_]
-                    [:u :i :n :i :u]
-                    [:_ :u :i :u :_]
-                    [:_ :_ :u :_ :_]]
-                   [[:_ :_ :i :_ :_]
-                    [:_ :i :u :i :_]
-                    [:i :u :m :u :i]
-                    [:_ :i :u :i :_]
-                    [:_ :_ :i :_ :_]])]
-     (i/ini-xform2d (->Ini-Figure -opts nil pattern anchor)))))
 
 (defini :comp-figures [-opts bg figure-inis]
   "Takes a background ini and a sequence of `figure-inis` and composes them all together. Inis that appear later in the sequence may overwrite earlier ones when they overlap.
@@ -990,14 +971,6 @@ The (first) `-opts` argument is a map where you can set the following optional p
 
   (def rule (->Rule-Life {} dna))
 
-  (i/apply-rule rule (i/observe-umwelt (->Umwelt-Moore {} :column-first false)
-                                       [[:n :n :u]
-                                        [:m :_ :n]
-                                        [:n :n :i]]
-                                       [[1 1] :n]
-                                       3 3)
-                :n)
-  ;;=> 
 
   (require '[clojure.math.combinatorics :as combo])
 
@@ -1071,23 +1044,6 @@ The (first) `-opts` argument is a map where you can set the following optional p
 
 (comment
 
-  (i/make-gen (->Ini-Constant {} :u) 6)
-  (i/make-gen (->Ini-Constant {} :i) 6 3)
-
-  (i/make-gen (->Ini-Random {:seed nil}) 6)
-  (i/make-gen (->Ini-Random {:seed 10}) 6 3)
-
-  (i/make-gen (->Ini-Cycle {} [:m :u :i]) 6)
-  (i/make-gen (->Ini-Cycle {} [:m :u :i]) 6 3)
-
-  (let [f (make-val-cycle [:m :u :i])]
-    (for [x (range 10)
-          y (range 10)]
-      (f {:x x :y y})))
-
-  (i/make-gen (->Ini-Figure {}
-                            (->Ini-Constant {} :n)
-                            [:m :_ :i] {:pos :center :align :center}) 6)
   (i/make-gen (->Ini-Figure {}
                             (->Ini-Constant {} :_)
                             {:w 2 :h 5 :f (fn [_] :i)}
@@ -1100,147 +1056,6 @@ The (first) `-opts` argument is a map where you can set the following optional p
                             (->Ini-Constant {} :_)
                             {:w 6 :f (make-val-cycle [:u :i :m])}
                             {:pos 3}) 12)
-  (i/make-gen (->Ini-Figure {}
-                            (->Ini-Constant {} :_)
-                            {:w 3 :f val-random}
-                            {}) 5)
-  (i/make-gen (->Ini-Figure {}
-                            (->Ini-Constant {} :_)
-                            [[:m :u :i]
-                             [:n :i :u]] {:pos :center :align :center}) 6 4)
-  (i/make-gen (->Ini-Figure {}
-                            (->Ini-Constant {} :_)
-                            [:n :m :u]
-                            {:pos :center :align :center})
-              20)
-
-  (i/make-gen (->Ini-Figure {}
-                            (->Ini-Constant {} :_)
-                            [:a :b :c :d :e :f :g]
-                            {:pos 7})
-              10)
-
-  (i/make-gen (->Ini-Ball {} :n nil {:pos :center :align :center})
-              7)
-  ;; [:n :i :u :m :u :i :n]
-
-  (i/make-gen (->Ini-Ball {}
-                          (->Ini-Constant {} :m)
-                          :inverted
-                          {:pos :center :align :center})
-              7)
-  ;; [:m :u :i :n :i :u :m]
-  
-  (i/make-gen (->Ini-Ball {}
-                          (->Ini-Constant {} :n)
-                          nil
-                          {:pos :center :align :center})
-              7 7)
-  ;; [[:n :n :n :n :n :n :n]
-  ;;  [:n :n :n :i :n :n :n]
-  ;;  [:n :n :i :u :i :n :n]
-  ;;  [:n :i :u :m :u :i :n]
-  ;;  [:n :n :i :u :i :n :n]
-  ;;  [:n :n :n :i :n :n :n]
-  ;;  [:n :n :n :n :n :n :n]]
-
-  (i/make-gen (->Ini-Ball {}
-                          (->Ini-Constant {} :n)
-                          :moore
-                          {:pos :center :align :center})
-              7 7)
-  ;; [[:n :n :n :n :n :n :n]
-  ;;  [:n :i :i :i :i :i :n]
-  ;;  [:n :i :u :u :u :i :n]
-  ;;  [:n :i :u :m :u :i :n]
-  ;;  [:n :i :u :u :u :i :n]
-  ;;  [:n :i :i :i :i :i :n]
-  ;;  [:n :n :n :n :n :n :n]]
-  
-  (i/make-gen (->Ini-RandFigure {}
-                                (->Ini-Constant {} :_)
-                                [3 2]
-                                {:pos :center
-                                 :align :center})
-              9 5)
-  ;; [[:_ :_ :_ :_ :_ :_ :_ :_ :_]
-  ;;  [:_ :_ :_ :m :u :m :_ :_ :_]
-  ;;  [:_ :_ :_ :u :n :u :_ :_ :_]
-  ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_]
-  ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_]]
-
-  (i/make-gen (->Ini-Figure {}
-                            (->Ini-Constant {} :_)
-                            {:w 3 :h 3 :f val-random}
-                            {:pos :center
-                             :align :center})
-              9)
-  ;; [:_ :_ :_ :i :n :i :_ :_ :_]
-
-  (i/make-gen (->Ini-CompFigures {}
-                                 (->Ini-Constant {} :_)
-                                 [(->Ini-Figure {} nil [:u :i] {:pos 1})
-                                  (->Ini-Ball {} nil nil {:pos 4})
-                                  (->Ini-Figure {} nil [:i :n :u]
-                                                {:pos :right :align :right})])
-              15)
-  ;; [:_ :u :i :_ :i :u :m :u :i :_ :_ :_ :i :n :u]
-
-  (i/make-gen (->Ini-FigureRepeat {}
-                                  (->Ini-Constant {} :_)
-                                  [:m :u]
-                                  {:pos 0 :align :left}
-                                  3
-                                  1)
-              15)
-  [:m :u :i :_ :m :u :i :_ :m :u]
-
-  (i/make-gen (->Ini-FigureRepeat {}
-                                  (->Ini-Constant {} :_)
-                                  {:w 3 :h 3
-                                   :f val-random}
-                                  {:pos :center
-                                   :align :center}
-                                  3
-                                  1)
-              13 13)
-  ;; [[:_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_]
-  ;;  [:_ :u :i :u :_ :m :m :m :_ :n :n :n :_]
-  ;;  [:_ :u :i :n :_ :u :m :m :_ :i :u :u :_]
-  ;;  [:_ :i :n :m :_ :n :m :i :_ :n :i :m :_]
-  ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_]
-  ;;  [:_ :m :n :n :_ :u :u :i :_ :i :i :u :_]
-  ;;  [:_ :n :i :m :_ :i :n :u :_ :i :m :i :_]
-  ;;  [:_ :m :u :n :_ :u :u :m :_ :i :n :u :_]
-  ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_]
-  ;;  [:_ :m :n :n :_ :n :i :m :_ :i :m :n :_]
-  ;;  [:_ :n :n :n :_ :i :u :u :_ :m :u :i :_]
-  ;;  [:_ :u :m :n :_ :n :i :m :_ :m :i :i :_]
-  ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_ :_]]
-  
-  
-  (i/make-gen (->Ini-FigureRepeat {}
-                                  (->Ini-Constant {} :_)
-                                  [[:m :u]
-                                   [:n :i]]
-                                  {:pos [1 1] ;; or just 1 or :center, …
-                                   :align :topleft}
-                                  [3 3] ;; or just 3
-                                  [1 1] ;; or just 1
-                                  )
-              10 10)
-  ;; =>
-  ;; [[:_ :_ :_ :_ :_ :_ :_ :_ :_ :_]
-  ;;  [:_ :m :u :_ :m :u :_ :m :u :_]
-  ;;  [:_ :n :i :_ :n :i :_ :n :i :_]
-  ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_ :_]
-  ;;  [:_ :m :u :_ :m :u :_ :m :u :_]
-  ;;  [:_ :n :i :_ :n :i :_ :n :i :_]
-  ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_ :_]
-  ;;  [:_ :m :u :_ :m :u :_ :m :u :_]
-  ;;  [:_ :n :i :_ :n :i :_ :n :i :_]
-  ;;  [:_ :_ :_ :_ :_ :_ :_ :_ :_ :_]]
-
 
   #_
   (i/make-gen (->Ini-FigureDistribute (->Ini-Constant :_)
@@ -1254,271 +1069,4 @@ The (first) `-opts` argument is a map where you can set the following optional p
 
   ,)
 
-
-(comment
-  (let [opts [:start :center :end]]
-    (for [align opts
-          self-align opts]
-      [[align self-align] (segment-bounds 9 4 align self-align 0)]))
-  [[[:start :start] [0 3]]
-   [[:start :center] [7 1]]
-   [[:start :end] [5 8]]
-   [[:center :start] [4 7]]
-   [[:center :center] [2 5]]
-   [[:center :end] [0 3]]
-   [[:end :start] [0 3]]
-   [[:end :center] [7 1]]
-   [[:end :end] [5 8]]]
-  
-  ;; [0 1 2 3 4 5 6 7 8]
-  ;;  | anchor (start)
-  ;;                    | anchor (end)
-  ;; [0 1 2 3]           ;; start/end start
-  ;;  2 3]         [0 1  ;; start/end center
-  ;;           [0 1 2 3] ;; start/end end
-  
-  ;; [0 1 2 3 4 5 6 7 8]
-  ;;          | anchor
-  ;;         [0 1 2 3]   ;; center start
-  ;;     [0 1 2 3]       ;; center center
-  ;; [0 1 2 3]           ;; center end
-
-  
-  (let [opts [:start :center :end]]
-    (for [align opts
-          self-align opts]
-      [[align self-align] (segment-bounds 9 5 align self-align 0)]))
-  [[[:start :start] [0 4]]
-   [[:start :center] [7 2]]
-   [[:start :end] [4 8]]
-   [[:center :start] [4 8]]
-   [[:center :center] [2 6]]
-   [[:center :end] [8 3]]
-   [[:end :start] [0 4]]
-   [[:end :center] [7 2]]
-   [[:end :end] [4 8]]]
-  
-  ;; [0 1 2 3 4 5 6 7 8]
-  ;;  | anchor (start)
-  ;;                    | anchor (end)
-  ;; [0 1 2 3 4]         ;; start/end start
-  ;;  2 3 4]       [0 1  ;; start/end center
-  ;;         [0 1 2 3 4] ;; start/end end
-  
-  ;; [0 1 2 3 4 5 6 7 8]
-  ;;          | anchor
-  ;;         [0 1 2 3 4]   ;; center start
-  ;;     [0 1 2 3 4]       ;; center center
-  ;;  1 2 3 4]       [0    ;; center end
-
-  
-  (let [opts [:start :center :end]]
-    (for [align opts
-          self-align opts]
-      [[align self-align] (segment-bounds 10 4 align self-align 0)]))
-  [[[:start :start] [0 3]]
-   [[:start :center] [8 1]]
-   [[:start :end] [6 9]]
-   [[:center :start] [5 8]]
-   [[:center :center] [3 6]]
-   [[:center :end] [1 4]]
-   [[:end :start] [0 3]]
-   [[:end :center] [8 1]]
-   [[:end :end] [6 9]]]
-  
-  ;; [0 1 2 3 4 5 6 7 8 9]
-  ;;  | anchor (start)
-  ;;            | anchor (end)
-  ;; [0 1 2 3]             ;; start/end start
-  ;;  2 3]           [0 1  ;; start/end center
-  ;;             [0 1 2 3] ;; start/end end
-
-  ;; [0 1 2 3 4 5 6 7 8 9]
-  ;;            | anchor
-  ;;           [0 1 2 3]   ;; center start
-  ;;       [0 1 2 3]       ;; center center
-  ;;   [0 1 2 3]           ;; center end
-
-  
-  (let [opts [:start :center :end]]
-    (for [align opts
-          self-align opts]
-      [[align self-align] (segment-bounds 3 2 align self-align 0)]))
-  [[[:start :start] [0 1]]
-   [[:start :center] [2 0]]
-   [[:start :end] [1 2]]
-   [[:center :start] [1 2]]
-   [[:center :center] [0 1]]
-   [[:center :end] [2 0]]
-   [[:end :start] [0 1]]
-   [[:end :center] [2 0]]
-   [[:end :end] [1 2]]]
-
-  ;; [0 1 2]
-  ;;  | anchor (start)
-  ;;        | anchor (end)
-  ;; [0 1]   ;; start/end start
-  ;;  1] [0  ;; start/end center
-  ;;   [0 1] ;; start/end end
-
-  ;; [0 1 2]
-  ;;    | anchor
-  ;;   [0 1] ;; center start
-  ;; [0 1]   ;; center center
-  ;;  1] [0  ;; center end
-
-  
-  (let [opts [:start :center :end]]
-    (for [align opts
-          self-align opts]
-      [[align self-align] (segment-bounds 2 2 align self-align 0)]))
-  [[[:start :start] [0 1]]
-   [[:start :center] [1 0]]
-   [[:start :end] [0 1]]
-   [[:center :start] [1 0]]
-   [[:center :center] [0 1]]
-   [[:center :end] [1 0]]
-   [[:end :start] [0 1]]
-   [[:end :center] [1 0]]
-   [[:end :end] [0 1]]]
-  
-  ;; [0 1]
-  ;;  | anchor (start)
-  ;;      | anchor (end)
-  ;; [0 1] ;; start/end start
-  ;;  1|0  ;; start/end center
-  ;; [0 1] ;; start/end end
-
-  ;; [0 1]
-  ;;    | anchor
-  ;;  1|0  ;; center start
-  ;; [0 1] ;; center center
-  ;;  1|0  ;; center end
-
-  
-  (let [opts [:start :center :end]]
-    (for [align opts
-          self-align opts]
-      [[align self-align] (segment-bounds 2 1 align self-align 0)]))
-  [[[:start :start] [0 0]]
-   [[:start :center] [0 0]]
-   [[:start :end] [1 1]]
-   [[:center :start] [1 1]]
-   [[:center :center] [1 1]]
-   [[:center :end] [0 0]]
-   [[:end :start] [0 0]]
-   [[:end :center] [0 0]]
-   [[:end :end] [1 1]]]
-  
-  ;; [0 1]
-  ;;  | anchor (start)
-  ;;      | anchor (end)
-  ;; [0]   ;; start/end start
-  ;; [0]   ;; start/end center
-  ;;   [0] ;; start/end end
-
-  ;; [0 1]
-  ;;    | anchor
-  ;;   [0] ;; center start
-  ;;   [0] ;; center center
-  ;; [0]   ;; center end
-
-  
-  (let [opts [:start :center :end]]
-    (for [align opts
-          self-align opts]
-      (segment-bounds 1 1 align self-align 0)))
-  [[0 0] [0 0] [0 0] [0 0] [0 0] [0 0] [0 0] [0 0] [0 0]]
-  
-  ;; [0 1 2 3 4 5 6 7 8]
-  ;;          | anchor
-  ;;  5]     [0 1 2 3 4  ;; center start
-  ;;   [0 1 2 3 4 5]     ;; center center
-  ;;  2 3 4 5]     [0 1  ;; center end
-
-  
-
-  ,)
-
-(comment
-  #_
-  (defn- get-pattern-specs
-    [pattern]
-    (cond
-      (vector? pattern) (let [dim (if (sequential? (first pattern)) 2 1)]
-                          {:type :explicit
-                           ;; :dim dim
-                           :ptn-w (if (== dim 2)
-                                    (count (first pattern))
-                                    (count pattern))
-                           :ptn-h (when (== dim 2) (count pattern))})
-      (map? pattern) {:type :recipe
-                      ;; :dim (if (:h pattern) 2 1)
-                      :ptn-w (or (:w pattern) (:h pattern) 1)
-                      :ptn-h (or (:h pattern) (:w pattern) 1)}
-      :else (throw (ex-info "Unknown pattern type." {:pattern pattern}))))
-
-  #_
-  (defn- get-pattern-specs
-    [pattern]
-    (let [type (get-pattern-type pattern)]
-      (case type
-        :explicit (let [pattern (normalize-pattern pattern)]
-                    {:type type
-                     :pattern pattern
-                     ;; ? pattern w/h might not always be same between 1d/2d
-                     :ptn-w (count (:gen1d pattern))
-                     :ptn-h (count (:gen2d pattern))})
-        :recipe {:type type
-                 :pattern (:f pattern)
-                 :ptn-w (or (:w pattern) (:h pattern) 1)
-                 :ptn-h (or (:h pattern) (:w pattern) 1)}
-        (throw (ex-info "Unknown pattern type." {:pattern pattern})))))
-  
-  #_
-  (defn make-val-figure [pattern pos align offset]
-    (let [{:keys [type dim ptn-w ptn-h]} (get-pattern-specs pattern)
-          get-val (case type
-                    :explicit (if (== dim 1)
-                                (fn [{i :i}] (get pattern i))
-                                (fn [{i :i j :j}] (get-in pattern [i j])))
-                    :recipe (:f pattern))
-          pos (normalize-position pos)
-          align (normalize-alignment align)]
-      (case dim
-        1 (let [pos-x (or (and (vector? pos) (first pos)) pos 0)
-                align-x (or (first align) :start)
-                offset-x (or offset 0)]
-            (fn [{:keys [w x v] :as env}]
-              (let [[s0 s1 :as bounds] (segment-bounds
-                                        w ptn-w pos-x align-x offset-x)
-                    at-ptn? (within-segment-bounds? bounds w x)]
-                (if at-ptn?
-                  (get-val (-> env (assoc :i (if (and (> s0 s1) (< x s0))
-                                               (+ x (- ptn-w (inc s1)))
-                                               (- x s0)))))
-                  v))))
-
-        2 (let [[pos-x pos-y] (or pos [0 0])
-                [align-x align-y] (or align [:start :start])
-                [offset-x offset-y] (or offset [0 0])]
-            (fn [{:keys [w h x y v] :as env}]
-              (let [[sx0 sx1 :as xbounds] (segment-bounds
-                                           w ptn-w pos-x align-x offset-x)
-                    [sy0 sy1 :as ybounds] (segment-bounds
-                                           h ptn-h pos-y align-y offset-y)
-                    at-ptn?
-                    (and (within-segment-bounds? xbounds w x)
-                         (within-segment-bounds? ybounds h y))]
-                (if at-ptn?
-                  (get-val (-> env (assoc :i (if (and (> sy0 sy1) (< y sy0))
-                                               (+ y (- ptn-h (inc sy1)))
-                                               (- y sy0))
-                                          :j (if (and (> sx0 sx1) (< x sx0))
-                                               (+ x (- ptn-w (inc sx1)))
-                                               (- x sx0)))))
-                  v)))))))
-
-
-  ,)
 

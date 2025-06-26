@@ -3,6 +3,7 @@
             [formform.utils :as utils]
             [clojure.spec.alpha :as s]
             ;; [clojure.spec.gen.alpha :as gen]
+            [formform.emul.core :as core]
             [formform.emul.interfaces :as i]
             #?(:cljs [formform.emul.core :refer [CellularAutomaton]]))
   #?(:clj (:import [formform.emul.core CellularAutomaton])))
@@ -76,7 +77,7 @@
 (s/def ::figure (s/or :1d ::figure-1d
                       :2d ::figure-2d))
 
-(s/def ::ini-opts (s/keys :opt-un [:rand/seed]))
+(s/def ::ini-opts (s/keys :opt-un [:rand/seed :rand/weights]))
 
 (s/def :ini-pattern/f fn?)
 (s/def :ini-pattern/w pos-int?)
@@ -88,14 +89,18 @@
                                    (or :ini-pattern/w
                                        :ini-pattern/h)])))
 
-(s/def :anchor/pos (s/or :index nat-int?
-                         :relative keyword?))
-(s/def :anchor/align keyword?)
-(s/def :anchor/offset int?)
+(s/def :anchor/index (s/or :1d nat-int?
+                           :2d (s/tuple nat-int? nat-int?)))
+(s/def :anchor/pos (s/or :absolute :anchor/index
+                         :relative core/align-keywords))
+(s/def :anchor/align core/align-keywords)
+(s/def :anchor/offset (s/or :1d int?
+                            :2d (s/tuple int? int?)))
 
 (s/def ::anchor
-  (s/keys :opt-un [:anchor/pos :anchor/align :anchor/offset]))
-
+  (s/or :absolute :anchor/index
+        :relative :anchor/align
+        :specific (s/keys :opt-un [:anchor/pos :anchor/align :anchor/offset])))
 
 ;; Note: the `x/y` specs below don’t apply directly to the records, but to the arguments as provided in `emul/make-x` constructors, where they are validated against the specs.
 
@@ -112,11 +117,6 @@
                                :bg ::bg
                                :size pos-int?
                                :anchor ::anchor))
-
-(s/def :ini/ball (s/cat :-opts ::ini-opts
-                        :bg ::bg
-                        :style (s/nilable keyword?)
-                        :anchor ::anchor))
 
 (s/def :ini/comp-figure (s/cat :-opts ::ini-opts
                                :bg ::bg
@@ -152,7 +152,7 @@
 
 
 (s/def ::ca-spec
-  (s/keys :req-un [::resolution ::rule-spec ::umwelt-spec ::ini-spec]))
+  #(= (type %) formform.emul.core.CASpec))
 
 
 (binding [clojure.spec.alpha/*coll-check-limit* 3]
@@ -194,17 +194,14 @@
   (require '[formform.calc :as calc])
   (require '[formform.emul :as emul])
 
-  (emul/params :ini :ball)
-  (emul/make-ini :ball (emul/make-ini :constant :n) nil {})
-
   (s/conform ::rule-spec (emul/make-rule :match (calc/rand-dna 3)))
   (s/conform ::umwelt-spec (emul/make-umwelt :moore false))
-  (s/conform ::ini-spec (emul/make-ini :ball))
+  (s/conform ::ini-spec (emul/make-ini :random))
 
   (every? s/invalid?
           [(s/conform ::ini-spec (emul/make-rule :life (calc/rand-dna 3)))
            (s/conform ::rule-spec (emul/make-umwelt :moore false))
-           (s/conform ::umwelt-spec (emul/make-ini :ball))])
+           (s/conform ::umwelt-spec (emul/make-ini :random))])
 
   (s/conform ::generation-1d [:n :m :i :m :m :u])
   (s/conform ::generation-2d [[:n :m] [:i :m] [:m :u]])
@@ -217,7 +214,6 @@
                  (emul/make-ini :random)))
   (s/conform ::ca-constructor mindform)
   (def ca (emul/specify-ca mindform 40 30))
-  (s/conform ::ca-spec ca)
   (s/conform ::automaton (emul/create-ca ca))
 
   (s/conform ::evolution
