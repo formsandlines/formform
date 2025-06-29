@@ -80,6 +80,7 @@
   [{:keys [rng weights]}]
   (calc-core/rand-const rng weights))
 
+
 (defini :random [-opts]
   "Fills a generation with random values. The (first) `-opts` argument is a map where you can set the following optional parameters:
 - `:seed` → an integer number to provide a seed for reproducable random generations
@@ -263,32 +264,37 @@
                            (get-in (:gen2d normal-pattern) [i j])
                            (get (:gen1d normal-pattern) i))]
                   (case v'
-                    :_ v
-                    :? (val-random env)
-                    v')))
-    :recipe (:f normal-pattern)))
+                    :_ env
+                    :? (assoc env :v (val-random env))
+                    (assoc env :v v'))))
+    :recipe (comp #(if (= :? (:v %)) ;; convenience interceptor for random vals
+                     (assoc % :v (val-random %))
+                     %)
+                  (:f normal-pattern))))
 
-(defn make-val-figure1d
+(defn make-figure1d
   [normal-pattern normal-anchor]
   (let [{:keys [pos-x align-x offset-x]} normal-anchor
         {ptn-w :1d} (get-pattern-dimensions normal-pattern)
-        get-val (make-pattern-fn normal-pattern)]
+        update-val (make-pattern-fn normal-pattern)]
     (fn [{:keys [w x v] :as env}]
       (let [[s0 s1 :as xb] (segment-bounds w ptn-w pos-x align-x offset-x)
             at-ptn? (within-segment-bounds? xb w x)]
         (if at-ptn?
-          (get-val (-> env (assoc :i (if (and (> s0 s1) (< x s0))
-                                       (+ x (- ptn-w (inc s1)))
-                                       (- x s0)))))
-          v)))))
+          (-> env
+              (assoc :i (if (and (> s0 s1) (< x s0))
+                          (+ x (- ptn-w (inc s1)))
+                          (- x s0)))
+              update-val)
+          env)))))
 
-(defn make-val-figure2d
+(defn make-figure2d
   [normal-pattern normal-anchor]
   (let [{:keys [pos-x    pos-y
                 align-x  align-y
                 offset-x offset-y]} normal-anchor
         {[ptn-w ptn-h] :2d} (get-pattern-dimensions normal-pattern)
-        get-val (make-pattern-fn normal-pattern)]
+        update-val (make-pattern-fn normal-pattern)]
     (fn [{:keys [w h x y v] :as env}]
       (let [[sx0 sx1 :as xb] (segment-bounds w ptn-w pos-x align-x offset-x)
             [sy0 sy1 :as yb] (segment-bounds h ptn-h pos-y align-y offset-y)
@@ -296,13 +302,15 @@
             (and (within-segment-bounds? xb w x)
                  (within-segment-bounds? yb h y))]
         (if at-ptn?
-          (get-val (-> env (assoc :i (if (and (> sy0 sy1) (< y sy0))
-                                       (+ y (- ptn-h (inc sy1)))
-                                       (- y sy0))
-                                  :j (if (and (> sx0 sx1) (< x sx0))
-                                       (+ x (- ptn-w (inc sx1)))
-                                       (- x sx0)))))
-          v)))))
+          (-> env
+              (assoc :i (if (and (> sy0 sy1) (< y sy0))
+                          (+ y (- ptn-h (inc sy1)))
+                          (- y sy0))
+                     :j (if (and (> sx0 sx1) (< x sx0))
+                          (+ x (- ptn-w (inc sx1)))
+                          (- x sx0)))
+              update-val)
+          env)))))
 
 (defn- parse-bg [-opts bg]
   (cond
@@ -316,7 +324,7 @@
 - `bg`: a constant or ini that defines the background pattern of this ini
 - `pattern`: either a (1D/2D) vector of figure values (constants, `:_` to fall back to `bg-ini` or `:?` for a random value) or a map that specifies the pattern implicitly with the following keys:
   - `w`/`h`: size of the pattern
-  - `f`: function that takes a map of the current `:x`, `:y` coordinates and the background value `:v` (among other parameters) and must return the value at that coordinate
+  - `f`: function that takes a map of the current `:x`, `:y` coordinates and the background value `:v` (among other parameters) and returns the same map, usually with a new/updated `:v` value (which can also be `:?` for a random value).
 - `anchor`: one of the following:
   - absolute position: can be an index (x=y) or a vector of indices `[x y]`
   - relative position: a keyword, e.g. `:left`, `:center` `:right`, `topleft`, …
@@ -339,14 +347,12 @@ Note: you can find some predefined patterns in `ini-patterns`."
   i/IniTransducer
   (ini-xform1d
    [_]
-   (let [val-figure (make-val-figure1d (normalize-pattern pattern)
-                                       (normalize-anchor anchor))]
-     (map #(assoc % :v (val-figure %)))))
+   (map (make-figure1d (normalize-pattern pattern)
+                       (normalize-anchor anchor))))
   (ini-xform2d
    [_]
-   (let [val-figure (make-val-figure2d (normalize-pattern pattern)
-                                       (normalize-anchor anchor))]
-     (map #(assoc % :v (val-figure %))))))
+   (map (make-figure2d (normalize-pattern pattern)
+                       (normalize-anchor anchor)))))
 
 
 ;; ! `size` should also allow vector
@@ -376,7 +382,7 @@ The (first) `-opts` argument is a map where you can set the following optional p
              (vector? size) (first size)
              (int? size) size
              :else 1)
-         pattern {:w w :f val-random}]
+         pattern {:w w :f #(assoc % :v (val-random %))}]
      (i/ini-xform1d (->Ini-Figure -opts nil pattern anchor))))
   (ini-xform2d
    [_]
@@ -384,7 +390,7 @@ The (first) `-opts` argument is a map where you can set the following optional p
                  (vector? size) size
                  (int? size) [size size]
                  :else [1 1])
-         pattern {:w w :h h :f val-random}]
+         pattern {:w w :h h :f #(assoc % :v (val-random %))}]
      (i/ini-xform2d (->Ini-Figure -opts nil pattern anchor)))))
 
 
@@ -1044,10 +1050,11 @@ The (first) `-opts` argument is a map where you can set the following optional p
 
 (comment
 
-  (i/make-gen (->Ini-Figure {}
-                            (->Ini-Constant {} :_)
-                            {:w 2 :h 5 :f (fn [_] :i)}
+  (i/make-gen (->Ini-Figure {} (->Ini-Constant {} :_)
+                            {:w 2 :h 5 :f #(assoc % :v :i)}
                             {:offset [1 2]}) 6 6)
+  (i/make-gen (->Ini-Figure {} :n {:w 2 :f #(assoc % :v :?)}
+                            :center) 10)
   (i/make-gen (->Ini-Figure {:seed 12}
                             (->Ini-Constant {} :_)
                             {:w 3 :h 3 :f val-random}
@@ -1057,6 +1064,7 @@ The (first) `-opts` argument is a map where you can set the following optional p
                             {:w 6 :f (make-val-cycle [:u :i :m])}
                             {:pos 3}) 12)
 
+  
   #_
   (i/make-gen (->Ini-FigureDistribute (->Ini-Constant :_)
                                       [[:m :u]

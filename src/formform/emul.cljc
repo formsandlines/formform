@@ -5,6 +5,7 @@
             [formform.emul.core :as core]
             [formform.emul.interfaces :as i]
             [formform.calc.specs :as calc-sp]
+            [formform.expr.specs :as expr-sp]
             [formform.emul.specs :as sp]
             [formform.utils :as utils]
             [clojure.string :as str]
@@ -124,9 +125,9 @@
 
 
 (s/fdef sys-ini
-  :args (s/alt :ar1 (s/cat :ini-spec ::sp/ini-spec
+  :args (s/alt :ar2 (s/cat :ini-spec ::sp/ini-spec
                            :res-w    pos-int?)
-               :ar2 (s/cat :ini-spec ::sp/ini-spec
+               :ar3 (s/cat :ini-spec ::sp/ini-spec
                            :res-w    pos-int?
                            :res-h    pos-int?))
   :ret  ::sp/generation)
@@ -147,9 +148,9 @@
 
 
 (s/fdef observe-umwelt
-  :args (s/alt :ar1 (s/cat :umwelt-spec ::sp/umwelt-spec
-                           :generation  ::sp/generation
-                           :cell        ::sp/cell))
+  :args (s/cat :umwelt-spec ::sp/umwelt-spec
+               :generation  ::sp/generation
+               :cell        ::sp/cell)
   :ret  ::sp/umwelt)
 (defn observe-umwelt
   "Returns a ‘umwelt’ given an umwelt specification (via `make-umwelt`), a generation and the current cell."
@@ -158,17 +159,9 @@
     (apply i/observe-umwelt this gen cell res)))
 
 (s/fdef apply-rule
-  :args (s/alt :ar1 (s/cat :rule-spec ::sp/rule-spec
-                           :umwelt    ::sp/umwelt
-                           :self-val  ::calc-sp/const?
-                           ;; :res-w     pos-int?
-                           )
-               :ar2 (s/cat :rule-spec ::sp/rule-spec
-                           :umwelt    ::sp/umwelt
-                           :self-val  ::calc-sp/const?
-                           ;; :res-w     pos-int?
-                           ;; :res-h     pos-int?
-                           ))
+  :args (s/cat :rule-spec ::sp/rule-spec
+               :umwelt    ::sp/umwelt
+               :self-val  ::calc-sp/const?)
   :ret  ::calc-sp/const?)
 (def apply-rule
   "Returns a cell value given a rule specification (via `make-rule`), a ‘umwelt’ (via `observe-umwelt`), the current cell value and, depending on the arities the rule spec. supports, one or two resolutions."
@@ -283,22 +276,22 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
 ,
 
 
-(s/def ::tsds-selection
-  (s/coll-of #{0 1} :kind vector? :count 6))
+;; (s/def ::tsds-selection
+;;   (s/coll-of #{0 1} :kind vector? :count 6))
 
+(s/fdef tsds-sel->dna
+  :args (s/cat :selection (s/coll-of #{0 1} :kind vector? :count 6))
+  :ret  ::calc-sp/dna)
 (defn tsds-sel->dna
   [selection]
   (expr/op-get (expr/=>* (expr/make :tsds selection 'a 'b 'c)) :dna))
 
-#_
-(defn- conform-tsds-dna-or-sel
-  [dna-or-sel]
-  (cond
-    (s/valid? ::tsds-selection dna-or-sel) (tsds-sel->dna dna-or-sel)
-    (and (calc/dna? dna-or-sel)
-         (= 3 (calc/dna-dimension dna-or-sel))) dna-or-sel
-    :else (throw
-           (ex-info "Input must be either a formDNA of dimension 3 or a 6-element binary selection vector." {:input dna-or-sel}))))
+(s/fdef exprs->dna
+  :args (s/* ::expr-sp/expression)
+  :ret  ::calc-sp/dna)
+(defn exprs->dna
+  [& exprs]
+  (expr/op-get (expr/=>* (apply expr/make exprs)) :dna))
 
 
 (def ini-patterns
@@ -331,11 +324,6 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
     [:u :i :n :i :u]
     [:u :i :i :i :u]
     [:u :u :u :u :u]]})
-
-
-(defn exprs->dna
-  [& exprs]
-  (expr/op-get (expr/=>* (apply expr/make exprs)) :dna))
 
 (def common-specimen
   "Common specimen to specify cellular automata. Lists all the SelFis introduced by Ralf Peyn in ‘uFORM iFORM’."
@@ -399,11 +387,11 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
 
 
 (s/fdef ca-iterator
-  :args (s/or :ar1 (s/cat :ca-spec ::sp/ca-spec
-                          :resolution ::resolution)
-              :ar2 (s/cat :ca-spec ::sp/ca-spec
-                          :resolution ::resolution
-                          :steps   pos-int?))
+  :args (s/alt :ar2 (s/cat :ca-spec ::sp/ca-spec
+                           :resolution ::sp/resolution)
+               :ar3 (s/cat :ca-spec ::sp/ca-spec
+                           :resolution ::sp/resolution
+                           :steps   pos-int?))
   :ret  ::sp/iterator)
 (defn ca-iterator
   "Returns a lazy seq that iteratively computes the next generation for the given cellular automaton specification (via `specify-ca`, etc.). Optionally, the last argument can be a number to just get the first `n` steps in its evolution."
@@ -438,9 +426,9 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
   (i/get-evolution ca-obj))
 
 (s/fdef get-current-generation
-  :args (s/or :ar1 (s/cat :ca-obj ::sp/automaton)
-              :ar2 (s/cat :ca-obj ::sp/automaton
-                          :optimized? boolean?))
+  :args (s/alt :ar1 (s/cat :ca-obj ::sp/automaton)
+               :ar2 (s/cat :ca-obj ::sp/automaton
+                           :optimized? boolean?))
   :ret  ::sp/generation)
 (defn get-current-generation
   "Given a stateful `CellularAutomaton` object, returns its current generation either as a native array (if `optimized?` is true) or a vector."
@@ -450,9 +438,9 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
    (i/get-current-generation ca-obj optimized?)))
 
 (s/fdef get-cached-history
-  :args (s/or :ar1 (s/cat :ca-obj ::sp/automaton)
-              :ar2 (s/cat :ca-obj ::sp/automaton
-                          :optimized? boolean?))
+  :args (s/alt :ar1 (s/cat :ca-obj ::sp/automaton)
+               :ar2 (s/cat :ca-obj ::sp/automaton
+                           :optimized? boolean?))
   :ret  ::sp/evolution)
 (defn get-cached-history
   "Given a stateful `CellularAutomaton` object, returns its cached history/evolution, where all generations are either native arrays (if `optimized?` is true) or vectors."
@@ -463,7 +451,7 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
 
 (s/fdef get-system-time
   :args (s/cat :ca-obj ::sp/automaton)
-  :ret  pos-int?)
+  :ret  nat-int?)
 (defn get-system-time
   "Given a stateful `CellularAutomaton` object, returns its generation index (aka “system-time”)."
   [ca-obj]
@@ -471,7 +459,7 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
 
 (s/fdef get-history-cache-limit
   :args (s/cat :ca-obj ::sp/automaton)
-  :ret  pos-int?)
+  :ret  nat-int?)
 (defn get-history-cache-limit
   "Given a stateful `CellularAutomaton` object, returns the max. number of generations it caches (stored in its history)."
   [ca-obj]
@@ -486,11 +474,11 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
   (i/get-resolution ca-obj))
 
 (s/fdef create-ca
-  :args (s/or :ar1 (s/cat :ca-spec ::sp/ca-spec
-                          :resolution ::resolution)
-              :ar2 (s/cat :ca-spec ::sp/ca-spec
-                          :history-cache-limit pos-int?
-                          :resolution ::resolution))
+  :args (s/alt :ar2 (s/cat :ca-spec ::sp/ca-spec
+                           :resolution ::sp/resolution)
+               :ar3 (s/cat :ca-spec ::sp/ca-spec
+                           :history-cache-limit pos-int?
+                           :resolution ::sp/resolution))
   :ret  ::sp/automaton)
 (defn create-ca
   "Returns a stateful `CellularAutomaton` object for the given cellular automaton specification (via `specify-ca`, etc.). Callable methods are:
@@ -504,11 +492,23 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
    (core/create-ca ca-spec history-cache-limit resolution)))
 
 
+(def ^:no-doc fns-with-specs
+  (utils/list-fn-specs "formform.emul"))
+
+
 (comment
 
   (sys-ini
    (make-ini :figure :n (ini-patterns :ball2d-square) [3 2])
    9 9)
+
+  (sys-ini
+   (make-ini :figure :n (ini-patterns :ball2d-square) [3 2])
+   9 9)
+
+  (sys-ini
+   (make-ini :figure :n {:w 4 :f #(assoc % :v :?)} 0)
+   9)
   ,)
 
 #_

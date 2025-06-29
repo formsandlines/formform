@@ -5,8 +5,6 @@
             [formform.expr :refer :all]
             [orchestra.spec.test :as stest]))
 
-(def rv (comp vec reverse))
-
 (doseq [fsym fns-with-specs] (stest/instrument fsym))
 
 

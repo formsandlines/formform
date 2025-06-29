@@ -379,7 +379,7 @@
 ;; Compare expressions
 
 (s/fdef equal
-  :args (s/cat :exprs (s/* ::sp/expression))
+  :args (s/* ::sp/expression)
   :ret  boolean?)
 (defn equal
   "Equality check for expressions. Two expressions are considered equal, if their formDNAs are equal. Compares formDNAs from evaluation results of each expression by calling `calc/equal-dna`.
@@ -390,7 +390,7 @@
   (apply core/equal exprs))
 
 (s/fdef equiv
-  :args (s/cat :exprs (s/* ::sp/expression))
+  :args (s/* ::sp/expression)
   :ret  boolean?)
 (defn equiv
   "Equivalence check for expressions. Two expressions are considered equivalent, if their formDNAs are equivalent. Compares formDNAs from evaluation results of each expression by calling `calc/equiv-dna`.

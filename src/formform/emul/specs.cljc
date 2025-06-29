@@ -8,9 +8,12 @@
             #?(:cljs [formform.emul.core :refer [CellularAutomaton]]))
   #?(:clj (:import [formform.emul.core CellularAutomaton])))
 
+(s/def ::coords
+  (s/coll-of int? :kind vector?))
+
 (s/def ::cell
-  (s/cat :coords (s/coll-of int? :kind vector?)
-         :value  ::calc-sp/const))
+  (s/tuple ::coords
+           ::calc-sp/const))
 
 (s/def ::resolution (s/or :1d (s/cat :w pos-int?)
                           :2d (s/cat :w pos-int? :h pos-int?)))
@@ -39,9 +42,7 @@
                          :2d ::evolution-2d))
 
 (s/def ::umwelt
-  (s/coll-of ::calc-sp/const :kind vector?))
-
-
+  (s/coll-of (s/nilable ::calc-sp/const) :kind vector?))
 
 (s/def ::umwelt-spec
   #(satisfies? i/Umwelt %))

@@ -7,7 +7,7 @@
             [formform.utils :as utils]
             [orchestra.spec.test :as stest]))
 
-;; (doseq [fsym fns-with-specs] (stest/instrument fsym))
+(doseq [fsym fns-with-specs] (stest/instrument fsym))
 
 ;; Ini tests
 
@@ -685,12 +685,14 @@
             [:m :i :u]
             [:i :u :i]])))
   (testing "pattern function"
-    (is (= (sys-ini (make-ini :figure :n {:w 3 :h 2
-                                          :f (fn [{:keys [x y v]}]
-                                               (cond
-                                                 (= 1 (mod y 2)) (calc/inv v)
-                                                 (= 0 (mod x 2)) :u
-                                                 :else :i))}
+    (is (= (sys-ini (make-ini :figure
+                              :n {:w 3 :h 2
+                                  :f (fn [{:keys [x y] :as env}]
+                                       (update env :v
+                                               #(cond
+                                                  (= 1 (mod y 2)) (calc/inv %)
+                                                  (= 0 (mod x 2)) :u
+                                                  :else :i)))}
                               {:pos :topcenter :align :topcenter}) 6 3)
            [[:n :n :u :i :u :n]
             [:n :n :m :m :m :n]
@@ -820,7 +822,7 @@
                :m :n :n :m  :i :n :i :n  :n :u :m :n  :m :m :i :n
                :i :u :n :i  :i :i :n :m  :m :n :m :i  :m :i :u :n]
           match (make-rule :match dna)]
-      (is (= dna (mapv #(apply-rule match % :n) (calc/vspace 3))))))
+      (is (= dna (mapv #(apply-rule match (vec %) :n) (calc/vspace 3))))))
   (testing "Correct :life application"
     (let [life (make-rule
                 :life

@@ -280,12 +280,12 @@ Weights can be provided either as:
 ;; Transform formDNA
 
 (s/fdef expand-dna-seq
-  :args (s/or :ar2 (s/cat :dna-seq ::sp/dna-seq
-                          :ext-dim ::sp/dna-dimension)
-              :ar3 (s/and (s/cat :dna-seq ::sp/dna-seq
-                                 :dim     ::sp/dna-dimension
-                                 :ext-dim ::sp/dna-dimension)
-                          #(<= (:dim %) (:ext-dim %))))
+  :args (s/alt :ar2 (s/cat :dna-seq ::sp/dna-seq
+                           :ext-dim ::sp/dna-dimension)
+               :ar3 (s/& (s/cat :dna-seq ::sp/dna-seq
+                                :dim     ::sp/dna-dimension
+                                :ext-dim ::sp/dna-dimension)
+                         #(<= (:dim %) (:ext-dim %))))
   :ret  ::sp/dna-seq
   :fn   #(== (-> % :args second :ext-dim)
              (core/dna-dimension (-> % :ret))))
@@ -300,11 +300,11 @@ Weights can be provided either as:
    (core/expand-dna-seq dna-seq dim ext-dim)))
 
 (s/fdef reduce-dna-seq
-  :args (s/or :ar1 (s/cat :dna-seq ::sp/dna-seq)
-              :ar2 (s/and (s/cat :terms   sequential?
-                                 :dna-seq ::sp/dna-seq)
-                          #(== (count (:terms %))
-                               (core/dna-dimension (:dna-seq %)))))
+  :args (s/alt :ar1 (s/cat :dna-seq ::sp/dna-seq)
+               :ar2 (s/& (s/cat :terms   sequential?
+                                :dna-seq ::sp/dna-seq)
+                         #(== (count (:terms %))
+                              (core/dna-dimension (:dna-seq %)))))
   :ret  (s/and (s/cat :terms   sequential?
                       :dna-seq ::sp/dna-seq)
                #(== (core/dna-dimension (-> % :dna-seq))
@@ -337,10 +337,10 @@ Weights can be provided either as:
 ;;   (core/filter-dna-seq dna-seq depth-selections))
 
 (s/fdef filter-dna
-  :args (s/and (s/cat :dna    ::sp/dna
-                      :vpoint ::sp/vpoint)
-               #(== (core/dna-dimension (-> % :dna))
-                    (count (-> % :vpoint))))
+  :args (s/& (s/cat :dna    ::sp/dna
+                    :vpoint ::sp/vpoint)
+             #(== (core/dna-dimension (-> % :dna))
+                  (count (-> % :vpoint))))
   :ret  ::sp/dna)
 (defn filter-dna
   "Filters a `dna` by selecting specific parts corresponding to a given `vpoint`, which acts as a coordinate vector in its value space.
@@ -350,11 +350,11 @@ Weights can be provided either as:
   (core/filter-dna dna vpoint))
 
 (s/fdef dna-get
-  :args (s/and (s/cat :dna    ::sp/dna
-                      :vpoint (s/every ::sp/const
-                                       :kind sequential?))
-               #(== (core/dna-dimension (-> % :dna))
-                    (count (-> % :vpoint))))
+  :args (s/& (s/cat :dna    ::sp/dna
+                    :vpoint (s/every ::sp/const
+                                     :kind sequential?))
+             #(== (core/dna-dimension (-> % :dna))
+                  (count (-> % :vpoint))))
   :ret  ::sp/const)
 (defn dna-get
   "Extracts a single value from a `dna` according to a given `vpoint` index, which is a sequence of constants corresponding to each term→value association."
@@ -414,14 +414,14 @@ Weights can be provided either as:
 ;; → representation of a different perspective on the _value structure_
 
 (s/fdef permute-dna
-  :args (s/and (s/alt :ar2 (s/cat :dna        ::sp/dna
-                                  :perm-order ::sp/permutation-order)
-                      :ar3 (s/cat :opts (s/keys :opt-un [:opts.safety/limit?])
-                                  :dna        ::sp/dna
-                                  :perm-order ::sp/permutation-order))
-               #(let [{:keys [dna-seq perm-order]} (-> % second)]
-                  (== (core/dna-dimension dna-seq)
-                      (count perm-order))))
+  :args (s/& (s/alt :ar2 (s/cat :dna        ::sp/dna
+                                :perm-order ::sp/permutation-order)
+                    :ar3 (s/cat :opts (s/keys :opt-un [:opts.safety/limit?])
+                                :dna        ::sp/dna
+                                :perm-order ::sp/permutation-order))
+             #(let [{:keys [dna-seq perm-order]} (-> % second)]
+                (== (core/dna-dimension dna-seq)
+                    (count perm-order))))
   :ret  ::sp/dna-perspective)
 (defn permute-dna
   ([dna perm-order] (permute-dna {} dna perm-order))
