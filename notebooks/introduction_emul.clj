@@ -100,7 +100,7 @@
 
 (def slit2d-spec
   (make-mindform (exprs->dna '[[a] b] '[[b] a])
-                 (make-ini :ball :n nil {:pos :center :align :center})))
+                 (make-ini :figure :n (ini-patterns :ball2d) :center)))
 
 ^{::clerk/viewer viewer-ca2d
   ::clerk/render-opts {:formform/cellsize 6}}
@@ -198,37 +198,37 @@ dna-slit
 
 ;; The ini spec essentially is just data, a description of how to construct a specific initial generation:
 
-(make-ini :random 0.5)
+(make-ini :random)
 
 ;; It is useful to test an ini before running it in a CA. Let’s use the spec to build a random generation:
 
 ^{::clerk/viewer viewer-gen1d}
-(sys-ini (make-ini :random 0.5) 61)
+(sys-ini (make-ini :random) 61)
 
 ;; Most inis are also defined for 2D generations, so we can just pass a second resolution without changing anything about the ini spec:
 
 ^{::clerk/viewer viewer-gen2d}
-(sys-ini (make-ini :random 0.5) 31 9)
+(sys-ini (make-ini :random) 31 9)
 
 ;; Since we are using a randomized ini, two specs with the same parameters may generate completely different values:
 
 ^{::clerk/no-cache true}
-(= (sys-ini (make-ini :random 0.5) 61)
-   (sys-ini (make-ini :random 0.5) 61)
-   (sys-ini (make-ini :random 0.5) 61))
+(= (sys-ini (make-ini :random) 61)
+   (sys-ini (make-ini :random) 61)
+   (sys-ini (make-ini :random) 61))
 
 ;; But with a random seed (as the ini docs mentioned), we can reproduce the same random values reliably:
 
 ^{::clerk/no-cache true}
-(= (sys-ini (make-ini :random {:seed 93} 0.5) 61)
-   (sys-ini (make-ini :random {:seed 93} 0.5) 61)
-   (sys-ini (make-ini :random {:seed 93} 0.5) 61))
+(= (sys-ini (make-ini :random {:seed 93}) 61)
+   (sys-ini (make-ini :random {:seed 93}) 61)
+   (sys-ini (make-ini :random {:seed 93}) 61))
 
 ;; Let’s take a look at the classic _ball_ ini:
 
-^{::clerk/viewer quoted-markdown-viewer}
-(with-out-str
-  (make-ini :ball :help))
+;; ^{::clerk/viewer quoted-markdown-viewer}
+;; (with-out-str
+;;   (make-ini :ball :help))
 
 ;; It is a specialization of a more general ini, called `:figure`, which tells us more about how to specify the `bg` and the `anchor` props:
 
@@ -237,22 +237,20 @@ dna-slit
   (make-ini :figure :help))
 
 ^{::clerk/viewer viewer-gen1d}
-(sys-ini (make-ini :ball :n nil {})
+(sys-ini (make-ini :figure :n (ini-patterns :ball) {})
          61)
 
 ^{::clerk/viewer viewer-gen1d}
-(sys-ini (make-ini :ball :n nil {:pos :center :align :center})
+(sys-ini (make-ini :figure :n (ini-patterns :ball) :center)
          61)
 
 ^{::clerk/viewer viewer-gen1d}
-(sys-ini (make-ini :ball :n nil {:pos :left :align :left})
+(sys-ini (make-ini :figure :n (ini-patterns :ball) :left)
          61)
 
 ^{::clerk/viewer viewer-gen2d}
-(sys-ini (make-ini :ball :n nil {:pos :bottomright :align :bottomright})
+(sys-ini (make-ini :figure :n (ini-patterns :ball2d) :bottomright)
          31 17)
-
-
 
 ;; ## Creating custom Specifications
 

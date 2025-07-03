@@ -1,5 +1,6 @@
 (ns ^:no-doc formform.emul.interfaces
-  (:require [formform.utils :as utils])
+  (:require [formform.utils :as utils]
+            [clojure.string :as str])
   #?(:cljs (:require-macros
             [formform.emul.interfaces
              :refer [defini defumwelt defrule]])))
@@ -89,3 +90,23 @@
   [type-k fields doc-string? & methods]
   (apply defrule-impl type-k fields doc-string? methods))
 
+(defn record->kw-ids
+  [record]
+  (->> (-> record type .getSimpleName (str/split #"-"))
+       (mapv (comp keyword utils/camel->kebab))))
+
+(defn kw-ids->record-type
+  [cat-k type-k]
+  (-> (str "formform.emul.core."
+           (-> cat-k name str/capitalize) "-"
+           (-> type-k name (utils/kebab->camel true)))
+      symbol))
+
+(defn ->rec
+  "Wrapper for type record constructors to add non-essential information"
+  [rec-constructor & args]
+  (let [rec (apply rec-constructor args)
+        [cat-k type-k] (record->kw-ids rec)]
+    (assoc rec
+           :type type-k
+           :kind cat-k)))

@@ -102,7 +102,7 @@
                                  " `" type-k "`.")
                             {:args args
                              :spec-error (s/explain-data spec-k args)})))
-          (apply constructor args))))))
+          (apply i/->rec constructor args))))))
 
 (def make-ini
   "Creates an instance of a CA ini (initial conditions) specification of a given type (as a keyword) and with given parameters as required by the type.
@@ -183,8 +183,7 @@
 
 Note that formform.emul has constructors for common ca specs via `make-selfi`, `make-mindform`, `make-lifeform` and `make-decisionform`. Furthermore, there are predefined ca specs in `common-specimen`."
   [label specs-map]
-  (core/map->CASpec
-   (assoc specs-map :label label)))
+  (core/map->CASpec (assoc specs-map :label label)))
 
 
 ;; Constructors for common CA specifications
@@ -205,8 +204,8 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
      (core/map->CASpec
       (merge
        {:label       "SelFi"
-        :rule-spec   (core/->Rule-Match {} dna)
-        :umwelt-spec (core/->Umwelt-SelectLtr {} umwelt-size)
+        :rule-spec   (i/->rec core/->Rule-Match {} dna)
+        :umwelt-spec (i/->rec core/->Umwelt-SelectLtr {} umwelt-size)
         :ini-spec    ini}
        overwrites))))
   ([dna ini]
@@ -226,8 +225,8 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
      (core/map->CASpec
       (merge
        {:label       "MindFORM"
-        :rule-spec   (core/->Rule-Match {} dna)
-        :umwelt-spec (core/->Umwelt-SelfSelectLtr {} umwelt-size)
+        :rule-spec   (i/->rec core/->Rule-Match {} dna)
+        :umwelt-spec (i/->rec core/->Umwelt-SelfSelectLtr {} umwelt-size)
         :ini-spec    ini}
        overwrites))))
   ([dna ini]
@@ -245,9 +244,9 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
    (core/map->CASpec
     (merge
      {:label       "LifeFORM"
-      :rule-spec   (core/->Rule-Life {} dna)
-      :umwelt-spec (core/->Umwelt-Moore {} :column-first false)
-      :ini-spec    (core/->Ini-Random ini-opts)}
+      :rule-spec   (i/->rec core/->Rule-Life {} dna)
+      :umwelt-spec (i/->rec core/->Umwelt-Moore {} :column-first false)
+      :ini-spec    (i/->rec core/->Ini-Random ini-opts)}
      overwrites)))
   ([dna] (make-lifeform {} dna)))
 
@@ -265,12 +264,12 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
    (core/map->CASpec
     (merge
      {:label       "DecisionFORM"
-      :rule-spec   (core/->Rule-Life {} dna)
-      :umwelt-spec (core/->Umwelt-Moore {} :column-first false)
-      :ini-spec    (core/->Ini-RandFigure ini-opts
-                                          (core/->Ini-Constant ini-opts :n)
-                                          init-size
-                                          :center)}
+      :rule-spec   (i/->rec core/->Rule-Life {} dna)
+      :umwelt-spec (i/->rec core/->Umwelt-Moore {} :column-first false)
+      :ini-spec    (i/->rec core/->Ini-RandFigure ini-opts
+                            (i/->rec core/->Ini-Constant ini-opts :n)
+                            init-size
+                            :center)}
      overwrites)))
   ([dna init-size] (make-decisionform {} dna init-size)))
 ,
@@ -327,6 +326,7 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
     [:u :i :i :i :u]
     [:u :u :u :u :u]]})
 
+;; ? replace with evaluated dna/selfi data or leave as is for reference
 (def common-specimen
   "Map of common specimen to specify cellular automata. Contains all the SelFis introduced by Ralf Peyn in ‘uFORM iFORM’."
   (let [selfi #(apply make-selfi {:overwrites {:label (str "SelFi/" %1)}} %&)

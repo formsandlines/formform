@@ -314,8 +314,8 @@
 
 (defn- parse-bg [-opts bg]
   (cond
-    ((set calc-core/nuim-code) bg) (->Ini-Constant -opts bg)
-    (= :? bg) (->Ini-Random -opts)
+    ((set calc-core/nuim-code) bg) (i/->rec ->Ini-Constant -opts bg)
+    (= :? bg) (i/->rec ->Ini-Random -opts)
     (ini-transducer? bg) bg
     :else (throw (ex-info "Invalid background ini." {:bg-ini bg}))))
 
@@ -383,7 +383,7 @@ The (first) `-opts` argument is a map where you can set the following optional p
              (int? size) size
              :else 1)
          pattern {:w w :f #(assoc % :v (val-random %))}]
-     (i/ini-xform1d (->Ini-Figure -opts nil pattern anchor))))
+     (i/ini-xform1d (i/->rec ->Ini-Figure -opts nil pattern anchor))))
   (ini-xform2d
    [_]
    (let [[w h] (cond
@@ -391,7 +391,7 @@ The (first) `-opts` argument is a map where you can set the following optional p
                  (int? size) [size size]
                  :else [1 1])
          pattern {:w w :h h :f #(assoc % :v (val-random %))}]
-     (i/ini-xform2d (->Ini-Figure -opts nil pattern anchor)))))
+     (i/ini-xform2d (i/->rec ->Ini-Figure -opts nil pattern anchor)))))
 
 
 (defini :comp-figures [-opts bg figure-inis]
@@ -451,8 +451,8 @@ The (first) `-opts` argument is a map where you can set the following optional p
                :let [offset-x' (calc-nth-pattern-offset
                                 x ptn-w total-ptn-w dx align-x offset-x)]]
            (i/ini-xform1d
-            (->Ini-Figure -opts nil normal-pattern
-                          (assoc normal-anchor :offset-x offset-x'))))]
+            (i/->rec ->Ini-Figure -opts nil normal-pattern
+                     (assoc normal-anchor :offset-x offset-x'))))]
      (apply comp fig-xforms)))
 
   (ini-xform2d
@@ -474,10 +474,10 @@ The (first) `-opts` argument is a map where you can set the following optional p
                      offset-y' (calc-nth-pattern-offset
                                 y ptn-h total-ptn-h dy align-y offset-y)]]
            (i/ini-xform2d
-            (->Ini-Figure -opts nil normal-pattern
-                          (assoc normal-anchor
-                                 :offset-x offset-x'
-                                 :offset-y offset-y'))))]
+            (i/->rec ->Ini-Figure -opts nil normal-pattern
+                     (assoc normal-anchor
+                            :offset-x offset-x'
+                            :offset-y offset-y'))))]
      (apply comp fig-xforms))))
 
 #_
@@ -975,7 +975,7 @@ The (first) `-opts` argument is a map where you can set the following optional p
 (comment
   (def dna [:n :u :i :m :u :u :m :m :i :m :i :m :m :m :m :m :n :u :i :m :u :i :m :m :i :m :i :m :m :m :m :m :n :u :i :m :u :u :m :m :i :m :i :m :m :m :m :m :n :u :i :m :u :i :m :m :i :m :i :m :m :m :m :i])
 
-  (def rule (->Rule-Life {} dna))
+  (def rule (i/->rec ->Rule-Life {} dna))
 
 
   (require '[clojure.math.combinatorics :as combo])

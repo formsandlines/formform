@@ -1,7 +1,7 @@
 (ns ^:no-doc formform.utils
   (:require
    [clojure.math :as math]
-   [clojure.string :as string]
+   [clojure.string :as str]
    [clojure.test.check.random :as random]
    [clojure.spec.alpha :as s]
    #?(:cljs [goog.math.Long :as glong])))
@@ -128,7 +128,7 @@
 (defn list-fn-specs [ns-root]
   (for [[k _] (s/registry)
         :when (and (symbol? k)
-                   (string/starts-with? (namespace k) ns-root))]
+                   (str/starts-with? (namespace k) ns-root))]
     k))
 
 (defn lazy-seq? [x]
@@ -142,15 +142,25 @@
 (defn kebab->camel
   "Converts a kebab-case string to camelCase.
    Example: 'hello-world' -> 'helloWorld'"
+  ([kebab-str] (kebab->camel kebab-str false))
   ([kebab-str capitalize?]
    (if (or (nil? kebab-str) (empty? kebab-str))
      ""
-     (let [parts (clojure.string/split kebab-str #"-")]
+     (let [parts (str/split kebab-str #"-")]
        (if capitalize?
-         (apply str (map clojure.string/capitalize parts))
+         (apply str (mapv str/capitalize parts))
          (apply str (first parts) 
-                (map clojure.string/capitalize (rest parts)))))))
-  ([kebab-str] (kebab->camel kebab-str false)))
+                (mapv str/capitalize (rest parts))))))))
+
+(defn camel->kebab
+  "Converts a camelCase string to kebab-case.
+   Example: 'helloWorld' -> 'hello-world'"
+  ([camel-str]
+   (if (or (nil? camel-str) (empty? camel-str))
+     ""
+     (let [camel-str (str (str/upper-case (first camel-str)) (subs camel-str 1))
+           parts (re-seq #"[A-Z][^A-Z]+" camel-str)]
+       (str/join "-" (mapv str/lower-case parts))))))
 
 (defn keywords-to-array
   "Converts a sequence of keywords to an array, using an optimized implementation for the respective host language."
