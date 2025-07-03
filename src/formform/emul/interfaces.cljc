@@ -107,6 +107,6 @@
   [rec-constructor & args]
   (let [rec (apply rec-constructor args)
         [cat-k type-k] (record->kw-ids rec)]
-    (assoc rec
-           :type type-k
-           :kind cat-k)))
+    (cond-> rec
+      cat-k  (assoc :formform.emul/kind cat-k)
+      type-k (assoc :formform.emul/type type-k))))

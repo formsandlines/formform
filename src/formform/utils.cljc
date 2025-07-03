@@ -159,7 +159,7 @@
    (if (or (nil? camel-str) (empty? camel-str))
      ""
      (let [camel-str (str (str/upper-case (first camel-str)) (subs camel-str 1))
-           parts (re-seq #"[A-Z][^A-Z]+" camel-str)]
+           parts (re-seq #"[A-Z]+?[^A-Z]+" camel-str)]
        (str/join "-" (mapv str/lower-case parts))))))
 
 (defn keywords-to-array

@@ -183,7 +183,7 @@
 
 Note that formform.emul has constructors for common ca specs via `make-selfi`, `make-mindform`, `make-lifeform` and `make-decisionform`. Furthermore, there are predefined ca specs in `common-specimen`."
   [label specs-map]
-  (core/map->CASpec (assoc specs-map :label label)))
+  (i/->rec core/map->CASpec (assoc specs-map :label label)))
 
 
 ;; Constructors for common CA specifications
@@ -201,13 +201,13 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
   "1D cellular automaton. Takes a `dna` for its rule function (type `:match`) and an `ini` type (via `make-ini`). Its ‘umwelt’ is of type `:select-ltr`."
   ([{:keys [overwrites]} dna ini]
    (let [umwelt-size (calc/dna-dimension dna)]
-     (core/map->CASpec
-      (merge
-       {:label       "SelFi"
-        :rule-spec   (i/->rec core/->Rule-Match {} dna)
-        :umwelt-spec (i/->rec core/->Umwelt-SelectLtr {} umwelt-size)
-        :ini-spec    ini}
-       overwrites))))
+     (i/->rec core/map->CASpec
+              (merge
+               {:label       "SelFi"
+                :rule-spec   (i/->rec core/->Rule-Match {} dna)
+                :umwelt-spec (i/->rec core/->Umwelt-SelectLtr {} umwelt-size)
+                :ini-spec    ini}
+               overwrites))))
   ([dna ini]
    (make-selfi {} dna ini)))
 
@@ -222,13 +222,14 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
   "2D cellular automaton. Takes a `dna` for its rule function (type `:match`) and an `ini` type (via `make-ini`). Its ‘umwelt’ is of type `:self-select-ltr`."
   ([{:keys [overwrites]} dna ini]
    (let [umwelt-size (calc/dna-dimension dna)]
-     (core/map->CASpec
-      (merge
-       {:label       "MindFORM"
-        :rule-spec   (i/->rec core/->Rule-Match {} dna)
-        :umwelt-spec (i/->rec core/->Umwelt-SelfSelectLtr {} umwelt-size)
-        :ini-spec    ini}
-       overwrites))))
+     (i/->rec core/map->CASpec
+              (merge
+               {:label       "MindFORM"
+                :rule-spec   (i/->rec core/->Rule-Match {} dna)
+                :umwelt-spec (i/->rec core/->Umwelt-SelfSelectLtr
+                                      {} umwelt-size)
+                :ini-spec    ini}
+               overwrites))))
   ([dna ini]
    (make-mindform {} dna ini)))
 
@@ -241,13 +242,13 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
 (defn make-lifeform
   "2D cellular automaton. Takes a `dna` as part of its rule function, which is of type `:life`. Its ‘umwelt’ is of type `:moore`."
   ([{:keys [overwrites ini-opts]} dna]
-   (core/map->CASpec
-    (merge
-     {:label       "LifeFORM"
-      :rule-spec   (i/->rec core/->Rule-Life {} dna)
-      :umwelt-spec (i/->rec core/->Umwelt-Moore {} :column-first false)
-      :ini-spec    (i/->rec core/->Ini-Random ini-opts)}
-     overwrites)))
+   (i/->rec core/map->CASpec
+            (merge
+             {:label       "LifeFORM"
+              :rule-spec   (i/->rec core/->Rule-Life {} dna)
+              :umwelt-spec (i/->rec core/->Umwelt-Moore {} :column-first false)
+              :ini-spec    (i/->rec core/->Ini-Random ini-opts)}
+             overwrites)))
   ([dna] (make-lifeform {} dna)))
 
 (s/fdef make-decisionform
@@ -261,16 +262,16 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
 (defn make-decisionform
   "2D cellular automaton. Takes a `dna` as part of its rule function, which is of type `:life`, and an initial size for its `:rand-figure` type ini. Its ‘umwelt’ is of type `:moore`."
   ([{:keys [overwrites ini-opts]} dna init-size]
-   (core/map->CASpec
-    (merge
-     {:label       "DecisionFORM"
-      :rule-spec   (i/->rec core/->Rule-Life {} dna)
-      :umwelt-spec (i/->rec core/->Umwelt-Moore {} :column-first false)
-      :ini-spec    (i/->rec core/->Ini-RandFigure ini-opts
-                            (i/->rec core/->Ini-Constant ini-opts :n)
-                            init-size
-                            :center)}
-     overwrites)))
+   (i/->rec core/map->CASpec
+            (merge
+             {:label       "DecisionFORM"
+              :rule-spec   (i/->rec core/->Rule-Life {} dna)
+              :umwelt-spec (i/->rec core/->Umwelt-Moore {} :column-first false)
+              :ini-spec    (i/->rec core/->Ini-RandFigure ini-opts
+                                    (i/->rec core/->Ini-Constant ini-opts :n)
+                                    init-size
+                                    :center)}
+             overwrites)))
   ([dna init-size] (make-decisionform {} dna init-size)))
 ,
 
@@ -497,6 +498,8 @@ Callable methods are `step`, `restart`, `get-resolution`, `get-current-generatio
 
 
 (comment
+  (make-lifeform (calc/rand-dna 3))
+  
 
   (sys-ini
    (make-ini :figure :n (ini-patterns :ball2d-square) [3 2])
