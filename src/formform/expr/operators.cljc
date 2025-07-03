@@ -14,11 +14,9 @@
             tag_seq-reentry]]
    #?(:clj  [formform.expr.symexpr :as symx
              :refer [defoperator
-                     op-get op-data op-symbol valid-op? make-op
-                     interpret-op simplify-op]]
+                     op-get op-data op-symbol valid-op? make-op]]
       :cljs [formform.expr.symexpr :as symx
-             :refer [op-get op-data op-symbol valid-op? make-op
-                     interpret-op simplify-op]
+             :refer [op-get op-data op-symbol valid-op? make-op]
              :refer-macros [defoperator]])
    [formform.expr.core :as core :refer [make form permute-vars]]))
 

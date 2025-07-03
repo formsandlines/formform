@@ -815,14 +815,15 @@
                                           :n :n :n :n
                                           :n :n :n :n])
                        [:u :i]
-                       :n) ; self-val doesn’t matter here
+                       [[0 0] :n]) ; cell doesn’t matter here
            :m))
     (let [dna [:n :i :u :m  :i :n :u :n  :n :u :n :n  :u :n :u :m
                :n :u :n :n  :n :u :i :u  :u :n :m :i  :m :m :u :u
                :m :n :n :m  :i :n :i :n  :n :u :m :n  :m :m :i :n
                :i :u :n :i  :i :i :n :m  :m :n :m :i  :m :i :u :n]
           match (make-rule :match dna)]
-      (is (= dna (mapv #(apply-rule match (vec %) :n) (calc/vspace 3))))))
+      (is (= dna (mapv #(apply-rule match (vec %) [[0 0] :n])
+                       (calc/vspace 3))))))
   (testing "Correct :life application"
     (let [life (make-rule
                 :life
@@ -830,7 +831,7 @@
                  :n :u :i :m  :n :u :i :m  :n :u :n :u  :n :u :n :u
                  :n :u :i :m  :n :n :i :i  :n :u :i :m  :n :n :i :i
                  :n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :m])]
-      (are [umwelt result] (= (apply-rule life umwelt :m) result)
+      (are [umwelt result] (= (apply-rule life umwelt [[0 0] :m]) result)
         [:n :m :n :n nil :n :u :n :i] :i ; alive: [:m :u :i]
         [:n :u :n :m nil :m :n :n :n] :u ; alive: [:u :m :m]
         [:n :m :n :n nil :n :u :n :n] :m ; alive: [:m :u]

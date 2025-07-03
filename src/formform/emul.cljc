@@ -33,8 +33,7 @@
 
 (defmacro defrule
   "Defines a new type of rule pattern, to be specified with `make-rule`. Takes a keyword identifier, fields for data the user needs to provide, an optional docstring (to describe the fields and the pattern) and one or more implementations of:
-  - `(apply-rule [this umwelt self-v w] …)` for a 1D pattern
-  - `(apply-rule [this umwelt self-v w h] …)` for a 2D pattern
+  - `(apply-rule [this umwelt self-v] …)`
   - `umwelt` is an ‘umwelt’ as provided by `observe-umwelt`
   - `self-v` is the value of the current cell"
   [type-k fields doc-string? & methods]
@@ -113,13 +112,13 @@
 
 (def make-umwelt
   "Creates an instance of a CA umwelt (neighborhood) specification of a given type (as a keyword) and with given parameters as required by the type.
-  - `(make-umwelt :help)` prints a list of all ini types and their parameters
+  - `(make-umwelt :help)` prints a list of all umwelt types and their parameters
   - `(make-umwelt :t :help)` prints the parameters and docs for given type `:t`"
   (partial make-instance :umwelt))
 
 (def make-rule
   "Creates an instance of a CA rule specification of a given type (as a keyword) and with given parameters as required by the type.
-  - `(make-rule :help)` prints a list of all ini types and their parameters
+  - `(make-rule :help)` prints a list of all rule types and their parameters
   - `(make-rule :t :help)` prints the parameters and docs for given type `:t`"
   (partial make-instance :rule))
 
@@ -132,7 +131,7 @@
                            :res-h    pos-int?))
   :ret  ::sp/generation)
 (def sys-ini
-  "Returns a (initial) generation given an ini specification (via `make-ini`) and, depending on the arities it supports, one or two resolutions."
+  "Returns a (initial) generation given an ini specification (via `make-ini`) and a resolution. For 2D generations, provide a second (height) resolution (must be supported by the ini spec)."
   core/sys-ini)
 
 (s/fdef sys-next
@@ -153,19 +152,21 @@
                :cell        ::sp/cell)
   :ret  ::sp/umwelt)
 (defn observe-umwelt
-  "Returns a ‘umwelt’ given an umwelt specification (via `make-umwelt`), a generation and the current cell."
-  [this gen cell]
+  "Returns a ‘umwelt’ given an umwelt specification (via `make-umwelt`), a generation and the current cell (a vector of the shape `[[x ?y] value]`)."
+  [umwelt-spec gen cell]
   (let [res (core/get-resolution-from-generation gen)]
-    (apply i/observe-umwelt this gen cell res)))
+    (apply i/observe-umwelt umwelt-spec gen cell res)))
 
 (s/fdef apply-rule
   :args (s/cat :rule-spec ::sp/rule-spec
                :umwelt    ::sp/umwelt
-               :self-val  ::calc-sp/const?)
+               :cell      ::sp/cell)
   :ret  ::calc-sp/const?)
-(def apply-rule
-  "Returns a cell value given a rule specification (via `make-rule`), a ‘umwelt’ (via `observe-umwelt`), the current cell value and, depending on the arities the rule spec. supports, one or two resolutions."
-  i/apply-rule)
+(defn apply-rule
+  "Returns a cell value given a rule specification (via `make-rule`), a ‘umwelt’ (via `observe-umwelt`) and the current cell (a vector of the shape `[[x ?y] value]`)."
+  [rule-spec umwelt cell]
+  (let [self-v (second cell)]
+    (i/apply-rule rule-spec umwelt self-v)))
 
 
 (s/fdef specify-ca
@@ -259,7 +260,7 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
                            :init-size pos-int?))
   :ret  ::sp/ca-spec)
 (defn make-decisionform
-  "2D cellular automaton. Takes a `dna` as part of its rule function, which is of type `:life`, and an initial size for its `:rand-center` type ini. Its ‘umwelt’ is of type `:moore`."
+  "2D cellular automaton. Takes a `dna` as part of its rule function, which is of type `:life`, and an initial size for its `:rand-figure` type ini. Its ‘umwelt’ is of type `:moore`."
   ([{:keys [overwrites ini-opts]} dna init-size]
    (core/map->CASpec
     (merge
@@ -269,8 +270,7 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
       :ini-spec    (core/->Ini-RandFigure ini-opts
                                           (core/->Ini-Constant ini-opts :n)
                                           init-size
-                                          {:pos :center
-                                           :align :center})}
+                                          :center)}
      overwrites)))
   ([dna init-size] (make-decisionform {} dna init-size)))
 ,
@@ -283,6 +283,7 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
   :args (s/cat :selection (s/coll-of #{0 1} :kind vector? :count 6))
   :ret  ::calc-sp/dna)
 (defn tsds-sel->dna
+  "Convenience function that takes a 6-digit binary selection (as a vector) for a triple-selective decision system (TsDS) and returns the formDNA for the evaluated expression."
   [selection]
   (expr/op-get (expr/=>* (expr/make :tsds selection 'a 'b 'c)) :dna))
 
@@ -290,6 +291,7 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
   :args (s/* ::expr-sp/expression)
   :ret  ::calc-sp/dna)
 (defn exprs->dna
+  "Convenience function that takes one or more expressions and returns the formDNA from their evaluation."
   [& exprs]
   (expr/op-get (expr/=>* (apply expr/make exprs)) :dna))
 
@@ -326,7 +328,7 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
     [:u :u :u :u :u]]})
 
 (def common-specimen
-  "Common specimen to specify cellular automata. Lists all the SelFis introduced by Ralf Peyn in ‘uFORM iFORM’."
+  "Map of common specimen to specify cellular automata. Contains all the SelFis introduced by Ralf Peyn in ‘uFORM iFORM’."
   (let [selfi #(apply make-selfi {:overwrites {:label (str "SelFi/" %1)}} %&)
         ini-ball (make-ini :figure :n (ini-patterns :ball) :center)
         ini-rand (make-ini :random)
@@ -394,7 +396,7 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
                            :steps   pos-int?))
   :ret  ::sp/iterator)
 (defn ca-iterator
-  "Returns a lazy seq that iteratively computes the next generation for the given cellular automaton specification (via `specify-ca`, etc.). Optionally, the last argument can be a number to just get the first `n` steps in its evolution."
+  "Returns a lazy seq that iteratively computes the next generation for the given cellular automaton specification (via `specify-ca`, etc.) and a resolution vector. Optionally, the last argument can be a number to just get the first `n` steps in its evolution."
   ([ca-spec resolution]
    (core/ca-iterator ca-spec resolution))
   ([ca-spec resolution steps]
@@ -431,7 +433,7 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
                            :optimized? boolean?))
   :ret  ::sp/generation)
 (defn get-current-generation
-  "Given a stateful `CellularAutomaton` object, returns its current generation either as a native array (if `optimized?` is true) or a vector."
+  "Given a stateful `CellularAutomaton` object, returns its current generation either as a vector or a native array (if `optimized?` is true)."
   ([ca-obj]
    (i/get-current-generation ca-obj false))
   ([ca-obj optimized?]
@@ -443,7 +445,7 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
                            :optimized? boolean?))
   :ret  ::sp/evolution)
 (defn get-cached-history
-  "Given a stateful `CellularAutomaton` object, returns its cached history/evolution, where all generations are either native arrays (if `optimized?` is true) or vectors."
+  "Given a stateful `CellularAutomaton` object, returns its cached history/evolution, where all generations are either vectors or native arrays (if `optimized?` is true)."
   ([ca-obj]
    (i/get-cached-history ca-obj false))
   ([ca-obj optimized?]
@@ -481,11 +483,9 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
                            :resolution ::sp/resolution))
   :ret  ::sp/automaton)
 (defn create-ca
-  "Returns a stateful `CellularAutomaton` object for the given cellular automaton specification (via `specify-ca`, etc.). Callable methods are:
-  - `step` to compute the next generation which gets added to the evolution
-  - `restart` to re-initialize the CA with its first generation
-  - `get-evolution` to obtain an immutable copy of the current evolution
-  - `get-resolution` to obtain the resolution of the CA"
+  "Returns a stateful `CellularAutomaton` object for the given cellular automaton specification (via `specify-ca`, etc.) and a resolution vector.
+
+Callable methods are `step`, `restart`, `get-resolution`, `get-current-generation`, `get-cached-history`, `get-system-time` and `get-history-cache-limit` (see docs for further explanation)."
   ([ca-spec resolution]
    (core/create-ca ca-spec nil resolution))
   ([ca-spec history-cache-limit resolution]

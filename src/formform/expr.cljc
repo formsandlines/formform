@@ -491,7 +491,7 @@
 (defn simplify
   "Simplifies a FORM recursively until it cannot be further simplified. All deductions are justified by the axioms of FORM logic.
 
-  * if `x` is a complex FORM, calls `simplify-context` on `x`
+  * if `x` is a complex FORM, calls `expr.core/simplify-context` on `x`
   * if no simplification applies, tries to retrieve the value from given `env`
   * if retrieval was unsuccessful, returns `x` as is"
   ([x] (core/cnt> x))
@@ -565,10 +565,9 @@
                            :env  ::sp/environment))
   :ret  ::calc-sp/const?)
 (defn eval->expr
-  ;; ! verify/correct docstring
-  "Evaluates a FORM expression with an optional `env` and returns a constant expression with attached metadata including the maximally reduced expression in `:expr` and the environment in `:env`.
+  "Evaluates a FORM expression with an optional `env` and returns a constant expression or an uninterpretable “value hole” `:_` (in case a value cannot be determined).
 
-  * `env` must be a map with a content/variable in `expr` as a key"
+  * `env` must be a map from variables to expressions"
   ([expr] (core/=> expr))
   ([expr env] (core/=> expr env)))
 (def => eval->expr)
@@ -584,9 +583,9 @@
   :ret  ::sp/formDNA)
 (defn eval->expr-all
   ;; ! verify/correct docstring
-  "Evaluates a FORM expression for all possible interpretations of any occurring variable in the expression. Returns a formDNA expression by default.
+  "Like `eval->expr`, but evaluates all possible interpretations of any occurring variable in the expression and returns a formDNA expression.
 
-  * if `to-fdna?` is false, returns a seq of results as returned by `=>` in the order of the corresponding `vspace` ordering"
+  * an options map can be provided with a `:varorder` to set the variable interpretation order for the resulting formDNA"
   ([expr] (core/=>* expr))
   ([expr env] (core/=>* expr env))
   ([opts expr env] (core/=>* opts expr env)))
@@ -601,7 +600,10 @@
                            :env  ::sp/environment))
   :ret  (s/keys :req-un [:evaluate/result]))
 (defn evaluate
-  "Evaluates a FORM expresson with an optional `env` and returns either a constant or the simplified expression if it could not be determined to a value."
+  "Evaluates a FORM expresson with an optional `env` and returns either a constant or the simplified expression if it could not be determined to a value.
+  
+  * `env` must be a map from variables to expressions
+  * attaches metadata to the result that includes the simplified expression"
   ([expr] (evaluate expr {}))
   ([expr env]
    (let [res (core/eval-simplified expr env)
@@ -628,7 +630,7 @@
                            :env  ::sp/environment))
   :ret  (s/keys :req-un [::sp/varorder :eval-all/results]))
 (defn eval-all
-  "Evaluates a FORM expresson for all possible interpretations of any occurring variable in the expresson. Returns a map with a `:results` key whose value is a sequence of `[<interpretation> <result>]` tuples and with a `:varorder` key whose value is the reading order for variable results in the interpretations. This output is particularly suited for value tables."
+  "Like `evaluate`, but for all possible interpretations of any occurring variable in the expresson. Returns a map with a `:results` key whose value is a sequence of `[<interpretation> <result>]` tuples and with a `:varorder` key whose value is the reading order for variable results in the interpretations. This output is particularly suited for value tables."
   ([expr] (eval-all expr {}))
   ([expr env] (eval-all {} expr env))
   ([opts expr env]
@@ -638,7 +640,6 @@
                              (:val %))
                     results)]
      (with-meta {:varorder varorder :results vdict} res))))
-
 
 
 ;; Exclude all multimethods

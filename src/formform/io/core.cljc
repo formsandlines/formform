@@ -12,8 +12,6 @@
             [clojure.edn :as edn]
             [clojure.string :as str]
             [instaparse.core :as insta]
-            ;; #?(:clj  [instaparse.core :as insta]
-            ;;    :cljs [instaparse.core :as insta])
             [formform.utils :as utils]))
 
 ;;-------------------------------------------------------------------------
