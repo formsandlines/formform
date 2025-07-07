@@ -102,17 +102,32 @@
   (make-mindform (exprs->dna '[[a] b] '[[b] a])
                  (make-ini :figure :n (ini-patterns :ball2d) :center)))
 
+;; By the way, you can find useful ini patterns, among them the familiar 1D-“ball” pattern, in `ini-patterns`:
+
+^{::clerk/viewer
+  {:transform-fn
+   (clerk/update-val
+    (fn [m]
+      (update-vals m
+                   (fn [gen]
+                     (if (vector? (first gen))
+                       (clerk/with-viewer viewer-gen2d gen)
+                       (clerk/with-viewer viewer-gen1d gen))))))}}
+ini-patterns
+
+;; Let’s see how this _mindFORM_ evolves:
+
 ^{::clerk/viewer viewer-ca2d
   ::clerk/render-opts {:formform/cellsize 6}}
 (ca-iterator slit2d-spec [23 23] 25)
 
-;; Notice that it doesn’t take the input expression itself, but its _formDNA_. Let’s explore how `formform.emul` uses it as a ruleset.
+;; Did you notice that `make-mindform` doesn’t take the input expression itself, but its _formDNA_? Let’s explore how `formform.emul` uses it as a ruleset.
 
 ;; ### formDNA as a Ruleset
 
 ;; If you haven’t encountered _formDNA_ before in _formform_, it is essentially a value structure that acts like an (implicit/abstract) lookup-table between all possible inputs for the expression and their corresponding result.
 
-;; When you evaluate any FORM expression using `formform.expr/=>*`, you will get a _formDNA expression_, which wraps the actual _formDNA_ data. Using `op-get`, we can extract it, but the `exprs->dna` function makes it more convenient:
+;; When you evaluate any FORM expression using `formform.expr/=>*`, you will get a _formDNA expression_, which wraps the actual _formDNA_ data. Using `formform.expr/op-get`, we can extract it, but the `exprs->dna` function makes it more convenient:
 
 (def dna-slit (exprs->dna '[[a] b] '[[b] a]))
 
@@ -127,7 +142,7 @@ dna-slit
 ^{::clerk/viewer viewer-vrow}
 (def dna-coa (tsds-sel->dna [1 0 1 1 0 0]))
 
-;; > Hmmm… a part of this pattern seems familiar. I’ll leave the interpretation to the reader as it doesn’t fit the topic of this introduction. (:
+;; > Hmmm… a part of this pattern seems familiar. I’ll leave the interpretation to the reader as it doesn’t fit the scope of this introduction. (:
 
 ;; _formDNA_ only stores the _results_, but the information about the input values (which would be the _“umwelt”_ in a CA) is implicit in its sequential order. Let’s make it explicit to get an idea on how the ruleset for this FORM looks like:
 
@@ -203,54 +218,93 @@ dna-slit
 ;; It is useful to test an ini before running it in a CA. Let’s use the spec to build a random generation:
 
 ^{::clerk/viewer viewer-gen1d}
-(sys-ini (make-ini :random) 61)
+(sys-ini (make-ini :random) [61])
 
 ;; Most inis are also defined for 2D generations, so we can just pass a second resolution without changing anything about the ini spec:
 
 ^{::clerk/viewer viewer-gen2d}
-(sys-ini (make-ini :random) 31 9)
+(sys-ini (make-ini :random) [31 9])
 
 ;; Since we are using a randomized ini, two specs with the same parameters may generate completely different values:
 
 ^{::clerk/no-cache true}
-(= (sys-ini (make-ini :random) 61)
-   (sys-ini (make-ini :random) 61)
-   (sys-ini (make-ini :random) 61))
+(= (sys-ini (make-ini :random) [61])
+   (sys-ini (make-ini :random) [61])
+   (sys-ini (make-ini :random) [61]))
 
 ;; But with a random seed (as the ini docs mentioned), we can reproduce the same random values reliably:
 
 ^{::clerk/no-cache true}
-(= (sys-ini (make-ini :random {:seed 93}) 61)
-   (sys-ini (make-ini :random {:seed 93}) 61)
-   (sys-ini (make-ini :random {:seed 93}) 61))
+(= (sys-ini (make-ini :random) [61] {:seed 93})
+   (sys-ini (make-ini :random) [61] {:seed 93})
+   (sys-ini (make-ini :random) [61] {:seed 93}))
 
-;; Let’s take a look at the classic _ball_ ini:
 
-;; ^{::clerk/viewer quoted-markdown-viewer}
-;; (with-out-str
-;;   (make-ini :ball :help))
+;; It is also possible to change the distribution of random values using the `:weights` option (see docs above):
 
-;; It is a specialization of a more general ini, called `:figure`, which tells us more about how to specify the `bg` and the `anchor` props:
+^{::clerk/viewer viewer-gen1d}
+(sys-ini (make-ini :random {:weights 0.1}) [61])
+
+^{::clerk/viewer viewer-gen1d}
+(sys-ini (make-ini :random {:weights 0.9}) [61])
+
+^{::clerk/viewer viewer-gen2d}
+(sys-ini (make-ini :random {:weights [6 3 1.5 0.5]}) [31 9])
+
+^{::clerk/viewer viewer-gen2d}
+(sys-ini (make-ini :random {:weights {:u 2 :m 1}}) [31 9])
+
+;; We have already seen a 2D “ball” ini. To create one, we have to use an ini specification type called `:figure`, which can be used to throw an arbitrary pattern against a specified background:
 
 ^{::clerk/viewer quoted-markdown-viewer}
 (with-out-str
   (make-ini :figure :help))
 
-^{::clerk/viewer viewer-gen1d}
-(sys-ini (make-ini :figure :n (ini-patterns :ball) {})
-         61)
+;; Let’s try it with a familiar pattern first:
 
 ^{::clerk/viewer viewer-gen1d}
 (sys-ini (make-ini :figure :n (ini-patterns :ball) :center)
-         61)
+         [31])
+
+;; We can change the background to a different value and use an “inverted ball” (or “hole”) instead:
+
+^{::clerk/viewer viewer-gen1d}
+(sys-ini (make-ini :figure :m (ini-patterns :ball-inverted) :center)
+         [31])
+
+;; Instead of a simple value, we can also pass a background ini, such as `:cycle`:
+
+^{::clerk/viewer quoted-markdown-viewer}
+(with-out-str
+  (make-ini :cycle :help))
+
+^{::clerk/viewer viewer-gen2d}
+(sys-ini (make-ini :figure (make-ini :cycle [:u :m])
+                   (ini-patterns :ball2d-inverted) :center)
+         [11 11])
+
+;; Here we create a custom pattern and align it to the right:
+
+^{::clerk/viewer viewer-gen1d}
+(sys-ini (make-ini :figure :n (->> (cycle [:m :i :m :u]) (take 16) vec)
+                   :right)
+         [31])
+
+;; We can also precisely set the coordinates of a pattern:
+
+^{::clerk/viewer viewer-gen2d}
+(sys-ini (make-ini :figure (make-ini :random {:weights {:u 1 :n 3}})
+                   [[:m :n] [:n :i]] [6 3])
+         [20 14])
+
 
 ^{::clerk/viewer viewer-gen1d}
 (sys-ini (make-ini :figure :n (ini-patterns :ball) :left)
-         61)
+         [61])
 
 ^{::clerk/viewer viewer-gen2d}
 (sys-ini (make-ini :figure :n (ini-patterns :ball2d) :bottomright)
-         31 17)
+         [31 17])
 
 ;; ## Creating custom Specifications
 

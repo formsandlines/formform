@@ -124,15 +124,19 @@
 
 
 (s/fdef sys-ini
-  :args (s/alt :ar2 (s/cat :ini-spec ::sp/ini-spec
-                           :res-w    pos-int?)
-               :ar3 (s/cat :ini-spec ::sp/ini-spec
-                           :res-w    pos-int?
-                           :res-h    pos-int?))
+  :args (s/alt :ar2 (s/cat :ini-spec   ::sp/ini-spec
+                           :resolution ::sp/resolution)
+               :ar3 (s/cat :ini-spec   ::sp/ini-spec
+                           :resolution ::sp/resolution
+                           :opts       (s/keys :opt-un [:rand/seed])))
   :ret  ::sp/generation)
-(def sys-ini
-  "Returns a (initial) generation given an ini specification (via `make-ini`) and a resolution. For 2D generations, provide a second (height) resolution (must be supported by the ini spec)."
-  core/sys-ini)
+(defn sys-ini
+  "Returns a (initial) generation given an ini specification (via `make-ini`) and a resolution. For 2D generations, provide a second (height) resolution (must be supported by the ini spec).
+
+The last argument can be an options map where you can set the following parameter:
+- `:seed` → an integer number to provide a seed for reproducable randomness"
+  ([ini-spec resolution] (apply i/make-gen ini-spec {} resolution))
+  ([ini-spec resolution opts] (apply i/make-gen ini-spec opts resolution)))
 
 (s/fdef sys-next
   :args (s/cat :rule-spec   ::sp/rule-spec
@@ -503,15 +507,15 @@ Callable methods are `step`, `restart`, `get-resolution`, `get-current-generatio
 
   (sys-ini
    (make-ini :figure :n (ini-patterns :ball2d-square) [3 2])
-   9 9)
+   [9 9])
 
   (sys-ini
    (make-ini :figure :n (ini-patterns :ball2d-square) [3 2])
-   9 9)
+   [9 9])
 
   (sys-ini
    (make-ini :figure :n {:w 4 :f #(assoc % :v :?)} 0)
-   9)
+   [9])
   ,)
 
 #_

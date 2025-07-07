@@ -13,27 +13,27 @@
 
 (deftest ini-constant-test
   (testing "constant value"
-    (is (= (sys-ini (make-ini :constant :u) 10)
+    (is (= (sys-ini (make-ini :constant :u) [10])
            (repeat 10 :u)))
-    (is (= (sys-ini (make-ini :constant :i) 5 5)
+    (is (= (sys-ini (make-ini :constant :i) [5 5])
            (repeat 5 (repeat 5 :i))))))
 
 (deftest ini-random-test
   (testing "random variance"
-    (is (not= (sys-ini (make-ini :random) 10)
-              (sys-ini (make-ini :random) 10)
-              (sys-ini (make-ini :random) 10)))
-    (is (not= (sys-ini (make-ini :random) 5 5)
-              (sys-ini (make-ini :random) 5 5))))
+    (is (not= (sys-ini (make-ini :random) [10])
+              (sys-ini (make-ini :random) [10])
+              (sys-ini (make-ini :random) [10])))
+    (is (not= (sys-ini (make-ini :random) [5 5])
+              (sys-ini (make-ini :random) [5 5]))))
   (testing "random reproducability"
-    (is (= (sys-ini (make-ini :random {:seed 42}) 10)
-           (sys-ini (make-ini :random {:seed 42}) 10)
-           (sys-ini (make-ini :random {:seed 42}) 10)))
-    (is (= (sys-ini (make-ini :random {:seed 69}) 5 5)
-           (sys-ini (make-ini :random {:seed 69}) 5 5))))
+    (is (= (sys-ini (make-ini :random) [10] {:seed 42})
+           (sys-ini (make-ini :random) [10] {:seed 42})
+           (sys-ini (make-ini :random) [10] {:seed 42})))
+    (is (= (sys-ini (make-ini :random) [5 5] {:seed 69})
+           (sys-ini (make-ini :random) [5 5] {:seed 69}))))
   (testing "weights approximation in random generation"
     (is (= (let [w [0.1 0.2 0.3 0.4]
-                 freqs (->> (sys-ini (make-ini :random {:weights w}) 10000)
+                 freqs (->> (sys-ini (make-ini :random {:weights w}) [10000])
                             (frequencies))
                  sum (+ 0.0 (reduce + (vals freqs)))]
              (update-vals freqs #(Math/round (* 10 (/ % sum)))))
@@ -41,9 +41,9 @@
 
 (deftest ini-cycle-test
   (testing "cycling sequence and direction"
-    (is (= (sys-ini (make-ini :cycle [:m :i :u]) 10)
+    (is (= (sys-ini (make-ini :cycle [:m :i :u]) [10])
            [:m :i :u :m :i :u :m :i :u :m]))
-    (is (= (sys-ini (make-ini :cycle [:u :m :i :n]) 3 3)
+    (is (= (sys-ini (make-ini :cycle [:u :m :i :n]) [3 3])
            ;; cycles x and y directions, not linewise!
            [[:u :m :i]
             [:m :i :n]
@@ -62,37 +62,37 @@
                                       [:i :m :u]
                                       [:m :u :i]]
                           {:pos pos :align align})
-                5 5)])
+                [5 5])])
     ,)
 
 (deftest ini-figure-test
   (testing "correct 1D figure position and alignment"
     (is (= (sys-ini (make-ini :figure :n [:u :i :m]
-                              {:pos :left :align :left}) 9)
+                              {:pos :left :align :left}) [9])
            [:u :i :m :n :n :n :n :n :n]))
     (is (= (sys-ini (make-ini :figure :n [:u :i :m]
-                              {:pos :center :align :left}) 9)
+                              {:pos :center :align :left}) [9])
            [:n :n :n :n :u :i :m :n :n]))
     (is (= (sys-ini (make-ini :figure :n [:u :i :m]
-                              {:pos :right :align :left}) 9)
+                              {:pos :right :align :left}) [9])
            [:u :i :m :n :n :n :n :n :n]))
     (is (= (sys-ini (make-ini :figure :n [:u :i :m]
-                              {:pos :left :align :center}) 9)
+                              {:pos :left :align :center}) [9])
            [:i :m :n :n :n :n :n :n :u]))
     (is (= (sys-ini (make-ini :figure :n [:u :i :m]
-                              {:pos :center :align :center}) 9)
+                              {:pos :center :align :center}) [9])
            [:n :n :n :u :i :m :n :n :n]))
     (is (= (sys-ini (make-ini :figure :n [:u :i :m]
-                              {:pos :right :align :center}) 9)
+                              {:pos :right :align :center}) [9])
            [:i :m :n :n :n :n :n :n :u]))
     (is (= (sys-ini (make-ini :figure :n [:u :i :m]
-                              {:pos :left :align :right}) 9)
+                              {:pos :left :align :right}) [9])
            [:n :n :n :n :n :n :u :i :m]))
     (is (= (sys-ini (make-ini :figure :n [:u :i :m]
-                              {:pos :center :align :right}) 9)
+                              {:pos :center :align :right}) [9])
            [:n :u :i :m :n :n :n :n :n]))
     (is (= (sys-ini (make-ini :figure :n [:u :i :m]
-                              {:pos :right :align :right}) 9)
+                              {:pos :right :align :right}) [9])
            [:n :n :n :n :n :n :u :i :m])))
   (testing "correct 2D figure position and alignment"
     ;; all verified
@@ -100,7 +100,7 @@
                                                            [:i :m :u]
                                                            [:m :u :i]]
                                                {:pos pos :align align})
-                                     5 5) gen)
+                                     [5 5]) gen)
       :topleft :topleft
       [[:u :i :m :n :n]
        [:i :m :u :n :n]
@@ -671,7 +671,7 @@
   (testing "1D figure in 2D generation"
     (is (= (sys-ini (make-ini :figure :n (ini-patterns :ball)
                               :center)
-                    7 5)
+                    [7 5])
            [[:n :n :n :n :n :n :n]
             [:n :n :n :n :n :n :n]
             [:n :i :u :m :u :i :n]
@@ -680,7 +680,7 @@
   (testing "background ini & pattern holes"
     (is (= (sys-ini (make-ini :figure (make-ini :cycle [:i :u])
                               [[:n :m] [:m :_]]
-                              {:pos :left :align :left}) 3 3)
+                              {:pos :left :align :left}) [3 3])
            [[:n :m :i]
             [:m :i :u]
             [:i :u :i]])))
@@ -693,7 +693,7 @@
                                                   (= 1 (mod y 2)) (calc/inv %)
                                                   (= 0 (mod x 2)) :u
                                                   :else :i)))}
-                              {:pos :topcenter :align :topcenter}) 6 3)
+                              {:pos :topcenter :align :topcenter}) [6 3])
            [[:n :n :u :i :u :n]
             [:n :n :m :m :m :n]
             [:n :n :n :n :n :n]]))))
@@ -701,22 +701,22 @@
 (deftest ini-rand-figure-test
   (testing "random variance"
     (is (not= (sys-ini (make-ini :rand-figure :n 10
-                                 {:pos :left :align :left}) 14)
+                                 {:pos :left :align :left}) [14])
               (sys-ini (make-ini :rand-figure :n 10
-                                 {:pos :left :align :left}) 14)
+                                 {:pos :left :align :left}) [14])
               (sys-ini (make-ini :rand-figure :n 10
-                                 {:pos :left :align :left}) 14)))
+                                 {:pos :left :align :left}) [14])))
     (is (not= (sys-ini (make-ini :rand-figure :n 3
-                                 {:pos :center :align :center}) 5 5)
+                                 {:pos :center :align :center}) [5 5])
               (sys-ini (make-ini :rand-figure :n 3
-                                 {:pos :center :align :center}) 5 5))))
+                                 {:pos :center :align :center}) [5 5]))))
   (testing "random reproducability"
-    (is (= (sys-ini (make-ini :rand-figure {:seed 42} :n 10
-                              {:pos :left :align :left}) 14)
-           (sys-ini (make-ini :rand-figure {:seed 42} :n 10
-                              {:pos :left :align :left}) 14)
-           (sys-ini (make-ini :rand-figure {:seed 42} :n 10
-                              {:pos :left :align :left}) 14)))))
+    (is (= (sys-ini (make-ini :rand-figure :n 10
+                              {:pos :left :align :left}) [14] {:seed 42})
+           (sys-ini (make-ini :rand-figure :n 10
+                              {:pos :left :align :left}) [14] {:seed 42})
+           (sys-ini (make-ini :rand-figure :n 10
+                              {:pos :left :align :left}) [14] {:seed 42})))))
 
 (deftest ini-comp-figures-test
   (testing "ini composition"
@@ -724,20 +724,19 @@
                               [(make-ini :figure :n [:u :i] 1)
                                (make-ini :figure :n (ini-patterns :ball) 4)
                                (make-ini :figure :n [:i :n :u] :right)])
-                    15)
+                    [15])
            [:n :u :i :n :i :u :m :u :i :n :n :n :i :n :u]))))
 
 (deftest ini-figure-repeat-test
   (testing "repetition count and spacing"
     (is (= (sys-ini (make-ini :figure-repeat :n [:m :u] {:pos 0 :align :left}
                               3 2)
-                    15)
+                    [15])
            [:m :u :n :n :m :u :n :n :m :u :n :n :n :n :n]))
-    (is (= (sys-ini (make-ini :figure-repeat {:seed 42
-                                              :weights 1.0}
+    (is (= (sys-ini (make-ini :figure-repeat {:weights 1.0}
                               :n (vec (repeat 3 (vec (repeat 3 :?)))) :center
                               3 1)
-                    13 13)
+                    [13 13] {:seed 42})
            [[:n :n :n :n :n :n :n :n :n :n :n :n :n]
             [:n :u :m :i :n :u :m :u :n :u :m :i :n]
             [:n :i :m :i :n :i :u :m :n :i :u :m :n]
@@ -904,13 +903,13 @@
              :i :u :n :i  :i :i :n :m  :m :n :m :i  :m :i :u :n]
         rule-spec   (make-rule :match dna)
         umwelt-spec (make-umwelt :select-ltr 3)
-        ini-spec    (make-ini :random {:seed 64})
+        ini-spec    (make-ini :random)
         ->ca-spec   #(specify-ca "test-specimen"
                                  {:rule-spec rule-spec
                                   :umwelt-spec umwelt-spec
                                   :ini-spec ini-spec})]
     (testing "Working integration of ini, rule and umwelt in sys-next"
-      (is (= (let [init-gen (sys-ini  ini-spec 16)
+      (is (= (let [init-gen (sys-ini  ini-spec [16] {:seed 64})
                    next-gen (sys-next rule-spec umwelt-spec init-gen)]
                [init-gen next-gen])
              ;; verified

@@ -78,7 +78,7 @@
 (s/def ::figure (s/or :1d ::figure-1d
                       :2d ::figure-2d))
 
-(s/def ::ini-opts (s/keys :opt-un [:rand/seed :rand/weights]))
+(s/def ::ini-opts (s/keys :opt-un [:rand/weights]))
 
 (s/def :ini-pattern/f fn?)
 (s/def :ini-pattern/w pos-int?)

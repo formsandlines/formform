@@ -25,36 +25,32 @@
         res))))
 
 (defn transduce-ini
-  ([{:keys [no-rng? seed weights]} xform w]
-   (let [normal-weights (when weights (calc-core/conform-nuim-weights weights))]
-     (into [] (comp (map-indexed (fn [i rng']
-                                   {:rng rng'
-                                    :weights normal-weights
-                                    :i i
-                                    :w w
-                                    :x i}))
-                    xform
-                    (map :v))
-           (if no-rng?
-             (repeat w nil)
-             (utils/rng-split-n (utils/make-rng seed) w)))))
+  ([{:keys [no-rng? seed]} xform w]
+   (into [] (comp (map-indexed (fn [i rng']
+                                 {:rng rng'
+                                  :i i
+                                  :w w
+                                  :x i}))
+                  xform
+                  (map :v))
+         (if no-rng?
+           (repeat w nil)
+           (utils/rng-split-n (utils/make-rng seed) w))))
 
-  ([{:keys [no-rng? seed weights]} xform w h]
-   (let [normal-weights (when weights (calc-core/conform-nuim-weights weights))]
-     (into [] (comp (map-indexed (fn [i rng']
-                                   {:rng rng'
-                                    :weights normal-weights
-                                    :w w
-                                    :h h
-                                    :i i
-                                    :x (mod i w)
-                                    :y (quot i w)}))
-                    xform
-                    (map :v)
-                    (partition-all w))
-           (if no-rng?
-             (repeat (* w h) nil)
-             (utils/rng-split-n (utils/make-rng seed) (* w h)))))))
+  ([{:keys [no-rng? seed]} xform w h]
+   (into [] (comp (map-indexed (fn [i rng']
+                                 {:rng rng'
+                                  :w w
+                                  :h h
+                                  :i i
+                                  :x (mod i w)
+                                  :y (quot i w)}))
+                  xform
+                  (map :v)
+                  (partition-all w))
+         (if no-rng?
+           (repeat (* w h) nil)
+           (utils/rng-split-n (utils/make-rng seed) (* w h))))))
 
 (defn- ini-transducer?
   [ini]
@@ -66,10 +62,18 @@
     ini
     (throw (ex-info "Ini must be a record and satisfy the `formform.emul.interfaces.IniTransducer` protocol." {:ini ini}))))
 
+(defn merge-ini-opts
+  [spec-opts gen-opts]
+  ;; :seed should only be defined in gen-opts!
+  (merge (dissoc spec-opts :seed) gen-opts))
+
+
 (defini :constant [-opts const]
   "Fills a generation with a given constant (`:n`/`:m`/`:u`/`:i`)."
-  (make-gen [this w] (transduce-ini -opts (i/ini-xform1d this) w))
-  (make-gen [this w h] (transduce-ini -opts (i/ini-xform2d this) w h))
+  (make-gen [this opts w]
+            (transduce-ini (merge-ini-opts -opts opts) (i/ini-xform1d this) w))
+  (make-gen [this opts w h]
+            (transduce-ini (merge-ini-opts -opts opts) (i/ini-xform2d this) w h))
 
   i/IniTransducer
   (ini-xform1d [_] (map #(assoc % :v const)))
@@ -77,22 +81,30 @@
 
 
 (defn val-random
-  [{:keys [rng weights]}]
+  [rng weights]
   (calc-core/rand-const rng weights))
 
-
+;; ? make `weights` a parameter and use `nil` as default value?
+;;   -> inconsistent when other ini specs can also have random vals
 (defini :random [-opts]
-  "Fills a generation with random values. The (first) `-opts` argument is a map where you can set the following optional parameters:
-- `:seed` → an integer number to provide a seed for reproducable random generations
+  "Fills a generation with random values. The (first) `-opts` argument is a map where you can set the following optional parameter:
 - `:weights` → specifies the relative probability of each of the four constants to be randomly chosen. Can be provided either as:
   - a sequence of 4 non-negative numbers (e.g. `[1 0 2 5]`) in n-u-i-m order
   - a map (e.g. `{:i 1 :u 2}`), where missing weights are 0
-  - a single number in the interval [0.0, 1.0] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)"
-  (make-gen [this w] (transduce-ini -opts (i/ini-xform1d this) w))
-  (make-gen [this w h] (transduce-ini -opts (i/ini-xform2d this) w h))
+  - a single number in the interval [0.0, 1.0] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)
+
+Note: a random seed is not part of the ini spec, but it can be set when calling `sys-ini`."
+  (make-gen [this opts w]
+            (transduce-ini (merge-ini-opts -opts opts) (i/ini-xform1d this) w))
+  (make-gen [this opts w h]
+            (transduce-ini (merge-ini-opts -opts opts) (i/ini-xform2d this) w h))
 
   i/IniTransducer
-  (ini-xform1d [_] (map #(assoc % :v (val-random %))))
+  (ini-xform1d
+   [_]
+   (let [normal-weights (when-let [w (:weights -opts)]
+                          (calc-core/conform-nuim-weights w))]
+     (map #(assoc % :v (val-random (:rng %) normal-weights)))))
   (ini-xform2d [this] (i/ini-xform1d this)))
 
 
@@ -101,9 +113,11 @@
     (pattern (mod (+ x (or y 0)) (count pattern)))))
 
 (defini :cycle [-opts pattern]
-  "Fills a generation with repeatedly with the same value sequence."
-  (make-gen [this w] (transduce-ini -opts (i/ini-xform1d this) w))
-  (make-gen [this w h] (transduce-ini -opts (i/ini-xform2d this) w h))
+  "Fills a generation repeatedly with the same value sequence."
+  (make-gen [this opts w]
+            (transduce-ini (merge-ini-opts -opts opts) (i/ini-xform1d this) w))
+  (make-gen [this opts w h]
+            (transduce-ini (merge-ini-opts -opts opts) (i/ini-xform2d this) w h))
 
   i/IniTransducer
   (ini-xform1d
@@ -257,26 +271,27 @@
                :2d [w h]}))
 
 (defn- make-pattern-fn
-  [normal-pattern]
-  (case (get-pattern-type normal-pattern)
-    :explicit (fn [{:keys [i j v] :as env}]
-                (let [v' (if j
-                           (get-in (:gen2d normal-pattern) [i j])
-                           (get (:gen1d normal-pattern) i))]
-                  (case v'
-                    :_ env
-                    :? (assoc env :v (val-random env))
-                    (assoc env :v v'))))
-    :recipe (comp #(if (= :? (:v %)) ;; convenience interceptor for random vals
-                     (assoc % :v (val-random %))
-                     %)
-                  (:f normal-pattern))))
+  [normal-pattern {:keys [weights]}]
+  (let [normal-weights (when weights (calc-core/conform-nuim-weights weights))]
+    (case (get-pattern-type normal-pattern)
+      :explicit (fn [{:keys [i j v] :as env}]
+                  (let [v' (if j
+                             (get-in (:gen2d normal-pattern) [i j])
+                             (get (:gen1d normal-pattern) i))]
+                    (case v'
+                      :_ env
+                      :? (assoc env :v (val-random (:rng env) normal-weights))
+                      (assoc env :v v'))))
+      :recipe (comp #(if (= :? (:v %)) ;; convenience interceptor for random vals
+                       (assoc % :v (val-random (:rng %) normal-weights))
+                       %)
+                    (:f normal-pattern)))))
 
 (defn make-figure1d
-  [normal-pattern normal-anchor]
+  [normal-pattern normal-anchor opts]
   (let [{:keys [pos-x align-x offset-x]} normal-anchor
         {ptn-w :1d} (get-pattern-dimensions normal-pattern)
-        update-val (make-pattern-fn normal-pattern)]
+        update-val (make-pattern-fn normal-pattern opts)]
     (fn [{:keys [w x v] :as env}]
       (let [[s0 s1 :as xb] (segment-bounds w ptn-w pos-x align-x offset-x)
             at-ptn? (within-segment-bounds? xb w x)]
@@ -289,12 +304,12 @@
           env)))))
 
 (defn make-figure2d
-  [normal-pattern normal-anchor]
+  [normal-pattern normal-anchor opts]
   (let [{:keys [pos-x    pos-y
                 align-x  align-y
                 offset-x offset-y]} normal-anchor
         {[ptn-w ptn-h] :2d} (get-pattern-dimensions normal-pattern)
-        update-val (make-pattern-fn normal-pattern)]
+        update-val (make-pattern-fn normal-pattern opts)]
     (fn [{:keys [w h x y v] :as env}]
       (let [[sx0 sx1 :as xb] (segment-bounds w ptn-w pos-x align-x offset-x)
             [sy0 sy1 :as yb] (segment-bounds h ptn-h pos-y align-y offset-y)
@@ -316,7 +331,7 @@
   (cond
     ((set calc-core/nuim-code) bg) (i/->rec ->Ini-Constant -opts bg)
     (= :? bg) (i/->rec ->Ini-Random -opts)
-    (ini-transducer? bg) bg
+    (ini-transducer? bg) bg ;; ? merge -opts
     :else (throw (ex-info "Invalid background ini." {:bg-ini bg}))))
 
 (defini :figure [-opts bg pattern anchor]
@@ -334,25 +349,28 @@
     - `offset`: integer (x=y) or int vector `[x y]` as number of cells from `pos`
 
 Note: you can find some predefined patterns in `ini-patterns`."
-  (make-gen [this w]
+  (make-gen [this opts w]
             (let [bg-ini (parse-bg -opts bg)]
-              (transduce-ini -opts
+              (transduce-ini (merge-ini-opts -opts opts)
                              (comp (i/ini-xform1d bg-ini)
                                    (i/ini-xform1d this)) w)))
-  (make-gen [this w h]
+  (make-gen [this opts w h]
             (let [bg-ini (parse-bg -opts bg)]
-              (transduce-ini -opts (comp (i/ini-xform2d bg-ini)
-                                         (i/ini-xform2d this)) w h)))
+              (transduce-ini (merge-ini-opts -opts opts)
+                             (comp (i/ini-xform2d bg-ini)
+                                   (i/ini-xform2d this)) w h)))
 
   i/IniTransducer
   (ini-xform1d
    [_]
    (map (make-figure1d (normalize-pattern pattern)
-                       (normalize-anchor anchor))))
+                       (normalize-anchor anchor)
+                       -opts)))
   (ini-xform2d
    [_]
    (map (make-figure2d (normalize-pattern pattern)
-                       (normalize-anchor anchor)))))
+                       (normalize-anchor anchor)
+                       -opts))))
 
 
 ;; ! `size` should also allow vector
@@ -360,52 +378,59 @@ Note: you can find some predefined patterns in `ini-patterns`."
   "Generates a figure of given `size` with random constants at the position specified by `anchor` before a given background ini (see docs of `:figure` ini for further explanation).
 
 The (first) `-opts` argument is a map where you can set the following optional parameters:
-- `:seed` → an integer number to provide a seed for reproducable random generations
 - `:weights` → specifies the relative probability of each of the four constants to be randomly chosen. Can be provided either as:
   - a sequence of 4 non-negative numbers (e.g. `[1 0 2 5]`) in n-u-i-m order
   - a map (e.g. `{:i 1 :u 2}`), where missing weights are 0
-  - a single number in the interval [0.0, 1.0] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)"
-  (make-gen [this w]
+  - a single number in the interval [0.0, 1.0] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)
+
+Note: a random seed is not part of the ini spec, but it can be set when calling `sys-ini`."
+  (make-gen [this opts w]
             (let [bg-ini (parse-bg -opts bg)]
-              (transduce-ini -opts
+              (transduce-ini (merge-ini-opts -opts opts)
                              (comp (i/ini-xform1d bg-ini)
                                    (i/ini-xform1d this)) w)))
-  (make-gen [this w h]
+  (make-gen [this opts w h]
             (let [bg-ini (parse-bg -opts bg)]
-              (transduce-ini -opts (comp (i/ini-xform2d bg-ini)
-                                         (i/ini-xform2d this)) w h)))
+              (transduce-ini (merge-ini-opts -opts opts)
+                             (comp (i/ini-xform2d bg-ini)
+                                   (i/ini-xform2d this)) w h)))
 
   i/IniTransducer
   (ini-xform1d
    [_]
-   (let [w (cond
-             (vector? size) (first size)
-             (int? size) size
-             :else 1)
-         pattern {:w w :f #(assoc % :v (val-random %))}]
+   (let [w (cond (vector? size) (first size)
+                 (int? size) size
+                 :else 1)
+         normal-weights (when-let [w (:weights -opts)]
+                          (calc-core/conform-nuim-weights w))
+         pattern {:w w
+                  :f #(assoc % :v (val-random (:rng %) normal-weights))}]
      (i/ini-xform1d (i/->rec ->Ini-Figure -opts nil pattern anchor))))
   (ini-xform2d
    [_]
-   (let [[w h] (cond
-                 (vector? size) size
-                 (int? size) [size size]
-                 :else [1 1])
-         pattern {:w w :h h :f #(assoc % :v (val-random %))}]
+   (let [[w h] (cond (vector? size) size
+                     (int? size) [size size]
+                     :else [1 1])
+         normal-weights (when-let [w (:weights -opts)]
+                          (calc-core/conform-nuim-weights w))
+         pattern {:w w :h h
+                  :f #(assoc % :v (val-random (:rng %) normal-weights))}]
      (i/ini-xform2d (i/->rec ->Ini-Figure -opts nil pattern anchor)))))
 
 
 (defini :comp-figures [-opts bg figure-inis]
   "Takes a background ini and a sequence of `figure-inis` and composes them all together. Inis that appear later in the sequence may overwrite earlier ones when they overlap.
 - `bg-ini`: another ini that defines the background pattern of this ini"
-  (make-gen [this w]
+  (make-gen [this opts w]
             (let [bg-ini (parse-bg -opts bg)]
-              (transduce-ini -opts
+              (transduce-ini (merge-ini-opts -opts opts)
                              (comp (i/ini-xform1d bg-ini)
                                    (i/ini-xform1d this)) w)))
-  (make-gen [this w h]
+  (make-gen [this opts w h]
             (let [bg-ini (parse-bg -opts bg)]
-              (transduce-ini -opts (comp (i/ini-xform2d bg-ini)
-                                         (i/ini-xform2d this)) w h)))
+              (transduce-ini (merge-ini-opts -opts opts)
+                             (comp (i/ini-xform2d bg-ini)
+                                   (i/ini-xform2d this)) w h)))
 
   i/IniTransducer
   (ini-xform1d [_] (apply comp
@@ -427,15 +452,16 @@ The (first) `-opts` argument is a map where you can set the following optional p
 
 (defini :figure-repeat [-opts bg pattern anchor copies spacing]
   "Repeats a given `pattern` n (`copies`) times over a given background ini with a specified `spacing` between each instance. The instances are positioned as specified by `anchor` (see docs of `:figure` ini for further explanation)."
-  (make-gen [this w]
+  (make-gen [this opts w]
             (let [bg-ini (parse-bg -opts bg)]
-              (transduce-ini -opts
+              (transduce-ini (merge-ini-opts -opts opts)
                              (comp (i/ini-xform1d bg-ini)
                                    (i/ini-xform1d this)) w)))
-  (make-gen [this w h]
+  (make-gen [this opts w h]
             (let [bg-ini (parse-bg -opts bg)]
-              (transduce-ini -opts (comp (i/ini-xform2d bg-ini)
-                                         (i/ini-xform2d this)) w h)))
+              (transduce-ini (merge-ini-opts -opts opts)
+                             (comp (i/ini-xform2d bg-ini)
+                                   (i/ini-xform2d this)) w h)))
 
   i/IniTransducer
   (ini-xform1d
@@ -798,8 +824,6 @@ The (first) `-opts` argument is a map where you can set the following optional p
 
 (defrecord CASpec [rule-spec umwelt-spec ini-spec])
 
-(def sys-ini i/make-gen)
-
 (defn sys-next
   [res rng-w rng-h rule-spec umwelt-spec gen]
   (if rng-h
@@ -942,7 +966,7 @@ The (first) `-opts` argument is a map where you can set the following optional p
   (let [optimized? (and (satisfies? UmweltOptimized umwelt-spec)
                         (satisfies? RuleOptimized rule-spec))
         [w h] resolution
-        gen1 (let [v (apply sys-ini ini-spec resolution)]
+        gen1 (let [v (apply i/make-gen ini-spec {} resolution)]
                (if optimized?
                  (if h
                    (utils/keywords-to-array-2d v)
@@ -963,7 +987,7 @@ The (first) `-opts` argument is a map where you can set the following optional p
 
 (defn ca-iterator
   [{:keys [rule-spec umwelt-spec ini-spec]} resolution]
-  (let [gen1 (apply sys-ini ini-spec resolution)
+  (let [gen1 (apply i/make-gen ini-spec {} resolution)
         [w h] resolution]
     (iterate (partial sys-next
                       resolution (range w) (when h (range h))
@@ -1052,17 +1076,17 @@ The (first) `-opts` argument is a map where you can set the following optional p
 
   (i/make-gen (->Ini-Figure {} (->Ini-Constant {} :_)
                             {:w 2 :h 5 :f #(assoc % :v :i)}
-                            {:offset [1 2]}) 6 6)
+                            {:offset [1 2]}) {} 6 6)
   (i/make-gen (->Ini-Figure {} :n {:w 2 :f #(assoc % :v :?)}
-                            :center) 10)
+                            :center) {} 10)
   (i/make-gen (->Ini-Figure {:seed 12}
                             (->Ini-Constant {} :_)
                             {:w 3 :h 3 :f val-random}
-                            {:pos [1 1]}) 6 6)
+                            {:pos [1 1]}) {} 6 6)
   (i/make-gen (->Ini-Figure {}
                             (->Ini-Constant {} :_)
                             {:w 6 :f (make-val-cycle [:u :i :m])}
-                            {:pos 3}) 12)
+                            {:pos 3}) {} 12)
 
   
   #_

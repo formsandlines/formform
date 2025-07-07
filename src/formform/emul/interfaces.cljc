@@ -7,8 +7,8 @@
 
 (defprotocol Ini
   (make-gen
-    [this w]
-    [this w h]))
+    [this opts w]
+    [this opts w h]))
 
 (defprotocol IniTransducer
   (ini-xform1d [this])
