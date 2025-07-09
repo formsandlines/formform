@@ -84,8 +84,6 @@
   [rng weights]
   (calc-core/rand-const rng weights))
 
-;; ? make `weights` a parameter and use `nil` as default value?
-;;   -> inconsistent when other ini specs can also have random vals
 (defini :random [-opts]
   "Fills a generation with random values. The (first) `-opts` argument is a map where you can set the following optional parameter:
 - `:weights` → specifies the relative probability of each of the four constants to be randomly chosen. Can be provided either as:
@@ -331,7 +329,7 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
   (cond
     ((set calc-core/nuim-code) bg) (i/->rec ->Ini-Constant -opts bg)
     (= :? bg) (i/->rec ->Ini-Random -opts)
-    (ini-transducer? bg) bg ;; ? merge -opts
+    (ini-transducer? bg) bg
     :else (throw (ex-info "Invalid background ini." {:bg-ini bg}))))
 
 (defini :figure [-opts bg pattern anchor]
@@ -633,8 +631,8 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
    [_ gen2d-arr [[x y] self-v] w h]
    (let [g (fn [dx dy]
              (calc-core/const->digit
-              (aget gen2d-arr
-                    (wrap-bounds (+ y dy) 0 (dec h))
+              (aget (aget gen2d-arr
+                          (wrap-bounds (+ y dy) 0 (dec h)))
                     (wrap-bounds (+ x dx) 0 (dec w)))))]
      (case size
        0 ""
@@ -703,8 +701,8 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
    [_ gen2d-arr [[x y] _] w h]
    (let [g (fn [dx dy]
              (let [c (calc-core/const->digit
-                      (aget gen2d-arr
-                            (wrap-bounds (+ y dy) 0 (dec h))
+                      (aget (aget gen2d-arr
+                                  (wrap-bounds (+ y dy) 0 (dec h)))
                             (wrap-bounds (+ x dx) 0 (dec w))))]
                (case c 0 nil c)))
          self (if self? (g 0 0) nil)]
@@ -753,8 +751,8 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
    [_ gen2d-arr [[x y] _] w h]
    (let [g (fn [dx dy]
              (let [c (calc-core/const->digit
-                      (aget gen2d-arr
-                            (wrap-bounds (+ y dy) 0 (dec h))
+                      (aget (aget gen2d-arr
+                                  (wrap-bounds (+ y dy) 0 (dec h)))
                             (wrap-bounds (+ x dx) 0 (dec w))))]
                (case c 0 nil c)))
          self (if self? (g 0 0) nil)]
@@ -846,16 +844,15 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
           rng-w)))
 
 
-;; ! check if multi-arity aset is slower than `(aset (aget arr i) j val)`
-;;   -> see https://ask.clojure.org/index.php/729/aset-aget-perform-poorly-multi-dimensional-arrays-even-hints
-;; ! check type hinting to avoid reflection and boxing
+;; multi-arity `aset` might be slower than `(aset (aget arr i) j val)`
+;; -> see https://ask.clojure.org/index.php/729/aset-aget-perform-poorly-multi-dimensional-arrays-even-hints
 (defn sys-next--fast
   "More performant version of `sys-next` that uses native platform arrays instead of vectors for the generations and calls special `--fast` methods that operate on them. Note that these methods must be implemented for the provided `rule-spec` and `umwelt-spec`.
 
   Always prefer `sys-next` for better compatibility across library functions and maximal flexibility."
   ([w h rule-spec umwelt-spec gen]
    (let [compute (fn [x y]
-                   (let [[_ v :as cell] [[x y] (aget gen y x)]
+                   (let [[_ v :as cell] [[x y] (aget (aget gen y) x)]
                          qtn (i/observe-umwelt--fast umwelt-spec gen cell w h)]
                      (i/apply-rule--fast rule-spec qtn v)))]
      #?(:clj (let [^"[[Lclojure.lang.Keyword;"
@@ -864,7 +861,7 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
                  (when (< y h)
                    (loop [x 0]
                      (when (< x w)
-                       (aset next-gen y x (compute x y))
+                       (aset (aget next-gen y) x (compute x y))
                        (recur (inc x))))
                    (recur (inc y))))
                next-gen)

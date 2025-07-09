@@ -14,7 +14,6 @@
   (ini-xform1d [this])
   (ini-xform2d [this]))
 
-;; ? get w/h from generation length
 (defprotocol Umwelt
   (observe-umwelt
     [this gen1d cell w]
