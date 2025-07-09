@@ -116,7 +116,8 @@
 
 (s/def :ini/rand-figure (s/cat :-opts ::ini-opts
                                :bg ::bg
-                               :size pos-int?
+                               :size (s/or :integer pos-int?
+                                           :res-vec ::resolution)
                                :anchor ::anchor))
 
 (s/def :ini/comp-figure (s/cat :-opts ::ini-opts

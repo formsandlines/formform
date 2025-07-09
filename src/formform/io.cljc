@@ -61,6 +61,10 @@
 (s/def :opts.uniform/const? boolean?)
 (s/def :opts.uniform/use-seq-reentry? boolean?)
 
+;; ? use qualified keys
+;; {:formform.expr/type …
+;;  :formform.expr/children […]}
+
 (s/fdef uniform-expr
   :args (s/alt :ar1 (s/cat :expr ::expr-sp/expression)
                :ar2 (s/cat :opts 
@@ -91,6 +95,7 @@
 
 
 (comment
+  (uniform-expr ['a ['b]])
 
   (require '[formform.expr :as expr])
   (require '[formform.calc :as calc])

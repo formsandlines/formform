@@ -373,9 +373,10 @@ Note: you can find some predefined patterns in `ini-patterns`."
                        -opts))))
 
 
-;; ! `size` should also allow vector
 (defini :rand-figure [-opts bg size anchor]
   "Generates a figure of given `size` with random constants at the position specified by `anchor` before a given background ini (see docs of `:figure` ini for further explanation).
+
+`size` can be either a single integer (for 1D or square-sized 2D patterns) or a vector `[w h]` for 2D patterns.
 
 The (first) `-opts` argument is a map where you can set the following optional parameters:
 - `:weights` → specifies the relative probability of each of the four constants to be randomly chosen. Can be provided either as:

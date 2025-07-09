@@ -698,6 +698,22 @@
             [:n :n :m :m :m :n]
             [:n :n :n :n :n :n]]))))
 
+(defn expected-subpattern-size?
+  "Note: only for 2D gens where subpattern is aligned `:topleft` and contains no `:n` while the rest of the generation contains only `:n`!"
+  [expected-size gen]
+  (loop [ptn (first gen)
+         rem (rest gen)
+         i 0]
+    (let [sub-ptn (remove #{:n} ptn)
+          expected-width (if (< i (last expected-size))
+                           (first expected-size)
+                           0)]
+      ;; check if pattern width = defined width
+      (when (= (count sub-ptn) expected-width)
+        (if (seq rem)
+          (recur (first rem) (rest rem) (inc i))
+          true)))))
+
 (deftest ini-rand-figure-test
   (testing "random variance"
     (is (not= (sys-ini (make-ini :rand-figure :n 10
@@ -716,7 +732,23 @@
            (sys-ini (make-ini :rand-figure :n 10
                               {:pos :left :align :left}) [14] {:seed 42})
            (sys-ini (make-ini :rand-figure :n 10
-                              {:pos :left :align :left}) [14] {:seed 42})))))
+                              {:pos :left :align :left}) [14] {:seed 42}))))
+  (testing "correct pattern size"
+    (is (let [size [3 6]
+              ini (sys-ini (make-ini :rand-figure {:weights 1.0}
+                                     :n size :topleft)
+                           [6 10])]
+          (expected-subpattern-size? size ini)))
+    (is (let [size [5 2]
+              ini (sys-ini (make-ini :rand-figure {:weights 1.0}
+                                     :n size :topleft)
+                           [5 3])]
+          (expected-subpattern-size? size ini)))
+    (is (let [size [3 3]
+              ini (sys-ini (make-ini :rand-figure {:weights 1.0}
+                                     :n (first size) :topleft)
+                           [5 4])]
+          (expected-subpattern-size? size ini)))))
 
 (deftest ini-comp-figures-test
   (testing "ini composition"

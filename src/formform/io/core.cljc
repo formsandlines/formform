@@ -265,19 +265,19 @@
    op]
   (let [op-sym (expr/op-symbol op)
         data   (expr/op-data op)]
-    (cond (and use-unmarked?
-               (= expr-common/tag_arrangement op-sym))
+    (cond (and use-unmarked? (= expr-common/tag_arrangement op-sym))
           {:type :form
            :unmarked true
            branchname (ctx->uniform opts (:exprs data))}
-          (and use-unclear?
-               (= expr-common/tag_unclear op-sym))
+
+          (and use-unclear? (= expr-common/tag_unclear op-sym))
           {:type :unclear
            :value :u
            :label (:label data)}
-          (and use-seq-reentry?
-               (= expr-common/tag_seq-reentry op-sym))
+
+          (and use-seq-reentry? (= expr-common/tag_seq-reentry op-sym))
           (legacy_expand-seq-reentry opts data)
+
           :else (merge
                  {:type :operator
                   :label (str op-sym)}
@@ -291,10 +291,11 @@
          ;; :value (calc/const->digit expr)
          ;; :label (str expr)
          :value (name sym)}
-        (and use-seq-reentry?
-             (= :f* sym))
+
+        (and use-seq-reentry? (= :f* sym))
         {:type  :reEntryPoint
          :label (name sym)}
+
         :else {:type :symbol
                :label (str sym)}))
 
