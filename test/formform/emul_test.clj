@@ -821,7 +821,7 @@
                            [[:n :n :u]
                             [:m :n :n]
                             [:n :n :i]] [[1 1] :n])
-           [:n :m :n :n nil :n :u :n :i]))
+           [:n :m :n :n :n :u :n :i]))
     (is (= (observe-umwelt (make-umwelt :moore :row-first true)
                            [[:n :n :u]
                             [:m :n :n]
@@ -836,7 +836,7 @@
                            [[:n :n :u]
                             [:m :n :u]
                             [:n :i :n]] [[1 1] :n])
-           [:n :m nil :u :i]))
+           [:n :m :u :i]))
     ))
 
 (deftest apply-rule-test

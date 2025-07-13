@@ -675,24 +675,33 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
    (let [g (fn [dx dy]
              (get-in gen2d
                      [(wrap-bounds (+ y dy) 0 (dec h))
-                      (wrap-bounds (+ x dx) 0 (dec w))]))
-         self (if self? (g 0 0) nil)]
+                      (wrap-bounds (+ x dx) 0 (dec w))]))]
      ;; `self` can be nil! (remove when counting)
      (case order
        :column-first
        ;; 0 3 5   0 3 6
        ;; 1 . 6   1 4 7
        ;; 2 4 7   2 5 8
-       [(g -1 -1) (g -1  0) (g -1  1)
-        (g  0 -1)   self    (g  0  1)
-        (g  1 -1) (g  1  0) (g  1  1)]
+       (if self?
+         [(g -1 -1) (g -1  0) (g -1  1)
+          (g  0 -1) (g  0  0) (g  0  1)
+          (g  1 -1) (g  1  0) (g  1  1)]
+
+         [(g -1 -1) (g -1  0) (g -1  1)
+          (g  0 -1)           (g  0  1)
+          (g  1 -1) (g  1  0) (g  1  1)])
        :row-first
        ;; 0 1 2   0 1 2
        ;; 3 . 4   3 4 5
        ;; 5 6 7   6 7 8
-       [(g -1 -1) (g  0 -1) (g  1 -1)
-        (g -1  0)   self    (g  1  0)
-        (g -1  1) (g  0  1) (g  1  1)]
+       (if self?
+         [(g -1 -1) (g  0 -1) (g  1 -1)
+          (g -1  0) (g  0  0) (g  1  0)
+          (g -1  1) (g  0  1) (g  1  1)]
+
+         [(g -1 -1) (g  0 -1) (g  1 -1)
+          (g -1  0)           (g  1  0)
+          (g -1  1) (g  0  1) (g  1  1)])
        (throw (ex-info "Invalid order for umwelt `:moore`."
                        {:order order})))))
 
@@ -725,24 +734,33 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
    (let [g (fn [dx dy]
              (get-in gen2d
                      [(wrap-bounds (+ y dy) 0 (dec h))
-                      (wrap-bounds (+ x dx) 0 (dec w))]))
-         self (if self? (g 0 0) nil)]
+                      (wrap-bounds (+ x dx) 0 (dec w))]))]
      ;; `self` can be nil! (remove when counting)
      (case order
        :column-first
        ;;   1       1
        ;; 0 . 3   0 2 4
        ;;   2       3
-       [,         (g -1  0)
-        (g  0 -1)   self    (g  0  1)
-        ,         (g  1  0)]
+       (if self?
+         [,         (g -1  0)
+          (g  0 -1) (g  0  0) (g  0  1)
+          ,         (g  1  0)]
+
+         [,         (g -1  0)
+          (g  0 -1)           (g  0  1)
+          ,         (g  1  0)])
        :row-first
        ;;   0       0
        ;; 1 . 2   1 2 3
        ;;   3       4
-       [          (g  0 -1)          
-        (g -1  0)   self    (g  1  0)
-        ,         (g  0  1)          ]
+       (if self?
+         [          (g  0 -1)          
+          (g -1  0) (g  0  0) (g  1  0)
+          ,         (g  0  1)          ]
+
+         [          (g  0 -1)          
+          (g -1  0)           (g  1  0)
+          ,         (g  0  1)          ])
        (throw (ex-info "Invalid order for umwelt `:von-neumann`."
                        {:order order})))))
 

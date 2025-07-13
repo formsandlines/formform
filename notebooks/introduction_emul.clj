@@ -88,7 +88,7 @@
 (ca-iterator coa-spec [125] 50)
 
 
-;; ## Creating common CA Types
+;; ## Common CA Types
 
 ;; What if you want to create a _SelFi_ that is not in the set of predefined species or create a 2D CA like a _mindFORM_? There are constructors for the four most common CA types in FORM logic:
 ;; - `make-selfi`
@@ -182,7 +182,7 @@ dna-slit
     ::clerk/auto-expand-results? false}
   (mapv vector vspace (rseq dna-tsds)))
 
-;; ### Common Initialization Types
+;; ## Initialization Patterns
 
 ;; Besides _formDNA_, `make-selfi` and `make-mindform` also require an “ini-spec”, meaning a specification of their initialization pattern.
 
@@ -204,23 +204,30 @@ dna-slit
 ;; The `?` before the `opts` argument means that it is optional. We can get more detailed information about a specific ini type like this:
 ^{::clerk/viewer quoted-markdown-viewer}
 (with-out-str
-  (make-ini :random :help))
-
-#_
-^{::clerk/viewer
-  v/markdown-viewer}
-(make-ini :random :help)
+  (make-ini :constant :help))
 
 ;; The ini spec essentially is just data, a description of how to construct a specific initial generation:
 
-(make-ini :random)
+(def const-ini (make-ini :constant :u))
 
-;; It is useful to test an ini before running it in a CA. Let’s use the spec to build a random generation:
+;; It is useful to test an ini before running it in a CA. Let’s use the spec to build a generation consisting of a single value:
+
+^{::clerk/viewer viewer-gen1d}
+(sys-ini const-ini [61])
+
+
+;; ### Random Inis
+
+;; To generate randomized inis, we can use `:random`:
+
+^{::clerk/viewer quoted-markdown-viewer}
+(with-out-str
+  (make-ini :random :help))
 
 ^{::clerk/viewer viewer-gen1d}
 (sys-ini (make-ini :random) [61])
 
-;; Most inis are also defined for 2D generations, so we can just pass a second resolution without changing anything about the ini spec:
+;; Most inis are also defined for 2D generations, so we can just pass a 2D resolution `[width height]` without changing anything about the ini spec:
 
 ^{::clerk/viewer viewer-gen2d}
 (sys-ini (make-ini :random) [31 9])
@@ -232,7 +239,7 @@ dna-slit
    (sys-ini (make-ini :random) [61])
    (sys-ini (make-ini :random) [61]))
 
-;; But with a random seed (as the ini docs mentioned), we can reproduce the same random values reliably:
+;; But with a random seed (as the ini docs mentioned), we can reproduce the same random values reliably on every evaluation:
 
 ^{::clerk/no-cache true}
 (= (sys-ini (make-ini :random) [61] {:seed 93})
@@ -254,6 +261,9 @@ dna-slit
 ^{::clerk/viewer viewer-gen2d}
 (sys-ini (make-ini :random {:weights {:u 2 :m 1}}) [31 9])
 
+
+;; ### Figure Inis
+
 ;; We have already seen a 2D “ball” ini. To create one, we have to use an ini specification type called `:figure`, which can be used to throw an arbitrary pattern against a specified background:
 
 ^{::clerk/viewer quoted-markdown-viewer}
@@ -272,7 +282,7 @@ dna-slit
 (sys-ini (make-ini :figure :m (ini-patterns :ball-inverted) :center)
          [31])
 
-;; Instead of a simple value, we can also pass a background ini, such as `:cycle`:
+;; Instead of a simple value, we can also directly pass a background ini, such as `:cycle`:
 
 ^{::clerk/viewer quoted-markdown-viewer}
 (with-out-str
@@ -290,30 +300,132 @@ dna-slit
                    :right)
          [31])
 
-;; We can also precisely set the coordinates of a pattern:
+;; We can also precisely set the coordinates of a pattern by providing a vector of integers as the _anchor_ argument:
 
 ^{::clerk/viewer viewer-gen2d}
 (sys-ini (make-ini :figure (make-ini :random {:weights {:u 1 :n 3}})
                    [[:m :n] [:n :i]] [6 3])
          [20 14])
 
+;; If you want even more precise control over the placement of the pattern, pass a map instead:
 
-^{::clerk/viewer viewer-gen1d}
-(sys-ini (make-ini :figure :n (ini-patterns :ball) :left)
-         [61])
+^{::clerk/visibility {:result :hide}}
+(defn make-frame
+  "Creates a rectangular frame pattern."
+  [w h v]
+  (mapv (fn [y]
+          (mapv (fn [x]
+                  (if (or (zero? x) (== (dec w) x)
+                          (zero? y) (== (dec h) y))
+                    v :_))
+                (range h)))
+        (range w)))
 
 ^{::clerk/viewer viewer-gen2d}
-(sys-ini (make-ini :figure :n (ini-patterns :ball2d) :bottomright)
-         [31 17])
+(sys-ini (make-ini :figure {:weights 1.0}
+                   :n
+                   (make-frame 9 9 :?)
+                   {:pos :center :align :topleft})
+         [17 17])
+
+;; As demonstrated above, it is beneficial to define custom functions for more complex patterns.
+
+;; There are two _special values_ that are useful in pattern definitions:
+
+;; - `:_` lets the background “shine through”, which enables more refined and reusable patterns
+;; - `:?` selects a random value (the `:weights` option we have seen before in the `:random` ini applies here as well)
+
+
+;; ### Combining Figures
+
+;; A single pattern can be repeated with `:figure-repeat`:
+
+^{::clerk/viewer quoted-markdown-viewer}
+(with-out-str
+  (make-ini :figure-repeat :help))
+
+^{::clerk/visibility {:result :hide}}
+(def arrow1d [:u :i :m])
+
+^{::clerk/viewer viewer-gen1d}
+(sys-ini (make-ini :figure-repeat {:weights 1.0} :n arrow1d :center 10 3)
+         [69])
+
+^{::clerk/visibility {:result :hide}}
+(def arrow2d [[:u :_ :_]
+              [:_ :i :_]
+              [:_ :_ :m]
+              [:_ :i :_]
+              [:u :_ :_]])
+
+^{::clerk/viewer viewer-gen2d}
+(sys-ini (make-ini :figure-repeat {:weights 1.0} :n arrow2d
+                   {:pos :right :align :center}
+                   [7 2] [1 2])
+         [32 14])
+
+;; > Note that ini patterns will also wrap around when they exceed generation boundaries.
+
+;; The ini type `:comp-figures` composes multiple figures by stacking them on top of each other. This can be useful if you want to observe how a system reacts to different simultaneous events:
+
+^{::clerk/viewer quoted-markdown-viewer}
+(with-out-str
+  (make-ini :comp-figures :help))
+
+^{::clerk/visibility {:result :hide}}
+(defn fill-rect
+  "Creates a rectangular filled pattern."
+  [w h v]
+  (mapv vec (repeat h (repeat w v))))
+
+^{::clerk/viewer viewer-gen2d}
+(sys-ini (make-ini :comp-figures
+                   :n
+                   [(make-ini :figure :n (fill-rect 6 6 :u)
+                              {:pos :center :align :bottomright :offset 1})
+                    (make-ini :figure :n (make-frame 8 8 :i)
+                              {:pos :center :align :topleft :offset -3})
+                    (make-ini :figure-repeat :n arrow2d
+                              {:pos :left :align :left :offset [1 0]}
+                              [3 1] 1)])
+         [16 16])
+
+;; As you can see, we can even compose `:figure-repeat`!
+
 
 ;; ## Creating custom Specifications
 
 ;; Sometimes you may want to experiment with cellular automata that cannot be described in terms of the four common CA types. In this case, you have to create your own specifications. You do that by composing a selection of parts for the three spec types we encountered before:
-;; - `:ini-spec` describes the CA initialization, which will create the first generation of cells
-;; - `:rule-spec` describes the CA rule (usually with _formDNA_) that gets applied to calculate the next generation
+;; - `:ini-spec` describes the CA [initialization](#initialization-patterns), which will create the first generation of cells
+;; - `:rule-spec` describes the CA rule (usually with [_formDNA_](#formdna-as-a-ruleset)) that gets applied to calculate the next generation
 ;; - `:umwelt-spec` describes how to select the neighborhood for each cell on which the rule gets applied
 
+;; If you just want to modify an existing CA type, the easiest way is to use the `:overwrites` option, where you can replace parts of the spec:
 
+(def lifeform-clustered
+  (make-lifeform
+   {:overwrites {:ini-spec (make-ini :figure-repeat {:weights 0.2}
+                                     :n (fill-rect 7 7 :?)
+                                     :center [2 2] [5 5])}}
+   (tsds-sel->dna [1 0 1 1 0 0])))
+
+^{::clerk/viewer viewer-ca2d
+  ::clerk/render-opts {:formform/cellsize 3 :formform/grid-px 0}}
+(ca-iterator lifeform-clustered [35 35] 18)
+
+;; For entirely new creations, `specify-ca` lets you define a CA specification from scratch:
+
+(def crossform-ca
+  (specify-ca "crossFORM"
+              {:ini-spec (make-ini :random {:weights 0.05})
+               :rule-spec (make-rule :match (exprs->dna '[a [b [c [d]]]]))
+               :umwelt-spec (make-umwelt :von-neumann :row-first false)}))
+
+^{::clerk/viewer viewer-ca2d
+  ::clerk/render-opts {:formform/cellsize 3 :formform/grid-px 0}}
+(ca-iterator crossform-ca [35 35] 12)
+
+;; > Note: since there just a few predefined umwelt- and rule-specs right now and they work best in specific combinations, variation in CA specifications is very limited. However, you can extend formform.emul with your own ini-, rule- or umwelt-types via `defini`, `defumwelt` and `defrule`. This is beyond the scope of this introduction; take a look at the docs for these macros to learn more.
 
 ;; ## Stateful Automata
 
@@ -359,6 +471,8 @@ dna-slit
 ^{::clerk/viewer viewer-gen1d}
 (get-current-generation mark1-ca)
 
+;; ### Cached Evolution
+
 ;; The CA keeps the generations it has calculated thus far up to a certain _cache limit_, which can be very high for lower resolutions:
 
 (get-history-cache-limit mark1-ca)
@@ -369,16 +483,13 @@ dna-slit
 
 (get-cached-history mark1-ca)
 
+;; ### Optimizations
 
+;; `create-ca` automatically makes use of host-platform native arrays and various performance optimizations if both, the umwelt-spec and the rule-spec for the specified CA implement optimized variants, which is true for all predefined rule- and umwelt-specs.
 
-#_
-(comment
-  (clerk/with-viewer
-    viewer-ca2d
-    {::clerk/render-opts {:formform/cellsize 4
-                          :formform/grid-px 0.5}}
-    (take 20 (get-cached-history ca-lifeform))))
+;; The interface methods normally convert the native arrays to Clojure vectors, but if you really need them, set the `optimized?` argument to true:
 
-;; ### More Performance
+(def arr (get-current-generation mark1-ca true))
 
+(aget arr 17)
 
