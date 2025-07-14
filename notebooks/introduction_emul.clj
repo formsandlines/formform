@@ -493,25 +493,3 @@ dna-slit
 
 (aget arr 17)
 
-
-(comment
-
-  (let [ini-rnd (partial sys-ini (make-ini :random))
-        next-match (partial sys-next
-                            (make-rule :match (calc/rand-dna 2))
-                            (make-umwelt :select-ltr 2))]
-    (-> (ini-rnd [12] {:seed 42})
-        (next-match)))
-
-  (def ini-rnd (partial sys-ini (make-ini :random)))
-  
-  (def ->next (partial sys-next
-                       (make-rule :match (calc/rand-dna 2))
-                       (make-umwelt :select-ltr 2)))
-
-  (->next (ini-rnd [12]))
-  
-  (take 2 (iterate ->next (ini-rnd [12])))
-
-
-  ,)

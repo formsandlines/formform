@@ -936,10 +936,10 @@
         rule-spec   (make-rule :match dna)
         umwelt-spec (make-umwelt :select-ltr 3)
         ini-spec    (make-ini :random)
-        ->ca-spec   #(specify-ca "test-specimen"
-                                 {:rule-spec rule-spec
+        ->ca-spec   #(specify-ca {:rule-spec rule-spec
                                   :umwelt-spec umwelt-spec
-                                  :ini-spec ini-spec})]
+                                  :ini-spec ini-spec}
+                                 "test-specimen")]
     (testing "Working integration of ini, rule and umwelt in sys-next"
       (is (= (let [init-gen (sys-ini  ini-spec [16] {:seed 64})
                    next-gen (sys-next rule-spec umwelt-spec init-gen)]
