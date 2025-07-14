@@ -1032,8 +1032,8 @@
         ini (make-ini :figure :n data {})
         ca-spec
         (condp = species-type
-          :lifeform (make-lifeform {:overwrites {:ini-spec ini}} dna)
-          :decisionform (make-decisionform {:overwrites {:ini-spec ini}} dna 10)
+          :lifeform (make-lifeform dna {:overwrites {:ini-spec ini}})
+          :decisionform (make-decisionform dna 10 {:overwrites {:ini-spec ini}})
           :selfi (make-selfi dna ini)
           :mindform (make-mindform dna ini)
           :else (throw (ex-info "Invalid species type."
@@ -1049,7 +1049,7 @@
   [evol ca res]
   (let [automaton (create-ca ca (count evol) res)]
     (dotimes [_ (count (rest evol))] (step automaton))
-    (= (get-cached-history automaton false)
+    (= (get-cached-history automaton {:optimized? false})
        evol)))
 
 ;; alternative method:
@@ -1193,9 +1193,9 @@
   (def res (:size snapshot))
 
   (= (->> (ca-iterator
-           (make-lifeform {:overwrites {:ini-spec
-                                        (make-ini :fill-all ini-gen)}}
-                          (tsds-sel->dna [1 0 0 1 0 1]))
+           (make-lifeform (tsds-sel->dna [1 0 0 1 0 1])
+                          {:overwrites {:ini-spec
+                                        (make-ini :fill-all ini-gen)}})
            
            [res])
           (take 10))
@@ -1207,9 +1207,9 @@
     (some
      (fn [perm]
        (= (->> (ca-iterator
-                (make-lifeform {:overwrites {:ini-spec
-                                             (make-ini :fill-all ini-gen)}}
-                               (tsds-sel->dna perm))
+                (make-lifeform (tsds-sel->dna perm)
+                               {:overwrites {:ini-spec
+                                             (make-ini :fill-all ini-gen)}})
                 [res])
                (take 2)
                last)
@@ -1232,5 +1232,5 @@
   (get-system-time atm)
   (get-resolution atm)
   (step atm)
-  (get-current-generation atm false)
+  (get-current-generation atm {:optimized? false})
   ,)

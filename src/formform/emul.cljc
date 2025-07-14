@@ -39,9 +39,9 @@
   [type-k fields doc-string? & methods]
   (apply i/defrule-impl type-k fields doc-string? methods))
 
-(def !types i/!types)
+(def !types "All registered ini/umwelt/rule types." i/!types)
 
-(defn get-in-types
+(defn- get-in-types
   [ks]
   (let [types @!types]
     (when-not ((set (keys types)) (first ks))
@@ -49,7 +49,7 @@
                       {:keys ks})))
     (get-in types ks)))
 
-(defn help-type
+(defn- help-type
   ([cat-k type-k] (help-type {} cat-k type-k))
   ([{:keys [no-docs? trim?]} cat-k type-k]
    (let [{:keys [params docs]} (get-in-types [cat-k type-k])
@@ -64,7 +64,7 @@
      (str "`" type-k " [" params-str "]`"
           (when-not no-docs? (str "\n\n" docs-str))))))
 
-(defn help-cat
+(defn- help-cat
   [cat-k]
   (str "Registered `" cat-k "` types:\n"
        (str/join "\n"
@@ -131,10 +131,11 @@
                            :opts       (s/keys :opt-un [:rand/seed])))
   :ret  ::sp/generation)
 (defn sys-ini
-  "Returns a (initial) generation given an ini specification (via `make-ini`) and a resolution. For 2D generations, provide a second (height) resolution (must be supported by the ini spec).
+  "Returns an (initial) generation given a `resolution` and an `ini-spec` (via `make-ini`).
+  `resolution` must be a vector `[width]` (1D) or `[width height]` (2D).
 
-The last argument can be an options map where you can set the following parameter:
-- `:seed` → an integer number to provide a seed for reproducable randomness"
+  The last argument can be an options map with keys:
+  - `:seed` → an integer number to provide a seed for reproducable randomness"
   ([ini-spec resolution] (apply i/make-gen ini-spec {} resolution))
   ([ini-spec resolution opts] (apply i/make-gen ini-spec opts resolution)))
 
@@ -144,10 +145,11 @@ The last argument can be an options map where you can set the following paramete
                :generation  ::sp/generation)
   :ret  ::sp/generation)
 (defn sys-next
-  "Computes and returns the next generation given a rule specification (via `make-rule`), an umwelt specification (via `make-umwelt`) and a generation."
-  [rule-spec umwelt-spec gen]
-  (let [[w h :as res] (core/get-resolution-from-generation gen)]
-    (core/sys-next res (range w) (when h (range h)) rule-spec umwelt-spec gen)))
+  "Computes and returns the next generation given a (current) `generation`, a `rule-spec` (via `make-rule`) and an `umwelt-spec` (via `make-umwelt`)."
+  [rule-spec umwelt-spec generation]
+  (let [[w h :as res] (core/get-resolution-from-generation generation)]
+    (core/sys-next res (range w) (when h (range h))
+                   rule-spec umwelt-spec generation)))
 
 
 (s/fdef observe-umwelt
@@ -181,11 +183,11 @@ The last argument can be an options map where you can set the following paramete
   :ret  ::sp/ca-spec)
 (defn specify-ca
   "Returns a `CASpec` record, given a label and a map of specifications for a custom cellular automaton. This record can be used with `ca-iterator` or `create-ca`. The map needs to have the following keys:
-- `:rule-spec`: a rule specification as per `make-rule`
-- `:umwelt-spec`: an umwelt specification as per `make-umwelt`
-- `:ini-spec`: an ini specification as per `make-ini`
+  - `:rule-spec`: a rule specification as per `make-rule`
+  - `:umwelt-spec`: an umwelt specification as per `make-umwelt`
+  - `:ini-spec`: an ini specification as per `make-ini`
 
-Note that formform.emul has constructors for common ca specs via `make-selfi`, `make-mindform`, `make-lifeform` and `make-decisionform`. Furthermore, there are predefined ca specs in `common-specimen`."
+  Note that formform.emul has constructors for common ca specs via `make-selfi`, `make-mindform`, `make-lifeform` and `make-decisionform`. Furthermore, there are predefined ca specs in `common-specimen`."
   [label specs-map]
   (i/->rec core/map->CASpec (assoc specs-map :label label)))
 
@@ -197,13 +199,14 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
 (s/fdef make-selfi
   :args (s/alt :ar2 (s/cat :dna ::calc-sp/dna
                            :ini  ::sp/ini-spec)
-               :ar3 (s/cat :opts (s/keys :opt-un [:ca-spec/overwrites])
-                           :dna  ::calc-sp/dna
-                           :ini  ::sp/ini-spec))
+               :ar3 (s/cat :dna  ::calc-sp/dna
+                           :ini  ::sp/ini-spec
+                           :opts (s/keys :opt-un [:ca-spec/overwrites])))
   :ret  ::sp/ca-spec)
 (defn make-selfi
   "1D cellular automaton. Takes a `dna` for its rule function (type `:match`) and an `ini` type (via `make-ini`). Its ‘umwelt’ is of type `:select-ltr`."
-  ([{:keys [overwrites]} dna ini]
+  ([dna ini] (make-selfi dna ini {}))
+  ([dna ini {:keys [overwrites]}]
    (let [umwelt-size (calc/dna-dimension dna)]
      (i/->rec core/map->CASpec
               (merge
@@ -211,20 +214,19 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
                 :rule-spec   (i/->rec core/->Rule-Match {} dna)
                 :umwelt-spec (i/->rec core/->Umwelt-SelectLtr {} umwelt-size)
                 :ini-spec    ini}
-               overwrites))))
-  ([dna ini]
-   (make-selfi {} dna ini)))
+               overwrites)))))
 
 (s/fdef make-mindform
   :args (s/alt :ar2 (s/cat :dna ::calc-sp/dna
                            :ini  ::sp/ini-spec)
-               :ar3 (s/cat :opts (s/keys :opt-un [:ca-spec/overwrites])
-                           :dna  ::calc-sp/dna
-                           :ini  ::sp/ini-spec))
+               :ar3 (s/cat :dna  ::calc-sp/dna
+                           :ini  ::sp/ini-spec
+                           :opts (s/keys :opt-un [:ca-spec/overwrites])))
   :ret  ::sp/ca-spec)
 (defn make-mindform
   "2D cellular automaton. Takes a `dna` for its rule function (type `:match`) and an `ini` type (via `make-ini`). Its ‘umwelt’ is of type `:self-select-ltr`."
-  ([{:keys [overwrites]} dna ini]
+  ([dna ini] (make-mindform dna ini {}))
+  ([dna ini {:keys [overwrites]}]
    (let [umwelt-size (calc/dna-dimension dna)]
      (i/->rec core/map->CASpec
               (merge
@@ -233,39 +235,38 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
                 :umwelt-spec (i/->rec core/->Umwelt-SelfSelectLtr
                                       {} umwelt-size)
                 :ini-spec    ini}
-               overwrites))))
-  ([dna ini]
-   (make-mindform {} dna ini)))
+               overwrites)))))
 
 (s/fdef make-lifeform
   :args (s/alt :ar1 (s/cat :dna ::calc-sp/dna)
-               :ar2 (s/cat :opts (s/keys :opt-un [:ca-spec/overwrites
-                                                  ::sp/ini-opts])
-                           :dna ::calc-sp/dna))
+               :ar2 (s/cat :dna ::calc-sp/dna
+                           :opts (s/keys :opt-un [:ca-spec/overwrites
+                                                  ::sp/ini-opts])))
   :ret  ::sp/ca-spec)
 (defn make-lifeform
   "2D cellular automaton. Takes a `dna` as part of its rule function, which is of type `:life`. Its ‘umwelt’ is of type `:moore`."
-  ([{:keys [overwrites ini-opts]} dna]
+  ([dna] (make-lifeform dna {}))
+  ([dna {:keys [overwrites ini-opts]}]
    (i/->rec core/map->CASpec
             (merge
              {:label       "LifeFORM"
               :rule-spec   (i/->rec core/->Rule-Life {} dna)
               :umwelt-spec (i/->rec core/->Umwelt-Moore {} :column-first false)
               :ini-spec    (i/->rec core/->Ini-Random ini-opts)}
-             overwrites)))
-  ([dna] (make-lifeform {} dna)))
+             overwrites))))
 
 (s/fdef make-decisionform
   :args (s/alt :ar2 (s/cat :dna ::calc-sp/dna
                            :init-size pos-int?)
-               :ar3 (s/cat :opts (s/keys :opt-un [:ca-spec/overwrites
-                                                  ::sp/ini-opts])
-                           :dna ::calc-sp/dna
-                           :init-size pos-int?))
+               :ar3 (s/cat :dna ::calc-sp/dna
+                           :init-size pos-int?
+                           :opts (s/keys :opt-un [:ca-spec/overwrites
+                                                  ::sp/ini-opts])))
   :ret  ::sp/ca-spec)
 (defn make-decisionform
   "2D cellular automaton. Takes a `dna` as part of its rule function, which is of type `:life`, and an initial size for its `:rand-figure` type ini. Its ‘umwelt’ is of type `:moore`."
-  ([{:keys [overwrites ini-opts]} dna init-size]
+  ([dna init-size] (make-decisionform dna init-size {}))
+  ([dna init-size {:keys [overwrites ini-opts]}]
    (i/->rec core/map->CASpec
             (merge
              {:label       "DecisionFORM"
@@ -275,8 +276,7 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
                                     (i/->rec core/->Ini-Constant ini-opts :n)
                                     init-size
                                     :center)}
-             overwrites)))
-  ([dna init-size] (make-decisionform {} dna init-size)))
+             overwrites))))
 ,
 
 
@@ -331,10 +331,11 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
     [:u :i :i :i :u]
     [:u :u :u :u :u]]})
 
+
 ;; ? replace with evaluated dna/selfi data or leave as is for reference
 (def common-specimen
   "Map of common specimen to specify cellular automata. Contains all the SelFis introduced by Ralf Peyn in ‘uFORM iFORM’."
-  (let [selfi #(apply make-selfi {:overwrites {:label (str "SelFi/" %1)}} %&)
+  (let [selfi #(make-selfi %2 %3 {:overwrites {:label (str "SelFi/" %1)}})
         ini-ball (make-ini :figure :n (ini-patterns :ball) :center)
         ini-rand (make-ini :random)
         l 'a, e 'b, r 'c]
@@ -432,28 +433,28 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
   [ca-obj]
   (i/get-evolution ca-obj))
 
+(s/def ::optimized? boolean?)
+
 (s/fdef get-current-generation
   :args (s/alt :ar1 (s/cat :ca-obj ::sp/automaton)
                :ar2 (s/cat :ca-obj ::sp/automaton
-                           :optimized? boolean?))
+                           :opts (s/keys :opt-un [::optimized?])))
   :ret  ::sp/generation)
 (defn get-current-generation
   "Given a stateful `CellularAutomaton` object, returns its current generation either as a vector or a native array (if `optimized?` is true)."
-  ([ca-obj]
-   (i/get-current-generation ca-obj false))
-  ([ca-obj optimized?]
+  ([ca-obj] (i/get-current-generation ca-obj false))
+  ([ca-obj {:keys [optimized?] :or {optimized? false}}]
    (i/get-current-generation ca-obj optimized?)))
 
 (s/fdef get-cached-history
   :args (s/alt :ar1 (s/cat :ca-obj ::sp/automaton)
                :ar2 (s/cat :ca-obj ::sp/automaton
-                           :optimized? boolean?))
+                           :opts (s/keys :opt-un [::optimized?])))
   :ret  ::sp/evolution)
 (defn get-cached-history
   "Given a stateful `CellularAutomaton` object, returns its cached history/evolution, where all generations are either vectors or native arrays (if `optimized?` is true)."
-  ([ca-obj]
-   (i/get-cached-history ca-obj false))
-  ([ca-obj optimized?]
+  ([ca-obj] (i/get-cached-history ca-obj false))
+  ([ca-obj {:keys [optimized?] :or {optimized? false}}]
    (i/get-cached-history ca-obj optimized?)))
 
 (s/fdef get-system-time
@@ -490,7 +491,7 @@ Note that formform.emul has constructors for common ca specs via `make-selfi`, `
 (defn create-ca
   "Returns a stateful `CellularAutomaton` object for the given cellular automaton specification (via `specify-ca`, etc.) and a resolution vector.
 
-Callable methods are `step`, `restart`, `get-resolution`, `get-current-generation`, `get-cached-history`, `get-system-time` and `get-history-cache-limit` (see docs for further explanation)."
+  Callable methods are `step`, `restart`, `get-resolution`, `get-current-generation`, `get-cached-history`, `get-system-time` and `get-history-cache-limit` (see docs for further explanation)."
   ([ca-spec resolution]
    (core/create-ca ca-spec nil resolution))
   ([ca-spec history-cache-limit resolution]
@@ -500,72 +501,3 @@ Callable methods are `step`, `restart`, `get-resolution`, `get-current-generatio
 (def ^:no-doc fns-with-specs
   (utils/list-fn-specs "formform.emul"))
 
-
-(comment
-  (make-lifeform (calc/rand-dna 3))
-  
-
-  (sys-ini
-   (make-ini :figure :n (ini-patterns :ball2d-square) [3 2])
-   [9 9])
-
-  (sys-ini
-   (make-ini :figure :n (ini-patterns :ball2d-square) [3 2])
-   [9 9])
-
-  (sys-ini
-   (make-ini :figure :n {:w 4 :f #(assoc % :v :?)} 0)
-   [9])
-  ,)
-
-#_
-(comment
-  (require '[clojure.string :as string])
-  (require '[clojure.pprint :refer [pprint]])
-  (require '[formform.expr :as expr])
-
-  (defn pp-gen [gen]
-    (let [pp-val (fn [c]
-                   (case c
-                     :n "⁠█" :u "▒" :i "░" :m "▓" "?"))]
-      (string/join "" (mapv pp-val gen))))
-
-  (def coa (expr/make '[:seq-re :<r a b c]
-                      '[:seq-re :<r c b a]
-                      '[:seq-re :<r a c b]))
-
-  (conform-tsds-dna-or-sel (expr/op-get (expr/=>* coa) :dna))
-  (conform-tsds-dna-or-sel [0 1 1 0 1 0])
-
-  (let [dna (expr/op-get (expr/=>* coa) :dna)
-        selfi (make-selfi [251] dna [:ball])]
-    #?(:clj
-       (spit "./out.txt" (string/join "\n" (map pp-gen (take 2000 selfi))))))
-
-  (let [dna (expr/op-get (expr/=>* coa) :dna)
-        mindform (make-mindform [100 50] dna [:rand-center 10])]
-    #?(:clj
-       (spit "./out.txt" (string/join "\n\n"
-                                      (map (fn [evol]
-                                             (string/join "\n"
-                                                          (map pp-gen evol)))
-                                           (take 80 mindform))))))
-
-  (let [dna (expr/op-get (expr/=>* coa) :dna)
-        lifeform (make-lifeform [100 50] dna)]
-    #?(:clj
-       (spit "./out.txt" (string/join "\n\n"
-                                      (map (fn [evol]
-                                             (string/join "\n"
-                                                          (map pp-gen evol)))
-                                           (take 80 lifeform))))))
-
-  (let [dna (expr/op-get (expr/=>* coa) :dna)
-        decisionform (make-decisionform [100 50] dna 20)]
-    #?(:clj
-       (spit "./out.txt" (string/join "\n\n"
-                                      (map (fn [evol]
-                                             (string/join "\n"
-                                                          (map pp-gen evol)))
-                                           (take 80 decisionform))))))
-  ,)

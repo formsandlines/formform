@@ -404,10 +404,10 @@ dna-slit
 
 (def lifeform-clustered
   (make-lifeform
+   (tsds-sel->dna [1 0 1 1 0 0])
    {:overwrites {:ini-spec (make-ini :figure-repeat {:weights 0.2}
                                      :n (fill-rect 7 7 :?)
-                                     :center [2 2] [5 5])}}
-   (tsds-sel->dna [1 0 1 1 0 0])))
+                                     :center [2 2] [5 5])}}))
 
 ^{::clerk/viewer viewer-ca2d
   ::clerk/render-opts {:formform/cellsize 3 :formform/grid-px 0}}
@@ -487,9 +487,31 @@ dna-slit
 
 ;; `create-ca` automatically makes use of host-platform native arrays and various performance optimizations if both, the umwelt-spec and the rule-spec for the specified CA implement optimized variants, which is true for all predefined rule- and umwelt-specs.
 
-;; The interface methods normally convert the native arrays to Clojure vectors, but if you really need them, set the `optimized?` argument to true:
+;; The interface methods normally convert the native arrays to Clojure vectors, but if you really need them, set the `optimized?` option to true:
 
-(def arr (get-current-generation mark1-ca true))
+(def arr (get-current-generation mark1-ca {:optimized? true}))
 
 (aget arr 17)
 
+
+(comment
+
+  (let [ini-rnd (partial sys-ini (make-ini :random))
+        next-match (partial sys-next
+                            (make-rule :match (calc/rand-dna 2))
+                            (make-umwelt :select-ltr 2))]
+    (-> (ini-rnd [12] {:seed 42})
+        (next-match)))
+
+  (def ini-rnd (partial sys-ini (make-ini :random)))
+  
+  (def ->next (partial sys-next
+                       (make-rule :match (calc/rand-dna 2))
+                       (make-umwelt :select-ltr 2)))
+
+  (->next (ini-rnd [12]))
+  
+  (take 2 (iterate ->next (ini-rnd [12])))
+
+
+  ,)
