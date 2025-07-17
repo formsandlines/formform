@@ -6,6 +6,8 @@
    [clojure.spec.alpha :as s]
    #?(:cljs [goog.math.Long :as glong])))
 
+#?(:clj (set! *warn-on-reflection* true))
+
 (defn has-decimal? [n] (< (int n) n))
 
 (defn pow-nat [x n] (apply * (repeat n x)))
@@ -220,6 +222,11 @@
             (random/make-random seed)
             (random/make-random))))
 
+(defn rng-split
+  "Splits a given random number generator into 2 different random number generators."
+  [rng]
+  (random/split rng))
+
 (defn rng-split-n
   "Splits a given random number generator into `n` different random number generators."
   [rng n]
@@ -317,6 +324,10 @@
 (comment
 
   (def rng (random/make-random 40))
+
+  (def rng (make-rng 40))
+  (let [[r1 r2] (rng-split rng)]
+    (= (rng-rand-double rng) (rng-rand-double r1)))
 
   (rng-split-n rng 4)
   (long-modulo (rng-rand rng) 4)

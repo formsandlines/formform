@@ -336,6 +336,33 @@ dna-slit
 ;; - `:?` selects a random value (the `:weights` option we have seen before in the `:random` ini applies here as well)
 
 
+^{::clerk/viewer viewer-gen2d}
+(sys-ini (make-ini :rand-figure {:weights 1.0}
+                   :n
+                   7
+                   :center)
+         [17 17])
+
+^{::clerk/viewer viewer-gen2d}
+(sys-ini (make-ini :rand-figure {:weights 1.0 :decay 0.7}
+                   :n
+                   7
+                   :center)
+         [17 17])
+
+^{::clerk/visibility {:result :hide}}
+(defn fill-rect
+  "Creates a rectangular filled pattern."
+  [w h v]
+  (mapv vec (repeat h (repeat w v))))
+
+^{::clerk/viewer viewer-gen2d}
+(sys-ini (make-ini :figure {:decay 0.4}
+                   (make-ini :cycle [:u :n])
+                   (fill-rect 7 7 :m)
+                   :center)
+         [17 17])
+
 ;; ### Combining Figures
 
 ;; A single pattern can be repeated with `:figure-repeat`:
@@ -371,12 +398,6 @@ dna-slit
 ^{::clerk/viewer quoted-markdown-viewer}
 (with-out-str
   (make-ini :comp-figures :help))
-
-^{::clerk/visibility {:result :hide}}
-(defn fill-rect
-  "Creates a rectangular filled pattern."
-  [w h v]
-  (mapv vec (repeat h (repeat w v))))
 
 ^{::clerk/viewer viewer-gen2d}
 (sys-ini (make-ini :comp-figures
@@ -416,10 +437,10 @@ dna-slit
 ;; For entirely new creations, `specify-ca` lets you define a CA specification from scratch:
 
 (def crossform-ca
-  (specify-ca "crossFORM"
-              {:ini-spec (make-ini :random {:weights 0.05})
+  (specify-ca {:ini-spec (make-ini :random {:weights 0.05})
                :rule-spec (make-rule :match (exprs->dna '[a [b [c [d]]]]))
-               :umwelt-spec (make-umwelt :von-neumann :row-first false)}))
+               :umwelt-spec (make-umwelt :von-neumann :row-first false)}
+              "crossFORM"))
 
 ^{::clerk/viewer viewer-ca2d
   ::clerk/render-opts {:formform/cellsize 3 :formform/grid-px 0}}

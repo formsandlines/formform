@@ -5,6 +5,8 @@
             [formform.emul.interfaces
              :refer [defini defumwelt defrule]])))
 
+#?(:clj (set! *warn-on-reflection* true))
+
 (defprotocol Ini
   (make-gen
     [this opts w]
@@ -20,16 +22,21 @@
     [this gen2d cell w h]))
 
 (defprotocol UmweltOptimized
-  (observe-umwelt--fast
-    [this gen1d-arr cell w]
-    [this gen2d-arr cell w h]))
+  (^String observe-umwelt--fast
+   #?(:clj  [this ^"[Lclojure.lang.Keyword;" gen1d-arr
+             ^clojure.lang.PersistentVector cell w]
+      :cljs [this gen1d-arr cell w])
+   #?(:clj  [this ^"[[Lclojure.lang.Keyword;" gen2d-arr
+             ^clojure.lang.PersistentVector cell w h]
+      :cljs [this gen2d-arr cell w h])))
 
 ;; ? provide cell instead of only val for more flexibility
 (defprotocol Rule
   (apply-rule [this umwelt self-v]))
 
 (defprotocol RuleOptimized
-  (apply-rule--fast [this umwelt-qtn self-v]))
+  (^clojure.lang.Keyword apply-rule--fast
+   [this ^String umwelt-qtn ^clojure.lang.Keyword self-v]))
 
 (defprotocol CASystem
   (step [this] "Advances the automaton by one generation.")
@@ -90,9 +97,10 @@
   (apply defrule-impl type-k fields doc-string? methods))
 
 (defn record->kw-ids
-  [record]
-  (->> (-> record type .getSimpleName (str/split #"-"))
-       (mapv (comp keyword utils/camel->kebab))))
+  [^clojure.lang.IRecord record]
+  (let [type-name (-> record type pr-str (str/split #"\.") last)]
+    (->> (str/split type-name #"-")
+         (mapv (comp keyword utils/camel->kebab)))))
 
 (defn kw-ids->record-type
   [cat-k type-k]

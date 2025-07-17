@@ -714,6 +714,16 @@
           (recur (first rem) (rest rem) (inc i))
           true)))))
 
+(defn ini-average-val
+  [ini-spec res v]
+  (let [n 1000
+        gen-ini (fn [] (sys-ini ini-spec [res]))
+        count-n #(->> % (filter #{v}) count)
+        avg-n (/ (reduce + (repeatedly n (comp count-n gen-ini)))
+                 (float n))]
+    (Math/round avg-n)))
+
+
 (deftest ini-rand-figure-test
   (testing "random variance"
     (is (not= (sys-ini (make-ini :rand-figure :n 10
@@ -733,6 +743,17 @@
                               {:pos :left :align :left}) [14] {:seed 42})
            (sys-ini (make-ini :rand-figure :n 10
                               {:pos :left :align :left}) [14] {:seed 42}))))
+  (testing "random holes amount matches decay probability"
+    (are [decay avg] (= (let [res 100
+                              ini (make-ini :rand-figure
+                                            {:decay decay :weights 1.0}
+                                            :n res :left)]
+                          (ini-average-val ini res :n))
+                        avg)
+      0.0  0
+      0.25 25
+      0.5  50
+      1.0  100))
   (testing "correct pattern size"
     (is (let [size [3 6]
               ini (sys-ini (make-ini :rand-figure {:weights 1.0}
@@ -1047,7 +1068,7 @@
 
 (defn equiv-automaton-evolution?
   [evol ca res]
-  (let [automaton (create-ca ca (count evol) res)]
+  (let [automaton (create-ca ca res (count evol))]
     (dotimes [_ (count (rest evol))] (step automaton))
     (= (get-cached-history automaton {:optimized? false})
        evol)))

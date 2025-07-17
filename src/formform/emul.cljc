@@ -14,6 +14,8 @@
   #?(:cljs (:require-macros
             [formform.emul :refer [defini defumwelt defrule]])))
 
+#?(:clj (set! *warn-on-reflection* true))
+
 
 (defmacro defini
   "Defines a new type of ini pattern, to be specified with `make-ini`.
@@ -417,11 +419,11 @@
 
 
 (s/fdef ca-iterator
-  :args (s/alt :ar2 (s/cat :ca-spec ::sp/ca-spec
+  :args (s/alt :ar2 (s/cat :ca-spec    ::sp/ca-spec
                            :resolution ::sp/resolution)
-               :ar3 (s/cat :ca-spec ::sp/ca-spec
+               :ar3 (s/cat :ca-spec    ::sp/ca-spec
                            :resolution ::sp/resolution
-                           :steps   pos-int?))
+                           :steps      pos-int?))
   :ret  ::sp/iterator)
 (defn ca-iterator
   "Returns a lazy seq that iteratively computes the next generation for the given a `ca-spec` (cellular automaton specification, via `specify-ca`, etc.) and a `resolution` vector.
@@ -508,8 +510,8 @@
   :args (s/alt :ar2 (s/cat :ca-spec ::sp/ca-spec
                            :resolution ::sp/resolution)
                :ar3 (s/cat :ca-spec ::sp/ca-spec
-                           :history-cache-limit pos-int?
-                           :resolution ::sp/resolution))
+                           :resolution ::sp/resolution
+                           :history-cache-limit pos-int?))
   :ret  ::sp/automaton)
 (defn create-ca
   "Returns a stateful `CellularAutomaton` object for the given `ca-spec` (cellular automaton specification, via `specify-ca`, etc.) and a `resolution` vector.

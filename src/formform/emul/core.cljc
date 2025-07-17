@@ -15,6 +15,8 @@
   ;; #?(:clj (:import [formform.emul.interfaces UmweltOptimized RuleOptimized]))
   )
 
+#?(:clj (set! *warn-on-reflection* true))
+
 (defn get-resolution-from-generation
   [gen]
   (loop [xs  gen
@@ -83,6 +85,12 @@
 (defn val-random
   [rng weights]
   (calc-core/rand-const rng weights))
+
+(defn val-decay
+  [rng v decay]
+  (if (< (utils/rng-rand-double rng) decay)
+    :_
+    v))
 
 (defini :random [-opts]
   "Fills a generation with random values. The (first) `-opts` argument is a map where you can set the following optional parameter:
@@ -269,21 +277,28 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
                :2d [w h]}))
 
 (defn- make-pattern-fn
-  [normal-pattern {:keys [weights]}]
-  (let [normal-weights (when weights (calc-core/conform-nuim-weights weights))]
-    (case (get-pattern-type normal-pattern)
-      :explicit (fn [{:keys [i j v] :as env}]
-                  (let [v' (if j
-                             (get-in (:gen2d normal-pattern) [i j])
-                             (get (:gen1d normal-pattern) i))]
-                    (case v'
-                      :_ env
-                      :? (assoc env :v (val-random (:rng env) normal-weights))
-                      (assoc env :v v'))))
-      :recipe (comp #(if (= :? (:v %)) ;; convenience interceptor for random vals
-                       (assoc % :v (val-random (:rng %) normal-weights))
-                       %)
-                    (:f normal-pattern)))))
+  [normal-pattern {:keys [weights decay]}]
+  (let [normal-weights (when weights (calc-core/conform-nuim-weights weights))
+        ptn-fn (case (get-pattern-type normal-pattern)
+                 :explicit (fn [{:keys [i j] :as env}]
+                             (assoc env :v
+                                    (if j
+                                      (get-in (:gen2d normal-pattern) [i j])
+                                      (get (:gen1d normal-pattern) i))))
+                 :recipe (:f normal-pattern))]
+    ;; pattern function gets wrapped to resolve holes and random values
+    (comp (fn [{:keys [v v-prev rng] :as env}]
+            (case v
+              :? (assoc env :v (val-random rng normal-weights))
+              :_ (assoc env :v v-prev)
+              env))
+          (if (and decay (> decay 0.0))
+            (fn [{:keys [v rng] :as env}]
+              (let [rng' (-> rng utils/rng-split first)]
+                (assoc env :v (val-decay rng' v decay))))
+            identity)
+          ptn-fn
+          #(assoc % :v-prev (:v %)))))
 
 (defn make-figure1d
   [normal-pattern normal-anchor opts]
@@ -371,13 +386,15 @@ Note: you can find some predefined patterns in `ini-patterns`."
                        -opts))))
 
 
-(defini :rand-figure [-opts bg size anchor]
-  "Generates a figure of given `size` with random constants at the position specified by `anchor` before a given background ini (see docs of `:figure` ini for further explanation).
-
-`size` can be either a single integer (for 1D or square-sized 2D patterns) or a vector `[w h]` for 2D patterns.
+;; TODO: add shape param
+(defini :rand-figure [-opts bg size anchor] ; [-opts bg size shape anchor]
+  "Generates a figure of given `size` and `shape` with random constants at the position specified by `anchor` before a given background ini (see docs of `:figure` ini for further explanation).
+- `size` can be either a single integer (for 1D or square-sized 2D patterns) or a vector `[w h]` for 2D patterns.
+- `shape` must be one of: `:rect`, `:ellipse`.
 
 The (first) `-opts` argument is a map where you can set the following optional parameters:
-- `:weights` → specifies the relative probability of each of the four constants to be randomly chosen. Can be provided either as:
+- `:decay` → specifies the “disintegration” of the pattern, i.e. the probability of “holes” (`:_`) to occur randomly in it (number in the interval `[0.0, 1.0]`, default: 0.0)
+- `:weights` → specifies the relative probability of each of the four constants to be randomly chosen. Default is `0.5`. Can be provided either as:
   - a sequence of 4 non-negative numbers (e.g. `[1 0 2 5]`) in n-u-i-m order
   - a map (e.g. `{:i 1 :u 2}`), where missing weights are 0
   - a single number in the interval [0.0, 1.0] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)
@@ -400,20 +417,16 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
    (let [w (cond (vector? size) (first size)
                  (int? size) size
                  :else 1)
-         normal-weights (when-let [w (:weights -opts)]
-                          (calc-core/conform-nuim-weights w))
          pattern {:w w
-                  :f #(assoc % :v (val-random (:rng %) normal-weights))}]
+                  :f #(assoc % :v :?)}]
      (i/ini-xform1d (i/->rec ->Ini-Figure -opts nil pattern anchor))))
   (ini-xform2d
    [_]
    (let [[w h] (cond (vector? size) size
                      (int? size) [size size]
                      :else [1 1])
-         normal-weights (when-let [w (:weights -opts)]
-                          (calc-core/conform-nuim-weights w))
          pattern {:w w :h h
-                  :f #(assoc % :v (val-random (:rng %) normal-weights))}]
+                  :f #(assoc % :v :?)}]
      (i/ini-xform2d (i/->rec ->Ini-Figure -opts nil pattern anchor)))))
 
 
@@ -550,7 +563,7 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
     (< n lower-bound) upper-bound
     :else n))
 
-(defumwelt :select-ltr [-opts size]
+(defumwelt :select-ltr [-opts ^long size]
   "In a 1d environment, observes the cell itself and its direct neighborhood of given `size`."
   (observe-umwelt
    [_ gen1d [[x] _] w]
@@ -568,9 +581,10 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
   UmweltOptimized
   (observe-umwelt--fast
    [_ gen1d-arr [[x] _] w]
-   (let [g (fn [dx]
-             (calc-core/const->digit
-              (aget gen1d-arr (wrap-bounds (+ x dx) 0 (dec w)))))]
+   (let [g (^long fn [^long dx]
+            (calc-core/const->digit
+             (aget ^"[Lclojure.lang.Keyword;" gen1d-arr
+                   (wrap-bounds (+ x dx) 0 (dec w)))))]
      (case size
        0 ""
        1 (str (g  0))
@@ -580,7 +594,7 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
        5 (str (g -2) (g -1) (g  0) (g  1) (g  2))
        (throw (ex-info "Unsupported neighbourhood size" {:size size}))))))
 
-(defumwelt :self-select-ltr [-opts size]
+(defumwelt :self-select-ltr [-opts ^long size]
   "In a 2d environment, the cell “chooses” the direction in which it will observe its neighborhood of given `size` (like in `:select-ltr`). The cell’s choice is determined by its own value:
 - `:n`: ← (left)
 - `:m`: → (right)
@@ -629,11 +643,12 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
   UmweltOptimized
   (observe-umwelt--fast
    [_ gen2d-arr [[x y] self-v] w h]
-   (let [g (fn [dx dy]
-             (calc-core/const->digit
-              (aget (aget gen2d-arr
-                          (wrap-bounds (+ y dy) 0 (dec h)))
-                    (wrap-bounds (+ x dx) 0 (dec w)))))]
+   (let [g (^long fn [^long dx ^long dy]
+            (calc-core/const->digit
+             (aget ^"[Lclojure.lang.Keyword;"
+                   (aget ^"[[Lclojure.lang.Keyword;" gen2d-arr
+                         (wrap-bounds (+ y dy) 0 (dec h)))
+                   (wrap-bounds (+ x dx) 0 (dec w)))))]
      (case size
        0 ""
        1 (case self-v
@@ -708,12 +723,13 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
   UmweltOptimized
   (observe-umwelt--fast
    [_ gen2d-arr [[x y] _] w h]
-   (let [g (fn [dx dy]
-             (let [c (calc-core/const->digit
-                      (aget (aget gen2d-arr
-                                  (wrap-bounds (+ y dy) 0 (dec h)))
-                            (wrap-bounds (+ x dx) 0 (dec w))))]
-               (case c 0 nil c)))
+   (let [g (^long fn [^long dx ^long dy]
+            (let [^long c (calc-core/const->digit
+                           (aget ^"[Lclojure.lang.Keyword;"
+                                 (aget ^"[[Lclojure.lang.Keyword;" gen2d-arr
+                                       (wrap-bounds (+ y dy) 0 (dec h)))
+                                 (wrap-bounds (+ x dx) 0 (dec w))))]
+              (if (== c 0) nil c)))
          self (if self? (g 0 0) nil)]
      (case order
        :column-first
@@ -767,12 +783,13 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
   UmweltOptimized
   (observe-umwelt--fast
    [_ gen2d-arr [[x y] _] w h]
-   (let [g (fn [dx dy]
-             (let [c (calc-core/const->digit
-                      (aget (aget gen2d-arr
-                                  (wrap-bounds (+ y dy) 0 (dec h)))
-                            (wrap-bounds (+ x dx) 0 (dec w))))]
-               (case c 0 nil c)))
+   (let [g (^long fn [^long dx ^long dy]
+            (let [^long c (calc-core/const->digit
+                           (aget ^"[Lclojure.lang.Keyword;"
+                                 (aget ^"[[Lclojure.lang.Keyword;" gen2d-arr
+                                       (wrap-bounds (+ y dy) 0 (dec h)))
+                                 (wrap-bounds (+ x dx) 0 (dec w))))]
+              (if (== c 0) nil c)))
          self (if self? (g 0 0) nil)]
      (case order
        :column-first
@@ -869,8 +886,12 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
 
   Always prefer `sys-next` for better compatibility across library functions and maximal flexibility."
   ([w h rule-spec umwelt-spec gen]
-   (let [compute (fn [x y]
-                   (let [[_ v :as cell] [[x y] (aget (aget gen y) x)]
+   (let [^clojure.lang.Keyword
+         compute (fn [^long x ^long y]
+                   (let [[_ v :as cell]
+                         [[x y] (aget ^"[Lclojure.lang.Keyword;"
+                                      (aget ^"[[Lclojure.lang.Keyword;" gen y)
+                                      x)]
                          qtn (i/observe-umwelt--fast umwelt-spec gen cell w h)]
                      (i/apply-rule--fast rule-spec qtn v)))]
      #?(:clj (let [^"[[Lclojure.lang.Keyword;"
@@ -879,7 +900,8 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
                  (when (< y h)
                    (loop [x 0]
                      (when (< x w)
-                       (aset (aget next-gen y) x (compute x y))
+                       (aset ^"[Lclojure.lang.Keyword;"
+                             (aget next-gen y) x (compute x y))
                        (recur (inc x))))
                    (recur (inc y))))
                next-gen)
@@ -897,11 +919,13 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
                 next-gen))))
 
   ([w rule-spec umwelt-spec gen]
-   (let [compute (fn [x]
-                   (let [[_ v :as cell] [[x] (aget gen x)]
+   (let [^clojure.lang.Keyword
+         compute (fn [^long x]
+                   (let [[_ v :as cell]
+                         [[x] (aget ^"[Lclojure.lang.Keyword;" gen x)]
                          qtn (i/observe-umwelt--fast umwelt-spec gen cell w)]
                      (i/apply-rule--fast rule-spec qtn v)))]
-     #?(:clj (let [^"[[Lclojure.lang.Keyword;"
+     #?(:clj (let [^"[Lclojure.lang.Keyword;"
                    next-gen (make-array clojure.lang.Keyword w)]
                (loop [x 0]
                  (when (< x w)
