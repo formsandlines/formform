@@ -11,9 +11,27 @@
 
 ---
 
-*Please note that this library is still in an alpha state and things are changing all the time, so do not rely on it for your projects yet. It is a complete rewrite of my previous (stable-ish) JavaScript version, which is still available [here](https://github.com/formsandlines/formform-js). Prior to this (final) one, I have attempted a rewrite in ReScript, which is also still [available](https://github.com/formsandlines/formform-rescript), for historical reasons.*
+*Please note that this library is still in an alpha state and breaking api changes might happen (although I try to keep them to a minimum), so do not rely on it for your projects yet. Otherwise, make sure to follow the [Change Log](./CHANGELOG.md) where I document all breaking changes between releases.*
 
 ---
+
+## Overview
+
+The library is divided into 3 core modules:
+
+* `calc`: calculate with the 4 value constants or create and transform value structures such as value tables/maps and what I call *formDNA*
+* `expr`: construct, simplify and evaluate various FORM expressions or define and use powerful abstractions I call *symbolic expressions*
+* `emul`: _(unreleased)_ emulate FORMal systems as cellular automata that can be composed à la carte from declarative building-blocks
+
+In addition, the `io` module can read and print strings in *FORMula notation*, which is easier for end users to read and write
+
+To visualize expressions, value structures and cellular automata, I created the [formform-vis](https://github.com/formsandlines/formform-vis) library _(wip)_.
+
+As a helpful tool for researchers and enthusiasts and as a demonstration of the library's capabilities I have also created the [**FORM tricorder**](https://github.com/formsandlines/form-tricorder) (it still uses an old, but stable version of formform). It can calculate, represent and visualize FORMs using an older version of _FORMula_ syntax, which is explained in the app (click on `Show explanations`). A complete redesign of the app is coming very soon.
+
+Further applications (like a cellular automaton) are listed on the [formform website](https://formform.dev).
+
+## Goals
 
 The main goals of formform are:
 
@@ -24,19 +42,9 @@ The main goals of formform are:
 
 Although I constantly try to improve performance, it is not a main goal and I am not qualified enough for sophisticated optimizations. You are very welcome to contribute in this area and correct my mistakes.
 
-The library is divided into 3 core modules:
+I do also want to stress that I am neither an academic mathematician/logician nor a professional software engineer. It is my ambition to reach the goals stated above as closely as possible, but you should make sure to double-check any results if you want to work with this library in a serious manner. I have written a lot of tests for each module in the `test/` directory, so you may use these as a reference point.
 
-* `calc`: calculate with the 4 value constants or create and transform value structures such as value tables/maps and what I call *formDNA*
-* `expr`: construct, simplify and evaluate various FORM expressions or define and use powerful abstractions I call *symbolic expressions*
-* `io`: read and print strings in *FORMula notation*, which is easier for end users to read and write
-
-*Work in progress:*
-* `alg`: define substitution rules using a pattern language to represent and perform stepwise algebraic deductions
-
-It is extendable with more specialized modules for different tasks such as visualization or simulation/analysis with cellular automata.
-
-As a helpful tool for researchers and enthusiasts and as a demonstration of the library's capabilities I have also created the [**FORM tricorder**](https://github.com/formsandlines/form-tricorder) (it still uses an old, but stable version of formform). It can calculate, represent and visualize FORMs using my own `formula` syntax, which is explained in the app (click on `Show explanations`). Further applications (like a cellular automaton) are listed on the [formform website](https://formform.dev).
-
+Another thing to keep in mind is that I made lots of unconventional creative choices in the design of formform. In many cases this is due to my own curiosity that I wanted to satisfy using the library as a tool for exploration. In other cases it is because I am building specialized apps on top of formform. Still, I always try to make it as useful as possible for most typical use-cases. Please let me know if you are missing something that would be useful to you and I see if I can implement it.
 
 <br/>
 
@@ -54,13 +62,17 @@ If you want to learn more about the calculus, ideas and theories *formform* is b
 
 ## History and Motivation
 
-This library has become my personal project since I first began studying [uFORM iFORM](https://uformiform.info), published by Ralf Peyn in 2017. Ralf's “SelFis” *(visual interpretation of a partial System of the self-referential System of the FORM)* inspired me to develop my own [cellular automaton](https://en.wikipedia.org/wiki/Cellular_automaton) in the programming environment [Processing](https://processing.org/) to dig deeper and gain a fuller unterstanding of these systems. 
+This library has become my personal project since I first began studying [uFORM iFORM](https://uformiform.info), published by Ralf Peyn in 2017. Ralf's “SelFis” *(visual interpretation of a partial System of the self-referential System of the FORM)* inspired me to develop my own [cellular automaton](https://en.wikipedia.org/wiki/Cellular_automaton) in the programming environment [Processing](https://processing.org) to dig deeper and gain a deeper unterstanding of these systems. 
 
-Working with lookup-tables for FORM calculations was okay for a while, but also very tedious and impractical for my research, so I began working on some functions that would do the calculations for me. In 2018 I was finally able to implement an algorithm to calculate all self-equivalent re-entry FORMs as described in uFORM iFORM. I immediately did countless calculations by hand and let Ralf also check that the algorithm is solid and its results are correct.
+Working with lookup-tables for FORM calculations was okay for a while, but also very tedious and impractical for my research, so I began working on some functions that would do the calculations for me. In 2018 I was finally able to implement an algorithm to calculate all _self-equivalent re-entry FORMs_ as described in uFORM iFORM. I immediately did countless calculations by hand and let Ralf also check that the algorithm is solid and its results are correct.
 
-As soon as I was able to automate calculation with undetermined FORMs, I saw that there was much more potential in this and that it could be very helpful for other people who want to work with FORM logic as well. So I began working on a JavaScript library to elaborate my ideas, which gradually became *formform*. Since its early development, formform has always evolved in a fruitful interplay with the applications built on top of it.
+As soon as I was able to automate calculation with undetermined FORMs, I saw that there was much more potential in this and that it could be very helpful for other people who want to work with FORM logic as well. So I began working on a [JavaScript library](https://github.com/formsandlines/formform-js) to elaborate my ideas, which gradually became *formform*. Since its early development, formform has always evolved in a fruitful interplay with the applications built on top of it.
 
-A first application that I have developed in parallel from the beginning was the [**FORM tricorder**](https://tricorder.formform.dev) – a swiss army knife for FORM calculation, representation and visualization. In September 2019 I was finally able to develop a new [cellular automaton for FORM logic SelFis](https://plotter.formform.dev) with *formform* that is much more user-friendly and much more versatile than what I have done two years earlier. My experimentation with rule extraction by bitmasking in CAs led me to a code format I call [**formDNA**](https://observablehq.com/@formsandlines/the-dna-of-4-valued-forms) that is an abstraction of the value table. It not only made my CA faster and more flexible, it also inspired me to create the **vmap**: a recursive variable/value map to visualize formDNA, that has great potential for pattern recognition in FORMs.
+A first application that I have developed in parallel from the beginning was the [**FORM tricorder**](https://tricorder.formform.dev) – a swiss army knife for FORM calculation, representation and visualization. In September 2019 I was finally able to develop a new [cellular automaton for FORM logic SelFis](https://plotter.formform.dev) with *formform* that is much more user-friendly and much more versatile than what I have done two years earlier.
+
+My experiments with rule extraction by bitmasking in CAs led me to a code format I call [**formDNA**](https://observablehq.com/@formsandlines/the-dna-of-4-valued-forms) that is an abstraction of the value table (I later found out that there is a very similar code format for CA rules called [Wolfram Code](https://en.wikipedia.org/wiki/Wolfram_code) that is expressed as a decimal number). It not only made my CA faster and more flexible, it also inspired me to create the **vmap**: a recursive variable/value map to visualize formDNA, that has great potential for pattern recognition in FORMs.
+
+Many of these experiments have found their way into formform and made their _re-entry_ back into my apps and research. I would love to see this feedback loop expanding to projects from other people as well. :)
 
 <br/>
 
