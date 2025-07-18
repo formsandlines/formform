@@ -12,7 +12,7 @@
 
 ;; # Introduction to formform.emul
 
-;; The new `emul` (short for “emulation”) module in formform can help researchers, tool developers and enthusiasts to run _FORM logic_ expressions as cellular automata. It is designed (like all formform modules) to be declarative, composable and highly extendable.
+;; The `emul` (short for “emulation”) module in formform can help researchers, tool developers and enthusiasts to run _FORM logic_ expressions as cellular automata. It is designed (like all formform modules) to be declarative, composable and highly extendable.
 
 ;; All types of 1D and 2D cellular automata (CAs) that Ralf Peyn (at the time of this writing) introduced in his published research are supported:
 ;; - _SelFis_
@@ -156,31 +156,6 @@ dna-slit
          (calc/vspace (calc/dna-dimension dna-coa))
          dna-coa)))
 
-#_
-^{::clerk/visibility {:code :hide}
-  ::clerk/viewer viewer-vspace
-  ::clerk/viewers (v/add-viewers [viewer-rule])
-  ::clerk/auto-expand-results? false}
-(mapv vector
-      (calc/vspace (calc/dna-dimension dna-coa))
-      (rseq dna-coa))
-
-
-#_
-(comment
-  ;; We can construct a _vspace_ (an abstraction of all possible combinations of the input values) to see how it looks like:
-
-  ^{::clerk/viewer viewer-vspace
-    ::clerk/viewers (v/add-viewers [viewer-vrow])
-    ::clerk/auto-expand-results? false}
-  (def vspace (calc/vspace (calc/dna-dimension dna-tsds)))
-
-  ;; When we match up the _vspace_ with our _formDNA_, we can see how the ruleset for the original expression looks like:
-
-  ^{::clerk/viewer viewer-vspace
-    ::clerk/viewers (v/add-viewers [viewer-rule])
-    ::clerk/auto-expand-results? false}
-  (mapv vector vspace (rseq dna-tsds)))
 
 ;; ## Initialization Patterns
 
@@ -335,20 +310,25 @@ dna-slit
 ;; - `:_` lets the background “shine through”, which enables more refined and reusable patterns
 ;; - `:?` selects a random value (the `:weights` option we have seen before in the `:random` ini applies here as well)
 
+;; A shortcut to create random figure inis is `:rand-figure`:
+
+^{::clerk/viewer quoted-markdown-viewer}
+(with-out-str
+  (make-ini :rand-figure :help))
+
+;; It basically generates an area of random values:
 
 ^{::clerk/viewer viewer-gen2d}
-(sys-ini (make-ini :rand-figure {:weights 1.0}
-                   :n
-                   7
-                   :center)
+(sys-ini (make-ini :rand-figure {:weights 1.0} :n 7 :center)
          [17 17])
 
+;; Sometimes you may want more of a “splash” of values instead of a neatly packed unit. The `:decay` option makes this possible:
+
 ^{::clerk/viewer viewer-gen2d}
-(sys-ini (make-ini :rand-figure {:weights 1.0 :decay 0.7}
-                   :n
-                   7
-                   :center)
+(sys-ini (make-ini :rand-figure {:weights 1.0 :decay 0.7} :n 7 :center)
          [17 17])
+
+;; It is essentially a probability of random “holes” to appear in the pattern, where the background value “shines through”. Of course it is also available in other figure-related inis:
 
 ^{::clerk/visibility {:result :hide}}
 (defn fill-rect
@@ -362,6 +342,7 @@ dna-slit
                    (fill-rect 7 7 :m)
                    :center)
          [17 17])
+
 
 ;; ### Combining Figures
 

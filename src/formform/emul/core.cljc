@@ -386,11 +386,10 @@ Note: you can find some predefined patterns in `ini-patterns`."
                        -opts))))
 
 
-;; TODO: add shape param
+;; ? add `:rounded-2d?` option for elliptical 2D patterns
 (defini :rand-figure [-opts bg size anchor] ; [-opts bg size shape anchor]
-  "Generates a figure of given `size` and `shape` with random constants at the position specified by `anchor` before a given background ini (see docs of `:figure` ini for further explanation).
+  "Generates a figure of given `size` with random constants at the position specified by `anchor` before a given background ini (see docs of `:figure` ini for further explanation).
 - `size` can be either a single integer (for 1D or square-sized 2D patterns) or a vector `[w h]` for 2D patterns.
-- `shape` must be one of: `:rect`, `:ellipse`.
 
 The (first) `-opts` argument is a map where you can set the following optional parameters:
 - `:decay` → specifies the “disintegration” of the pattern, i.e. the probability of “holes” (`:_`) to occur randomly in it (number in the interval `[0.0, 1.0]`, default: 0.0)

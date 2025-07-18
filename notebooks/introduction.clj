@@ -10,15 +10,18 @@
 
 ;; ## Overview
 
-;; formform (in its current state) has two core modules:
+;; formform (in its current state) has three core modules:
 ;; - `formform.calc` to calculate with 4 values
-;; - `formform.expr` to work with FORM expressions
+;; - `formform.expr` to represent and evaluate FORM expressions
+;; - `formform.emul` to emulate FORMal systems as cellular automata
 
-;; Most users may want to work with `expr`, which covers representation, interpretation, simplification and evaluation of all expressions from the FORM calculus and much more.
+;; Most users may want to start with `expr`, which covers representation, interpretation, simplification and evaluation of all expressions from the FORM calculus and much more.
 
 ;; It is built on top of the `calc` module, which by itself will only be useful for you if you want to work with constant values directly or create and transform a variety of value structures.
 
 ;; Therefore I will focus on the `expr` module in this introduction, giving you an overview of how things that you might want to do with the library can be accomplished.
+
+;; > If you are interested in the `emul` module, check out the [emul introduction](./introduction_emul). However, It is recommended (although not required), to read this introduction first.
 
 ;; ## Representation
 
@@ -34,9 +37,9 @@
 
 ;; We will use the square-bracket representation throughout this introduction, since it is easier and more idiomatic (for our purposes) in Clojure to work with vectors.
 
-;; > Side note: Although this is a very direct and familiar looking representation, the inherent order property of sequences is unfortunately not an attribute of FORMs. It is important to keep this difference in mind, even if formform will try to make you forget about it. Order preservation has its own merits and is necessary for some applications like visualization.
+;; > Side note: Although this is a very direct and familiar looking representation, the inherent order property of sequences is not an attribute of the syntax of FORM logic. It is important to keep this difference in mind, even if formform will try to make you forget about it. Order preservation has its own merits and is necessary for some applications like visualization.
 
-;; Sometimes it is necessary to list multiple forms in one expression without changing their value by a mark. Of course, we can double-mark them:
+;; Sometimes it is necessary to list multiple forms in one expression without changing their value by a mark. Of course, we can _double-mark_ them:
 
 [[[] [] []]]
 
@@ -324,11 +327,13 @@ calc/nmui-code
 
 (io/read-expr "{..@~._ a,b}")
 
+;; > Note: the signature syntax is very similar, the only differences are `r` ↔ `@`, `r'` ↔ `@~` and there is no `<` arrow in the FORMula signature.
+
 ;; Or use option parameters (separated by pipes):
 
 (io/read-expr "{2r+1|open|alt| a,b}")
 
-;; Unclear FORMs also have a special syntax and can wrap any text, just like quoted variable names:
+;; Unclear FORMs also have a special syntax and can wrap any text between two slashes, just like quoted variable names:
 
 (io/read-expr "/👁️ 👄 👁️/")
 
@@ -346,6 +351,7 @@ calc/nmui-code
 
 ;; ## More information
 
+;; * [introduction to formform.emul](./introduction_emul)
 ;; * [source repository](https://github.com/formsandlines/formform)
 ;; * [API documentation](https://formform.dev/docs)
 
