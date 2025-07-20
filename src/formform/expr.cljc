@@ -1,5 +1,58 @@
 (ns formform.expr
-  "API for the `expr` module of `formform`."
+  "API for the `expr` module of `formform`.
+
+  ## Concepts
+
+  ### Basic Expressions
+  
+  **expression**  
+  → interpret the _representation_ as an indicator of a _value_
+  
+  * _representation_ → _form_ {syntax} and intentionality {semantics}
+  * _form_ → relate structure and code
+  * _value_ → _calc/value_
+  * _value_ → _calc/constant_ {determined} or _formDNA_ {contingent}
+  
+  **variable**  
+  → the interpretation of the _expression symbol_ is undetermined
+  
+  **form expression** {FORM}  
+  → _expression_ of _form_  
+  → invert the _value_ of the _relation_
+  
+  * _relation_ → relate the _values_ of the content of the _expression_
+
+
+  ### Symbolic Expressions
+
+  **symbolic expression**  
+  → _expression symbol_ or _operator_
+  
+  **expression symbol**  
+  → interpret the symbol as a specific _expression_
+  
+  **operator**  
+  → interpret the structure by its symbol as an _expression_ pattern
+
+  #### Types
+  
+  **arrangement** {`:-`}  
+  → _operator_ to construct _relations_
+
+  **unclear FORM** {`:uncl`}  
+  → _operator_ to construct unclear _FORMs_
+
+  **seq-reentry FORM** {`:seq-re`}  
+  → _operator_ to construct self-equivalent re-entry _FORMs_
+
+  **memory FORM** {`:mem`}  
+  → _operator_ to construct memory _FORMs_
+  
+  * _rem pair_ → observe and remember equality between the two expressions
+
+  **formDNA** {`:fdna`}  
+  → _operator_ to construct _calc/formDNA_ _expressions_
+  "
   (:require
    [formform.calc.specs :as calc-sp]
    [formform.expr.specs :as sp]
@@ -27,22 +80,6 @@
 
 ;;-------------------------------------------------------------------------
 ;; expression
-;; → interpret the _representation_ as an indicator of a _value_
-;; 
-;; - representation → _form_ {syntax} and intentionality {semantics}
-;; - form → relate structure and code
-;; - value → _calc/value_
-;; - value > _calc/constant_ {determined} or _formDNA_ {contingent}
-;;
-;; variable
-;; → the interpretation of the _expression symbol_ is undetermined
-;; 
-;; form expression {FORM}
-;; → _expression_ of _form_
-;; > invert the _value_ of the _relation_
-;; 
-;; - relation > relate the _values_ of the content of the _expression_
-;;
 
 (def expression? (partial s/valid? ::sp/expression))
 (def variable? (partial s/valid? ::sp/variable))
@@ -149,14 +186,6 @@
 
 ;;-------------------------------------------------------------------------
 ;; symbolic expression
-;; → _expression symbol_ or _operator_
-;;
-;; expression symbol
-;; → interpret the symbol as a specific _expression_
-;;
-;; operator
-;; → interpret the structure by its symbol as an _expression_ pattern
-;;
 
 (def expr-symbol? (partial s/valid? ::sp/expr-symbol))
 (def op-symbol? (partial s/valid? ::sp/op-symbol))
@@ -232,21 +261,18 @@
 
 ;;-------------------------------------------------------------------------
 ;; arrangement {`:-`}
-;; → _operator_ to construct _relations_
 
 (def arrangement? (partial s/valid? ::sp/arrangement))
 
 
 ;;-------------------------------------------------------------------------
 ;; unclear FORM {`:uncl`}
-;; → _operator_ to construct unclear _FORMs_
 
 (def unclear? (partial s/valid? ::sp/unclear))
 
 
 ;;-------------------------------------------------------------------------
 ;; seq-reentry FORM {`:seq-re`}
-;; → _operator_ to construct self-equivalent re-entry _FORMs_
 
 (def seq-reentry? (partial s/valid? ::sp/seq-reentry))
 
@@ -290,10 +316,6 @@
 
 ;;-------------------------------------------------------------------------
 ;; memory FORM {`:mem`}
-;; → _operator_ to construct memory _FORMs_
-;; 
-;; rem pair
-;; → observe and remember equality between the two expressions
 
 (def memory? (partial s/valid? ::sp/memory))
 (def rem-pair? (partial s/valid? ::sp/rem-pair))
@@ -328,7 +350,6 @@
 
 ;;-------------------------------------------------------------------------
 ;; formDNA {`:fdna`}
-;; → _operator_ to construct _calc/formDNA_ _expressions_
 
 (def formDNA? (partial s/valid? ::sp/formDNA))
 
@@ -660,10 +681,6 @@
           (utils/list-fn-specs "formform.expr")))
 
 
-(comment
-  (interpret (make :tsds [1 0 1 1 0 1] 'l 'e 'r))
-
-  ,)
 
 (comment
   ;; ? should `::sp/expression` spec `::sp/operator` instead of `::sp/generic-operator`

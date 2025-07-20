@@ -1,5 +1,58 @@
 (ns formform.calc
-  "API for the `calc` module of `formform`."
+  "API for the `calc` module of `formform`.
+
+  ## Concepts
+
+  ### Values
+  
+  **constant**  
+  → representation of a _value_ in FORM logic
+
+  * _value_ → element of a _value system_
+  * _value_ → state indicated by an _expression_
+  * _value system_ → system of differences
+
+  A `sort-code` specifies a numeric ordering for _constants_, which is useful for conversion to integers and _formDNA_ interpretation order. It is always assumed to be in _nuim-code_ by default:
+
+      0 = :n → unmarked
+      1 = :u → undetermined
+      2 = :i → imaginary
+      3 = :m → marked
+
+  Make sure you convert to/from `nuim-code` when using different codes!
+
+
+  ### Value Structures
+
+  **formDNA**  
+  → representation of a _value structure_ in FORM logic  
+
+  * becomes a quaternary number when reversed and converted to digits
+  * _value structure_ → specific structure in _value system_
+
+  **formDNA perspective**  
+  → permutation of _formDNA_  
+  → representation of a different perspective on the _value structure_
+
+  **vpoint**  
+  → relate _values_ as a point  
+  → vector of _constant_-coordinates in a _vspace_
+
+  **vspace**  
+  → relate _vpoints_ as a space  
+  → vector of all n-dimensional _vpoints_
+
+  **vdict**  
+  → map _vpoints_ to _values_ in a dictionary  
+  → (sorted) key-value map from _vspace_ to _formDNA_
+  
+  - for value table generation
+  - like a flat _vmap_
+
+  **vmap**  
+  → map recursively decomposed _vspace_ to _value structure_  
+  → mapping from _vspace_ topology to _formDNA_
+  "
   (:require [formform.calc.core :as core]
             [formform.calc.specs :as sp]
             [formform.utils :as utils]
@@ -14,28 +67,10 @@
 (s/def :opts.safety/unsafe? boolean?)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Data structures
+;; Data Structures
 
 ;;-------------------------------------------------------------------------
-;; constant
-;; → representation of a _value_ in FORM logic
-;;
-;; - value → element of a _value system_
-;; - value > state indicated by an _expr/expression_
-;; - value system → system of differences
-
-;; Note:
-;; `sort-code` specifies a numeric ordering for _constants_, which is
-;; useful for conversion to integers and _formDNA_ interpretation order.
-;; 
-;; It is always assumed to be in `nuim-code` by default:
-;; ```
-;;   0 = :n → unmarked
-;;   1 = :u → undetermined
-;;   2 = :i → imaginary
-;;   3 = :m → marked
-;; ```
-;; Make sure you convert to/from `nuim-code` when using different codes!
+;; Constants
 
 (def nuim-code core/nuim-code)
 (def nmui-code core/nmui-code)
@@ -69,10 +104,10 @@
 (defn rand-const-weighted
   "Same as `rand-const`, but takes a `weights` argument to specify the relative probability of each of the four constants to be randomly chosen.
 
-Weights can be provided either as:
-- a sequence of 4 non-negative numbers (e.g. `[1 0 2 5]`) in n-u-i-m order
-- a map (e.g. `{:i 1 :u 2}`), where missing weights are 0
-- a single number in the interval [0.0, 1.0] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)"
+  Weights can be provided either as:
+  * a sequence of 4 non-negative numbers (e.g. `[1 0 2 5]`) in n-u-i-m order
+  * a map (e.g. `{:i 1 :u 2}`), where missing weights are 0
+  * a single number in the interval [0.0, 1.0] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)"
   ([const-weights] (core/rand-const (utils/make-rng) const-weights))
   ([const-weights seed] (core/rand-const (utils/make-rng seed) const-weights)))
 
@@ -157,10 +192,6 @@ Weights can be provided either as:
 
 ;;-------------------------------------------------------------------------
 ;; formDNA
-;; → representation of a _value structure_ in FORM logic
-;; → becomes a quaternary number when reversed and converted to digits
-;;
-;; - value structure → specific structure in _value system_
 
 (def dna-dimension? (partial s/valid? ::sp/dna-count))
 (def dna? (partial s/valid? ::sp/dna))
@@ -212,10 +243,10 @@ Weights can be provided either as:
 (defn rand-dna-weighted
   "Same as `rand-dna`, but takes a `weights` argument to specify the relative probability of each of the four constants to be randomly chosen.
 
-Weights can be provided either as:
-- a sequence of 4 non-negative numbers (e.g. `[1 0 2 5]`) in n-u-i-m order
-- a map (e.g. `{:i 1 :u 2}`), where missing weights are 0
-- a single number in the interval [0.0, 1.0] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)"
+  Weights can be provided either as:
+  * a sequence of 4 non-negative numbers (e.g. `[1 0 2 5]`) in n-u-i-m order
+  * a map (e.g. `{:i 1 :u 2}`), where missing weights are 0
+  * a single number in the interval [0.0, 1.0] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)"
   ([dim const-weights]
    (core/rand-dna (utils/make-rng) dim const-weights))
   ([dim const-weights seed]
@@ -251,7 +282,6 @@ Weights can be provided either as:
   "Reorders given formDNA/`dna-seq` from `sort-code-from` to `sort-code-to`.
 
   Note:
-
   * `dna-seq` can have any type of elements (not only constants)
   * does NOT change the encoding of the elements, just their ordering"
   [dna-seq sort-code-from sort-code-to]
@@ -410,8 +440,6 @@ Weights can be provided either as:
 
 ;;-------------------------------------------------------------------------
 ;; formDNA perspective
-;; → permutation of _formDNA_
-;; → representation of a different perspective on the _value structure_
 
 (s/fdef permute-dna
   :args (s/& (s/alt :ar2 (s/cat :dna        ::sp/dna
@@ -445,8 +473,6 @@ Weights can be provided either as:
 
 ;;-------------------------------------------------------------------------
 ;; vpoint
-;; → relate _values_ as a point
-;; → vector of _constant_-coordinates in a _vspace_
 
 (def vpoint? (partial s/valid? ::sp/vpoint))
 
@@ -470,10 +496,10 @@ Weights can be provided either as:
 (defn rand-vpoint-weighted
   "Same as `rand-vpoint`, but takes a `weights` argument to specify the relative probability of each of the four constants to be randomly chosen.
 
-Weights can be provided either as:
-- a sequence of 4 non-negative numbers (e.g. `[1 0 2 5]`) in n-u-i-m order
-- a map (e.g. `{:i 1 :u 2}`), where missing weights are 0
-- a single number in the interval [0.0, 1.0] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)"
+  Weights can be provided either as:
+  * a sequence of 4 non-negative numbers (e.g. `[1 0 2 5]`) in n-u-i-m order
+  * a map (e.g. `{:i 1 :u 2}`), where missing weights are 0
+  * a single number in the interval [0.0, 1.0] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)"
   ([dim const-weights]
    (core/rand-vpoint (utils/make-rng) dim const-weights))
   ([dim const-weights seed]
@@ -482,8 +508,6 @@ Weights can be provided either as:
 
 ;;-------------------------------------------------------------------------
 ;; vspace
-;; → relate _vpoints_ as a space
-;; > vector of all n-dimensional _vpoints_
 
 (def vspace? (partial s/valid? ::sp/vspace))
 
@@ -503,11 +527,6 @@ Weights can be provided either as:
 
 ;;-------------------------------------------------------------------------
 ;; vdict
-;; → map _vpoints_ to _values_ in a dictionary
-;; > (sorted) key-value map from _vspace_ to _formDNA_
-;; 
-;; - for value table generation
-;; - like a flat _vmap_
 
 (def vdict? (partial s/valid? ::sp/vdict))
 
@@ -545,8 +564,6 @@ Weights can be provided either as:
 
 ;;-------------------------------------------------------------------------
 ;; vmap
-;; → map recursively decomposed _vspace_ to _value structure_
-;; → mapping from _vspace_ topology to _formDNA_
 
 (def vmap? (partial s/valid? ::sp/vmap))
 
@@ -625,6 +642,4 @@ Weights can be provided either as:
 
 
 (def ^:no-doc fns-with-specs (utils/list-fn-specs "formform.calc"))
-
-(comment)
 

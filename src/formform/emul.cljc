@@ -1,5 +1,44 @@
 (ns formform.emul
-  "API for the `emul` module of `formform`."
+  "API for the `emul` module of `formform`.
+
+  ## Concepts
+
+  ### Cellular Automata
+
+  **cellular automaton**  
+  → system that _iteratively_ produces the next _generation_
+
+  * _automaton_ → model for the description of _rule_-based _state_ changes  
+  * _iteration_ → reproduce the operation  
+  * _state_ → correspondence between time and _value_ of the system
+
+  **evolution**  
+  → causal chain of _generations_
+  
+  **generation**  
+  → _state_ in an _evolution_  
+  → n-dimensional relation between _cells_
+  
+  **cell**  
+  → system that indicates a _calc/value_
+
+  ### Specification
+
+  **ini {sys-ini}**  
+  → initial _generation_ of the _cellular automaton_  
+  → _configuration_ of _cells_ by a pattern
+
+  * _configuration_ → _arrangement_ by a perspective
+  * _arrangement_ → selection in space
+
+  **umwelt**  
+  → _arrangement_ of _cells_ observable from/by the _cell_  
+  → environment for _rule_ application
+
+  **rule {sys-next}**  
+  → function to determine the next _state_ of the _cell_  
+  → correspondence between _umwelt_ / self _(→Cell)_ and _calc/value_
+  "
   (:require [formform.calc :as calc]
             [formform.expr :as expr]
             [formform.emul.core :as core]
