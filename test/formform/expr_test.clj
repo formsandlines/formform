@@ -8,6 +8,29 @@
 (doseq [fsym fns-with-specs] (stest/instrument fsym))
 
 
+(deftest basic-constructors-test
+  (testing "Return value of `make`"
+    (is (= '[:- x a [:- x :u] b (:m)]
+           (make 'x [:- 'a [:- 'x :u] 'b] [:m]))))
+  (testing "Return value of `form`"
+    (is (= '[x a [:- x :u] b (:m)]
+           (form 'x [:- 'a [:- 'x :u] 'b] [:m]))))
+  (testing "Return value of `make/form-marked`"
+    (is (= '[:- [x] [a [:- x :u] b] [(:m)]]
+           (make-marked 'x [:- 'a [:- 'x :u] 'b] [:m])))
+    (is (= '[[x] [a [:- x :u] b] [(:m)]]
+           (form-marked 'x [:- 'a [:- 'x :u] 'b] [:m]))))
+  (testing "Return value of `make/form-nested-l`"
+    (is (= '[:- [[x] a [:- x :u] b] (:m)]
+           (make-nested-l 'x [:- 'a [:- 'x :u] 'b] [:m])))
+    (is (= '[[[x] a [:- x :u] b] (:m)]
+           (form-nested-l 'x [:- 'a [:- 'x :u] 'b] [:m]))))
+  (testing "Return value of `make/form-nested-r`"
+    (is (= '[:- x [a [:- x :u] b [(:m)]]]
+           (make-nested-r 'x [:- 'a [:- 'x :u] 'b] [:m])))
+    (is (= '[x [a [:- x :u] b [(:m)]]]
+           (form-nested-r 'x [:- 'a [:- 'x :u] 'b] [:m])))))
+
 (deftest make-op-test
   (testing "Missing operator keyword"
     (is (thrown? java.lang.AssertionError
@@ -1201,53 +1224,55 @@
                            first)))))
 
 
-(deftest nest-exprs-test
+(deftest nested-test
   (testing "Shape of simple cases"
-    (is (= (nest-exprs {} nil)
+    (is (= (form-nested-l nil)
            '()))
-    (is (= (nest-exprs {} nil nil)
+    (is (= (form-nested-l nil nil)
            '(())))
-    (is (= (nest-exprs {} 'a)
+    (is (= (form-nested-l 'a)
            '(a)))
-    (is (= (nest-exprs {} 'a 'b)
+    (is (= (form-nested-l 'a 'b)
            '((a) b)))
-    (is (= (nest-exprs {} 'a 'b 'c)
+    (is (= (form-nested-l 'a 'b 'c)
            '(((a) b) c)))
-    (is (= (nest-exprs {:unmarked? true} nil)
+    (is (= (make-nested-l nil)
            nil))
-    (is (= (nest-exprs {:unmarked? true} nil nil)
+    (is (= (make-nested-l nil nil)
            '()))
-    (is (= (nest-exprs {:unmarked? true} 'a)
+    (is (= (make-nested-l 'a)
            'a))
-    (is (= (nest-exprs {:unmarked? true} 'a 'b)
+    (is (= (make-nested-l 'a 'b)
            '[:- (a) b]))
-    (is (= (nest-exprs {:unmarked? true} 'a 'b 'c)
+    (is (= (make-nested-l 'a 'b 'c)
            '[:- ((a) b) c]))
 
-    (is (= (nest-exprs {:ltr? true} nil)
+    (is (= (form-nested-r nil)
            '()))
-    (is (= (nest-exprs {:ltr? true} nil nil)
+    (is (= (form-nested-r nil nil)
            '(())))
-    (is (= (nest-exprs {:ltr? true} 'a)
+    (is (= (form-nested-r 'a)
            '(a)))
-    (is (= (nest-exprs {:ltr? true} 'a 'b)
+    (is (= (form-nested-r 'a 'b)
            '(a (b))))
-    (is (= (nest-exprs {:ltr? true} 'a 'b 'c)
+    (is (= (form-nested-r 'a 'b 'c)
            '(a (b (c)))))
-    (is (= (nest-exprs {:ltr? true :unmarked? true} nil)
+    (is (= (make-nested-r nil)
            nil))
-    (is (= (nest-exprs {:ltr? true :unmarked? true} nil nil)
+    (is (= (make-nested-r nil nil)
            '()))
-    (is (= (nest-exprs {:ltr? true :unmarked? true} 'a)
+    (is (= (make-nested-r 'a)
            'a))
-    (is (= (nest-exprs {:ltr? true :unmarked? true} 'a 'b)
+    (is (= (make-nested-r 'a 'b)
            '[:- a (b)]))
-    (is (= (nest-exprs {:ltr? true :unmarked? true} 'a 'b 'c)
+    (is (= (make-nested-r 'a 'b 'c)
            '[:- a (b (c))])))
 
   (testing "Shape of output expression"
-    (is (= (nest-exprs {} [:- :f 'a] nil 'b nil)
-           '((((:f a)) b))))))
+    (is (= (form-nested-l [:- :f 'a] nil 'b nil)
+           '((((:f a)) b))))
+    (is (= (form-nested-r [:- :f 'a] nil 'b nil)
+           '(:f a ((b ())))))))
 
 
 ;; ? collect in make tests

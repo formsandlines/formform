@@ -6,7 +6,10 @@
                  :aliases :neil :project))
 (def lib (or (:name project) 'my/lib1))
 
-;; use neil project set version 1.2.0 to update the version in deps.edn
+;; To set a new version in deps.edn:
+;; $ neil version set [version] ;→ sets the :version key in :project
+;; - Creates a Git commit and tag (bypass with --no-tag)
+;; - Requires working directory to be clean (bypass with --force)
 
 (def version (or (:version project)
                  "1.2.0"))

@@ -15,3 +15,5 @@ codox/
 hs_err_pid*
 /notebooks/clerk_doc.clj
 .rebel_readline_history
+package.json
+package-lock.json

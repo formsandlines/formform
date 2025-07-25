@@ -149,7 +149,7 @@
 
 ;; Here is how the explicit nesting looks like:
 
-(nest-exprs {} '… 'a 'b)
+(form-nested-l '… 'a 'b)
 
 ;; Right after the identifier comes what I call a “re-entry signature”. This FORM has the signature `:<r`, which I will explain shortly.
 

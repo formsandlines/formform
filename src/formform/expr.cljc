@@ -106,29 +106,82 @@
   [& args]
   (apply core/form args))
 
-;; ? be more specific for :ret
-(s/fdef mark-exprs
-  :args (s/cat :opts  (s/keys :opt-un [:opts/unmarked?])
-               :exprs (s/* ::sp/expression))
-  :ret  ::sp/expression)
-(defn mark-exprs
-  "Chains expressions like `((a)(b)…)` or `(a)(b)…` if {:unmarked? true}`
 
-  * group expressions with arrangements: `[:- x y …]`"
+(defn mark-exprs
+  "Obsolete → use `make-marked` or `form-marked` instead."
   [opts & exprs]
   (apply core/mark-exprs opts exprs))
 
-(s/fdef nest-exprs
-  :args (s/cat :opts  (s/keys :opt-un [:opts/unmarked? :opts/ltr?])
-               :exprs (s/* ::sp/expression))
+(s/fdef make-marked
+  :args (s/* ::sp/expression)
   :ret  ::sp/expression)
+(defn make-marked
+  "Returns an arrangement with each `exprs` argument marked, e.g. `(a) (b) …`.
+
+  * group expressions with arrangements: `(make x y …)`"
+  [& exprs]
+  (apply core/mark-exprs {:unmarked? true} exprs))
+
+(s/fdef form-marked
+  :args (s/* ::sp/expression)
+  :ret  ::sp/form-expr)
+(defn form-marked
+  "Returns a FORM with each `exprs` argument marked, e.g. `((a) (b) …)`.
+
+  * group expressions with arrangements: `(make x y …)`"
+  [& exprs]
+  (apply core/mark-exprs {:unmarked? false} exprs))
+
+
 (defn nest-exprs
-  "Nests expressions leftwards `(((…)a)b)` or rightwards `(a(b(…)))` if `{:ltr? true}`
+  "Obsolete → use `make-nested-l/r` or `form-nested-l/r` instead."
+  [opts & exprs]
+  (apply core/nest-exprs opts exprs))
+
+(s/fdef make-nested-l
+  :args (s/* ::sp/expression)
+  :ret  ::sp/expression)
+(defn make-nested-l
+  "Nests `exprs` leftwards in an arrangement, e.g. `((…) y) z`.
 
   * use `nil` for empty expressions
   * use an arrangement `(make x y …)` to add multiple exprs. to the same level"
-  [opts & exprs]
-  (apply core/nest-exprs opts exprs))
+  [& exprs]
+  (apply core/nest-exprs {:unmarked? true :ltr? false} exprs))
+
+(s/fdef make-nested-r
+  :args (s/* ::sp/expression)
+  :ret  ::sp/expression)
+(defn make-nested-r
+  "Nests `exprs` rightwards in an arrangement, e.g. `a (b (…))`.
+
+  * use `nil` for empty expressions
+  * use an arrangement `(make x y …)` to add multiple exprs. to the same level"
+  [& exprs]
+  (apply core/nest-exprs {:unmarked? true :ltr? true} exprs))
+
+(s/fdef form-nested-l
+  :args (s/* ::sp/expression)
+  :ret  ::sp/form-expr)
+(defn form-nested-l
+  "Nests `exprs` leftwards in a FORM, e.g. `((((…) y) z)`.
+
+  * use `nil` for empty expressions
+  * use an arrangement `(make x y …)` to add multiple exprs. to the same level"
+  [& exprs]
+  (apply core/nest-exprs {:unmarked? false :ltr? false} exprs))
+
+(s/fdef form-nested-r
+  :args (s/* ::sp/expression)
+  :ret  ::sp/form-expr)
+(defn form-nested-r
+  "Nests `exprs` rightwards in a FORM, e.g. `(a (b (…)))`.
+
+  * use `nil` for empty expressions
+  * use an arrangement `(make x y …)` to add multiple exprs. to the same level"
+  [& exprs]
+  (apply core/nest-exprs {:unmarked? false :ltr? true} exprs))
+
 
 
 ;; Utils
