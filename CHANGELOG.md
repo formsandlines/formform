@@ -24,6 +24,8 @@ All notable changes to this project will be documented in this file. This change
 - Reversed the order of formDNA, which now reads left-to-right instead of right-to-left. The main reason for this change is to make formDNA more intuitive in reading and writing and reduce the mental load to reverse the order in your head. I apologize for this breaking change if you were already using formDNA; there will most certainly be no further changes to the notation. It went along with the new lowercase convention for constants, so that your existing formDNA data will not suddenly become incorrect and instead throws an exception, so you can safely make the transition. 
 - Removed 0-arity in `rand-vpoint` because the new random functions don’t return an infinite lazy seq (I believe that has never been useful anyway).
 - `rand-dna` doesn’t take an `elems` vector anymore to select from, which could have arbitrary elements. Its primary function is now better served by the `-weighted` variant and this ensures that it always returns a valid formDNA.
+- `expr/mark-exprs` is deprecated to be replaced by `expr/form-marked` and `expr/make-marked` (the “unmarked” variant), to avoid the need for an options map.
+- `expr/nest-exprs` is deprecated to be replaced by `expr/form-nested-l`, `expr/form-nested-r` (l/r distinguishes the nesting direction) and `expr/make-nested-l`, `expr/make-nested-r` (the “unmarked” variants), again to avoid the need for an options map.
 
 ### Fixed
 
