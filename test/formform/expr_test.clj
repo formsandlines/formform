@@ -655,40 +655,40 @@
     ;; SelFi Collection (see https://observablehq.com/@formsandlines/1d-ca-for-4-valued-form-logic-selfis)
 
     ;; Mark1
-    (is (= (->nmui (=>* {:varorder ['l 'e 'r]}
-                        (make (seq-re :<r 'l 'e 'r)
-                              (seq-re :<r 'l 'r 'e)) {}))
+    (is (= (->nmui (=>* (make (seq-re :<r 'l 'e 'r)
+                              (seq-re :<r 'l 'r 'e))
+                        {} {:varorder ['l 'e 'r]}))
            "[l e r]::3121103223011213012313312301311301231032230132103121133123011113"))
 
     ;; StripesD100000
-    (is (= (->nmui (=>* {:varorder ['l 'e 'r]}
-                        (make (seq-re :<r 'l 'e 'r)) {}))
+    (is (= (->nmui (=>* (make (seq-re :<r 'l 'e 'r))
+                        {} {:varorder ['l 'e 'r]}))
            "[l e r]::3302200223013003030323022301030303032002230100003302230223013303"))
 
     ;; StripesL000100
-    (is (= (->nmui (=>* {:varorder ['l 'e 'r]}
-                        (make (seq-re :<r 'l 'r 'e)) {}))
+    (is (= (->nmui (=>* (make (seq-re :<r 'l 'r 'e))
+                        {} {:varorder ['l 'e 'r]}))
            "[l e r]::3223303000002213022033330000321302203030000032103223333300002213"))
 
     ;; Mono000101
-    (is (= (->nmui (=>* {:varorder ['l 'e 'r]}
-                        (make (seq-re :<r 'l 'r 'e)
-                              (seq-re :<r 'e 'l 'r)) {}))
+    (is (= (->nmui (=>* (make (seq-re :<r 'l 'r 'e)
+                              (seq-re :<r 'e 'l 'r))
+                        {} {:varorder ['l 'e 'r]}))
            "[l e r]::3121333303031111222213312002111121211331230111113223333300001113"))
 
     ;; Rhythm101101
-    (is (= (->nmui (=>* {:varorder ['l 'e 'r]}
-                        (make (seq-re :<r 'l 'e 'r)
+    (is (= (->nmui (=>* (make (seq-re :<r 'l 'e 'r)
                               (seq-re :<r 'e 'r 'l)
                               (seq-re :<r 'l 'r 'e)
-                              (seq-re :<r 'e 'l 'r)) {}))
+                              (seq-re :<r 'e 'l 'r))
+                        {} {:varorder ['l 'e 'r]}))
            "[l e r]::3121111121211111111113311331111121211331230111111111111111111113"))
 
     ;; NewSense
-    (is (= (->nmui (=>* {:varorder ['l 'e 'r]}
-                        (make (seq-re :<r 'l 'e 'r)
+    (is (= (->nmui (=>* (make (seq-re :<r 'l 'e 'r)
                               (seq-re :<r 'r 'e 'l)
-                              (seq-re :<r 'l 'r 'e)) {}))
+                              (seq-re :<r 'l 'r 'e))
+                        {} {:varorder ['l 'e 'r]}))
            "[l e r]::3121121221211213311313311331311301231032230132101111111111111113"))
 
     ;; Slit / xor4vRnd
@@ -704,38 +704,38 @@
            "[l r]::2121123223011212"))
 
     ;; Rule4v30
-    (is (= (->nmui (=>* {:varorder ['l 'e 'r]}
-                        (make '((l) e r)
-                              '((e) l) '((r) l)) {}))
+    (is (= (->nmui (=>* (make '((l) e r)
+                              '((e) l) '((r) l))
+                        {} {:varorder ['l 'e 'r]}))
            "[l e r]::0220212122220123133130303333103220020303000023013113121211113210"))
 
     ;; Rule4v111
-    (is (= (->nmui (=>* {:varorder ['l 'e 'r]}
-                        (make '(((l) e) r)
+    (is (= (->nmui (=>* (make '(((l) e) r)
                               '(((l) r) e)
-                              '(((e) r) l)) {}))
+                              '(((e) r) l))
+                        {} {:varorder ['l 'e 'r]}))
            "[l e r]::2121121221211212311313311331311301231032230132101111111111111111"))
 
     ;; Structure111Re / Co(mprehend)OneAnother (identical to “NewSense”)
-    (is (= (->nmui (=>* {:varorder ['l 'e 'r]}
-                        (make (seq-re :<r 'l 'e 'r)
+    (is (= (->nmui (=>* (make (seq-re :<r 'l 'e 'r)
                               (seq-re :<r 'e 'r 'l)
-                              (seq-re :<r 'l 'r 'e)) {}))
+                              (seq-re :<r 'l 'r 'e))
+                        {} {:varorder ['l 'e 'r]}))
            "[l e r]::3121121221211213311313311331311301231032230132101111111111111113"))
 
     ;; Rule4v110
-    (is (= (->nmui (=>* {:varorder ['l 'e 'r]}
-                        (make '((e) r)
+    (is (= (->nmui (=>* (make '((e) r)
                               '((r) e)
-                              '((r) l)) {}))
+                              '((r) l))
+                        {} {:varorder ['l 'e 'r]}))
            "[l e r]::0123121221213210311310321331321001231032230132103113121211113210"))
 
     ;; uniTuringReRnd
-    (is (= (->nmui (=>* {:varorder ['l 'e 'r]}
-                        (form (form (seq-re :<r 'l 'e 'r)
+    (is (= (->nmui (=>* (form (form (seq-re :<r 'l 'e 'r)
                                     (seq-re :<r 'e 'r 'l)
                                     (seq-re :<r 'l 'r 'e))
-                              (form 'l 'e 'r)) {}))
+                              (form 'l 'e 'r))
+                        {} {:varorder ['l 'e 'r]}))
            "[l e r]::3123121221213213311310321331321001231032230132103113121211113210"))))
 
 

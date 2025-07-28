@@ -58,6 +58,7 @@
   (s/coll-of ::expression
              :kind sequential?))
 
+;; ? be more specific
 (s/def ::environment map?)
 
 

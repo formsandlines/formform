@@ -615,7 +615,8 @@
   "Obsolete → use `simplify-nested-l` or `simplify-nested-r` instead!"
   ([chain env] (core/simplify-nesting-chain chain env))
   ([opts chain env] (core/simplify-nesting-chain opts chain env)))
-(def chain>> simplify-expr-chain)
+(def chain>> "Obsolete → use `nested-l>>` or `nested-r>>` instead!"
+  simplify-expr-chain)
 
 (s/fdef simplify-nested-l
   :args (s/alt :ar1 (s/cat :nesting-chain ::sp/nesting-chain-l)
@@ -653,16 +654,16 @@
 ;;-------------------------------------------------------------------------
 ;; Evaluate expressions
 
-;; ? remove in impl
 (s/fdef eval->expr
   :args (s/alt :ar1 (s/cat :expr ::sp/expression)
                :ar2 (s/cat :expr ::sp/expression
                            :env  ::sp/environment))
   :ret  ::calc-sp/const?)
 (defn eval->expr
-  "Evaluates a FORM expression with an optional `env` and returns a constant expression or an uninterpretable “value hole” `:_` (in case a value cannot be determined).
+  "Evaluates a FORM `expr` with an optional `env` and returns a constant expression or an uninterpretable “value hole” `:_` (in case a value cannot be determined).  
+  * `env` must be a map from variables to expressions
 
-  * `env` must be a map from variables to expressions"
+  Note: the function `evaluate` yields equivalent results to this one, but returns the simplified expression instead of a hole for uninterpretable values."
   ([expr] (core/=> expr))
   ([expr env] (core/=> expr env)))
 (def => eval->expr)
@@ -672,18 +673,20 @@
   :args (s/alt :ar1 (s/cat :expr ::sp/expression)
                :ar2 (s/cat :expr ::sp/expression
                            :env  ::sp/environment)
-               :ar3 (s/cat :opts (s/keys :opt-un [::sp/varorder])
-                           :expr ::sp/expression
-                           :env  ::sp/environment))
+               :ar3 (s/cat :expr ::sp/expression
+                           :env  ::sp/environment
+                           :opts (s/keys :opt-un [::sp/varorder])))
   :ret  ::sp/formDNA)
 (defn eval->expr-all
-  ;; ! verify/correct docstring
-  "Like `eval->expr`, but evaluates all possible interpretations of any occurring variable in the expression and returns a formDNA expression.
+  "Like `eval->expr`, but evaluates all possible interpretations of any occurring variable in the `expr` and returns a formDNA expression.  
+  * `env` must be a map from variables to expressions
 
-  * an options map can be provided with a `:varorder` to set the variable interpretation order for the resulting formDNA"
+  An `opts` map can be provided with a `:varorder` entry to set the variable interpretation order for the resulting formDNA.
+
+  Note: the function `eval-all` returns equivalent results to this one, but in a more human-readable format."
   ([expr] (core/=>* expr))
   ([expr env] (core/=>* expr env))
-  ([opts expr env] (core/=>* opts expr env)))
+  ([expr env opts] (core/=>* opts expr env)))
 (def =>* eval->expr-all)
 
 (s/def :evaluate/result (s/or :const ::calc-sp/const
@@ -695,10 +698,11 @@
                            :env  ::sp/environment))
   :ret  (s/keys :req-un [:evaluate/result]))
 (defn evaluate
-  "Evaluates a FORM expresson with an optional `env` and returns either a constant or the simplified expression if it could not be determined to a value.
-  
+  "Evaluates a FORM `expr` with an optional `env` and returns a map with a `:result` entry that is either a constant or the simplified expression, if it could not be determined to a value.  
   * `env` must be a map from variables to expressions
-  * attaches metadata to the result that includes the simplified expression"
+  * attaches metadata to the result that always includes the simplified expression
+
+  Note: the function `eval->expr` yields equivalent results to this one, but always returns a value, so uninterpretable values are just “holes” `:_` that stand for any constant."
   ([expr] (evaluate expr {}))
   ([expr env]
    (let [res (core/eval-simplified expr env)
@@ -720,20 +724,30 @@
   :args (s/alt :ar1 (s/cat :expr ::sp/expression)
                :ar2 (s/cat :expr ::sp/expression
                            :env  ::sp/environment)
-               :ar3 (s/cat :opts (s/keys :opt-un [::sp/varorder])
-                           :expr ::sp/expression
-                           :env  ::sp/environment))
+               :ar3 (s/cat :expr ::sp/expression
+                           :env  ::sp/environment
+                           :opts (s/keys :opt-un [::sp/varorder])))
   :ret  (s/keys :req-un [::sp/varorder :eval-all/results]))
 (defn eval-all
-  "Like `evaluate`, but for all possible interpretations of any occurring variable in the expresson. Returns a map with a `:results` key whose value is a sequence of `[<interpretation> <result>]` tuples and with a `:varorder` key whose value is the reading order for variable results in the interpretations. This output is particularly suited for value tables."
-  ([expr] (eval-all expr {}))
-  ([expr env] (eval-all {} expr env))
-  ([opts expr env]
+  "Like `evaluate`, but evaluates all possible interpretations of any occurring variable in the `expr`, with an optional `env`.  
+  * `env` must be a map from variables to expressions
+
+  Returns a map with the following entries:  
+  * `:results` → sequence of `[<interpretation> <result>]` tuples, think of it as a kind of value table
+  * `:varorder` → the reading order of variable interpretations
+
+  An `opts` map can be provided with a `:varorder` entry to set a custom variable interpretation order.
+
+  Note: the function `eval->expr-all` returns equivalent results to this one, but as a formDNA expression."
+  ([expr] (eval-all expr {} {}))
+  ([expr env] (eval-all expr env {}))
+  ([expr env opts]
    (let [{:keys [varorder results] :as res}
          (core/eval-simplified* (merge opts {:only-vals? false}) expr env)
          vdict (map #(vector (mapv (:env %) varorder)
                              (:val %))
                     results)]
+     ;; ? metadata really required
      (with-meta {:varorder varorder :results vdict} res))))
 
 
