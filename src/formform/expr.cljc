@@ -89,10 +89,11 @@
   :args (s/* any?)
   :ret  ::sp/expression)
 (defn make
-  "Constructor for expressions of any kind. Validates its input. If the first argument (or the first after the options map) is a keyword of a registered operator, will call the constructor for that operator
+  "Constructor for expressions of any kind. Validates its input.
+
+  If the first argument (or the first after the options map) is a keyword of a registered operator, will call the constructor for that operator
 
   Can be given an options map as first argument:
-
   * `mark?` (default: false) marks the whole expression, creating a FORM
   * `splice?` (default: true) dissolves all top-level arrangements"
   [& args]
@@ -102,7 +103,7 @@
   :args (s/* any?)
   :ret  ::sp/struct-expr)
 (defn form
-  "Constructor for FORM expressions. Calls `make` on arguments."
+  "Constructor for FORM expressions `[ … ]`. Calls `make` on `args`."
   [& args]
   (apply core/form args))
 
@@ -569,8 +570,7 @@
   * if no simplification applies, tries to retrieve the value from given `env`
   * if retrieval was unsuccessful, returns `x` as is"
   ([x] (core/cnt> x))
-  ([x env]
-   (core/cnt> x env)))
+  ([x env] (core/cnt> x env)))
 ;; alias
 (def >> simplify)
 
@@ -585,8 +585,7 @@
 
   * for complex expressions, calls `expr.core/simplify-content` on every unique element"
   ([ctx] (core/ctx> ctx))
-  ([ctx env]
-   (core/ctx> ctx env)))
+  ([ctx env] (core/ctx> ctx env)))
 ;; alias
 (def in>> simplify-in)
 
@@ -612,21 +611,43 @@
   Note: default to use `simplify` instead"
   symx/simplify-sym)
 
-(s/fdef simplify-expr-chain
-  :args (s/alt :ar2 (s/cat :chain ::sp/expr-chain
-                           :env   ::sp/environment)
-               :ar3 (s/cat :opts  (s/keys :opt-un [:opts/rtl?])
-                           :chain ::sp/expr-chain
-                           :env   ::sp/environment))
-  :ret  ::sp/expr-chain)
 (defn simplify-expr-chain
-  "Reduces a sequence of expressions, intended to be linked in a `chain`, to a sequence of simplified expressions, possibly spliced or shortened via inference.
-
-  * assumes rightward-nesting, e.g. `(…(…(…)))`
-  * for leftward-nesting, e.g. `(((…)…)…)`, pass `{:rtl? true}`"
-  ([chain env] (core/simplify-expr-chain chain env))
-  ([opts chain env] (core/simplify-expr-chain opts chain env)))
+  "Obsolete → use `simplify-nested-l` or `simplify-nested-r` instead!"
+  ([chain env] (core/simplify-nesting-chain chain env))
+  ([opts chain env] (core/simplify-nesting-chain opts chain env)))
 (def chain>> simplify-expr-chain)
+
+(s/fdef simplify-nested-l
+  :args (s/alt :ar1 (s/cat :nesting-chain ::sp/nesting-chain-l)
+               :ar2 (s/cat :nesting-chain ::sp/nesting-chain-l
+                           :env   ::sp/environment))
+  :ret ::sp/nesting-chain-l)
+(defn simplify-nested-l
+  "Reduces a leftward `nesting-chain`, a sequence of expressions `( … x y z )` whose interpretation is `( [[[…] x] y] z )`, to a simplified nesting chain, possibly spliced or shortened via inference.
+
+  * takes an optional `env` that gets applied to the nested expansion"
+  ([nesting-chain]
+   (core/simplify-nesting-chain {:rtl? true} nesting-chain {}))
+  ([nesting-chain env]
+   (core/simplify-nesting-chain {:rtl? true} nesting-chain env)))
+;; alias
+(def nested-l>> simplify-nested-l)
+
+(s/fdef simplify-nested-r
+  :args (s/alt :ar1 (s/cat :nesting-chain ::sp/nesting-chain-r)
+               :ar2 (s/cat :nesting-chain ::sp/nesting-chain-r
+                           :env   ::sp/environment))
+  :ret  ::sp/nesting-chain-r)
+(defn simplify-nested-r
+  "Reduces a rightward `nesting-chain`, a sequence of expressions `( a b c … )` whose interpretation is `( a [b [c […]]] )`, to a simplified nesting chain, possibly spliced or shortened via inference.
+  
+  * takes an optional `env` that gets applied to the nested expansion"
+  ([nesting-chain]
+   (core/simplify-nesting-chain {:rtl? false} nesting-chain {}))
+  ([nesting-chain env]
+   (core/simplify-nesting-chain {:rtl? false} nesting-chain env)))
+;; alias
+(def nested-r>> simplify-nested-r)
 
 
 ;;-------------------------------------------------------------------------

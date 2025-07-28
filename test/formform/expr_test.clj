@@ -8,28 +8,80 @@
 (doseq [fsym fns-with-specs] (stest/instrument fsym))
 
 
-(deftest basic-constructors-test
-  (testing "Return value of `make`"
+(deftest basic-constructor-test
+  (testing "Simple input"
     (is (= '[:- x a [:- x :u] b (:m)]
-           (make 'x [:- 'a [:- 'x :u] 'b] [:m]))))
-  (testing "Return value of `form`"
+           (make 'x [:- 'a [:- 'x :u] 'b] [:m])))
     (is (= '[x a [:- x :u] b (:m)]
            (form 'x [:- 'a [:- 'x :u] 'b] [:m]))))
+  (testing "Operator construction consistency"
+    (is (= [:- 'a 'b]
+           (make 'a 'b)
+           (make :- 'a 'b)
+           (make [:- 'a 'b])
+           (make (make :- 'a 'b))))
+    (is (= [[:- 'a 'b]] ; ? should arrangement be merged
+           (form :- 'a 'b)))
+    (is (= ['a 'b]
+           (form [:- 'a 'b])
+           (form (make :- 'a 'b))))
+    (is (= [:uncl "apple pie"]
+           (make :uncl "apple pie")
+           (make [:uncl "apple pie"])
+           (make (make :uncl "apple pie"))))
+    (is (= [[:uncl "apple pie"]]
+           (form :uncl "apple pie")
+           (form [:uncl "apple pie"])
+           (form (make :uncl "apple pie"))))
+    (is (= [:seq-re :<r 'a 'b]
+           (make :seq-re :<r 'a 'b)
+           (make [:seq-re :<r 'a 'b])
+           (make (seq-re :<r 'a 'b))
+           (make (make :seq-re :<r 'a 'b))))
+    (is (= [[:seq-re :<r 'a 'b]]
+           (form :seq-re :<r 'a 'b)
+           (form [:seq-re :<r 'a 'b])
+           (form (seq-re :<r 'a 'b))
+           (form (make :seq-re :<r 'a 'b))))
+    (is (= [:fdna [] [:n]]
+           (make :fdna [] [:n])
+           (make [:fdna [] [:n]])
+           (make (make :fdna [] [:n]))))
+    (is (= [[:fdna [] [:n]]]
+           (form :fdna [] [:n])
+           (form [:fdna [] [:n]])
+           (form (make :fdna [] [:n]))))))
+
+(deftest special-constructor-test
   (testing "Return value of `make/form-marked`"
+    (is (= '[:- [a] [b] [c]]
+           (make-marked 'a 'b 'c)))
+    (is (= '[[a] [b] [c]]
+           (form-marked 'a 'b 'c)))
     (is (= '[:- [x] [a [:- x :u] b] [(:m)]]
            (make-marked 'x [:- 'a [:- 'x :u] 'b] [:m])))
     (is (= '[[x] [a [:- x :u] b] [(:m)]]
            (form-marked 'x [:- 'a [:- 'x :u] 'b] [:m]))))
   (testing "Return value of `make/form-nested-l`"
+    (is (= '[:- [[a] b] c]
+           (make-nested-l 'a 'b 'c)))
+    (is (= '[[[a] b] c]
+           (form-nested-l 'a 'b 'c)))
     (is (= '[:- [[x] a [:- x :u] b] (:m)]
            (make-nested-l 'x [:- 'a [:- 'x :u] 'b] [:m])))
     (is (= '[[[x] a [:- x :u] b] (:m)]
            (form-nested-l 'x [:- 'a [:- 'x :u] 'b] [:m]))))
   (testing "Return value of `make/form-nested-r`"
+    (is (= '[:- a [b [c]]]
+           (make-nested-r 'a 'b 'c)))
+    (is (= '[a [b [c]]]
+           (form-nested-r 'a 'b 'c)))
     (is (= '[:- x [a [:- x :u] b [(:m)]]]
            (make-nested-r 'x [:- 'a [:- 'x :u] 'b] [:m])))
     (is (= '[x [a [:- x :u] b [(:m)]]]
            (form-nested-r 'x [:- 'a [:- 'x :u] 'b] [:m])))))
+
+(form-nested-r 'a 'b 'c 'd 'e)
 
 (deftest make-op-test
   (testing "Missing operator keyword"
@@ -184,147 +236,6 @@
 ;; incorrect ordering due to symbols
 ;; (is (= (find-vars '[ "apple tree" ("something" else) ])
 ;;        '("apple tree" else "something")))
-
-
-
-(defn- simplify-expr-chain-reversed [r->l? exprs env]
-  (let [rev-exprs (fn [xs] (reverse (map #(if (arrangement? %)
-                                           (cons (first %) (reverse (rest %)))
-                                           %) xs)))]
-    (rev-exprs (chain>> {:rtl? r->l?} (rev-exprs exprs) {}))))
-
-(def chain>>-rtl (partial simplify-expr-chain-reversed true))
-(def chain>>-ltr (partial simplify-expr-chain-reversed false))
-
-(comment
-  ;; test
-  (let [xc '[ a nil b]]
-    {:normal (chain>> xc {})
-     :rtl (chain>>-rtl xc {})
-     :reverse (reverse (chain>> (reverse xc) {}))})
-
-  (chain>> '( nil ) {}))
-
-
-;; ! add more tests with marks ()
-(deftest simplify-expr-chain-test
-  (testing "Correctness of reduction with one form per nesting-level"
-    (are [x y] (= y (chain>> x {}) (chain>>-rtl x {}))
-      '( nil ) '[nil] ;; () => ()
-      '( () )  '[()]  ;; (()) => (())
-      '( a )   '[a]   ;; (a) => (a)
-
-      '( nil nil ) '[()] ;; (())
-      '( a nil )   '[()] ;; (a ()) => (())
-      '( nil a )   '[nil a] ;; ((a))
-      '( () () )   '[()] ;; (() (())) => (())
-      '( a () )    '[a] ;; (a (())) => (a)
-      '( () a )    '[()] ;; (() (a)) => (())
-      '( a b )     '[a b] ;; (a (b))
-      '( a a )     '[()] ;; (a (a)) => (a ()) => (())
-
-      '( nil nil nil ) '[nil] ;; ((())) => ()
-      '( a nil nil )   '[a] ;; (a)
-      '( a nil () )    '[()] ;; (a ((()))) => (a ()) => (())
-      '( nil a nil )   '[nil] ;; ((a ())) => ((())) => ()
-      '( nil a () )    '[nil a] ;; ((a (()))) => ((a))
-      '( nil nil a )   '[a] ;; (((a))) => (a)
-      '( nil nil () )  '[()] ;; (((()))) => (())
-      '( nil a b )     '[nil a b] ;; ((a (b)))
-      '( a nil b )     '[[:- a b]] ;; (a ((b))) => (a b)
-      '( a b nil )     '[a] ;; (a (b ())) => (a (())) => (a)
-      '( a b c )       '[a b c] ;; (a (b (c)))
-
-      '( nil nil nil nil ) '[()] ;; (((()))) => (())
-      '( a b nil nil )     '[a b] ;; (a (b (()))) => (a (b))
-      '( a nil nil b )     '[a b] ;; (a (((b)))) => (a (b))
-      '( nil nil a b )     '[a b] ;; (((a (b)))) => (a (b))
-      '( a nil b c )       '[[:- a b] c] ;; (a ((b (c)))) => (a b (c))
-      '( a b nil c )       '[a [:- b c]] ;; (a (b ((c)))) => (a (b c))
-
-      '( a nil b nil c )   '[[:- a b c]] ;; (a ((b ((c))))) => (a b c)
-      '( a nil nil b c )   '[a b c] ;; (a (((b (c))))) => (a (b (c)))
-      '( a b nil nil c )   '[a b c] ;; (a (b (((c))))) => (a (b (c)))
-      '( a nil nil nil b ) '[[:- a b]] ;; (a ((((b))))) => (a b)
-      '( nil a nil b nil ) '[nil] ;; ((a ((b ())))) => ((a b ())) => … => ()
-      '( nil nil nil a b ) '[nil a b] ;; ((((a (b))))) => ((a (b)))
-      '( a b nil nil nil ) '[a])) ;; (a (b ((())))) => (a (b ())) => … => (a)
-
-  (testing "Equal reduction behavior with forms wrapped in arrangements"
-    (are [x y] (= y (chain>> x {}) (chain>>-rtl x {}))
-      '( [:- nil] ) '[nil]
-      '( [:- ()] )  '[()]
-      '( [:- a] )   '[a]
-
-      '( [:- nil] [:- nil] ) '[()]
-      '( [:- nil] nil )      '[()]
-      '( nil [:- nil] )      '[()]
-      '( [:- a] [:- nil] )   '[()]
-      '( [:- a] nil )        '[()]
-      '( a [:- nil] )        '[()]
-      '( [:- nil] [:- a] )   '[nil a]
-      '( [:- nil] a )        '[nil a]
-      '( nil [:- a] )        '[nil a]
-      '( [:- ()] [:- ()] )   '[()]
-      '( [:- ()] () )        '[()]
-      '( () [:- ()] )        '[()]
-      '( [:- a] [:- ()] )    '[a]
-      '( [:- a] () )         '[a]
-      '( a [:- ()] )         '[a]
-      '( [:- ()] [:- a] )    '[()]
-      '( [:- ()] a )         '[()]
-      '( () [:- a] )         '[()]
-      '( [:- a] [:- b] )     '[a b]
-      '( [:- a] b )          '[a b]
-      '( a [:- b] )          '[a b]
-      '( [:- a] [:- a] )     '[()]
-      '( [:- a] a )          '[()]
-      '( a [:- a] )          '[()]))
-
-  (testing "Correctness of reduction with multiple forms per nesting-level"
-    (are [x y] (= y (chain>> x {}) (chain>>-rtl x {}))
-      '( [:- nil nil] ) '[nil]
-      '( [:- () ()] )   '[()]
-      '( [:- a a] )     '[a]
-
-      '( [:- nil a] [:- nil ()] ) '[a] ;; (a (())) => (a)
-      '( [:- a ()] [:- nil b] )   '[()])) ;; (a () (b)) => (())
-
-  (testing "Correctness of reduction via (de)generation rule across chain"
-    (let [x [[:- 'a 'b] [:- 'a 'c]]]
-      (is (= '[[:- a b] c]
-             (chain>> x {}) (chain>>-rtl x {}))))
-    ;; (a b (a c)) => (a b (c))
-    (let [x ['x 'a nil 'b 'x]]
-      (is (= '[x]
-             (chain>> x {}) (chain>>-rtl x {}))))
-    ;; (x (a ( (b (x))))) => (x (a b ())) => (x)
-    (let [x [[:- 'a 'b] [:- 'a 'c] [:- 'c 'a 'd]]]
-      (is (= '[[:- a b] c d]
-             (chain>> x {})
-             (chain>>-rtl x {}))))
-    ;; (a b (a c (c a d))) => (a b (c (d)))
-    (let [x [[:- :u 'b] [:- 'a :i]]]
-      (is (= '[[:- :u b]]
-             (chain>> x {})
-             (chain>>-rtl x {}))))
-    ;; (:u b (a :i)) => (:u b (a :u :i)) => (:u b (())) => (:u b)
-    (let [x [[:- :u 'b] [:- 'a :i] 'c]]
-      (is (= '[[:- :u b]]
-             (chain>> x {})
-             (chain>>-rtl x {}))))
-    ;; (:u b (a :i (c))) => (:u b (a () (c))) => (:u b (())) => (:u b)
-
-    (let [x [:f* [:- :u 'a] [:- :u 'b]]]
-      (is (= '[:f* a [:- :u b]]
-             (chain>> {:rtl? true} x {})
-             (chain>>-ltr x {}))))
-    ;; (((:f*) :u a) :u b) => (((:f*) a) :u b)
-    (let [x [:f* :u :u]]
-      (is (= '[[:- :f* :u]]
-             (chain>> {:rtl? true} x {})
-             (chain>>-ltr x {}))))))
-;; (((:f*) :u) :u) => (((:f*)) :u) => (:f* :u)
 
 
 (deftest simplify-test
@@ -618,6 +529,55 @@
            (in>> [[:fdna [] [:m]] [:seq-re :<r 'a 'b]])
            (in>> [[:fdna ["foo"] [:n :u :u :u]] [:fdna [] [:m]]])))))
 
+;; more exhaustive tests in formform.expr.core-test
+;; the tests below are more useful to illustrate how the functions work:
+(deftest simplify-nested-test
+  (testing "Simple cases in rightwards-nesting"
+    (is (= '[nil]   (nested-r>> '( ))))       ; () => ()
+    (is (= '[nil]   (nested-r>> '( nil ))))   ; () => ()
+    (is (= '[[]]    (nested-r>> '( [] ))))    ; (()) => (())
+    (is (= '[a b c] (nested-r>> '( a b c )))) ; (a (b (c))) => (a (b (c)))
+
+    (is (= '[[]]  (nested-r>> '( () a b )))) ; (() (a (b))) => (())
+    (is (= '[a]   (nested-r>> '( a () b )))) ; (a (() (b))) => (a)
+    (is (= '[a b] (nested-r>> '( a b () )))) ; (a (b (()))) => (a (b))
+
+    (is (= '[nil a b]  (nested-r>> '( nil a b )))) ; ((a (b))) => ((a (b)))
+    ;; keep in mind that the output is still a nested chain,
+    ;; so `a b` must be wrapped in an arrangement: `[:- a b]`
+    (is (= '[[:- a b]] (nested-r>> '( a nil b )))) ; (a ((b))) => (a b)
+    (is (= '[a]        (nested-r>> '( a b nil )))) ; (a (b ())) => (a)
+    )
+
+  (testing "Simple cases in leftwards-nesting"
+    (is (= '[nil]   (nested-l>> '( ))))       ; () => ()
+    (is (= '[nil]   (nested-l>> '( nil ))))   ; () => ()
+    (is (= '[[]]    (nested-l>> '( [] ))))    ; (()) => (())
+    (is (= '[a b c] (nested-l>> '( a b c )))) ; (((a) b) c) => (((a) b) c)
+
+    (is (= '[a b] (nested-l>> '( () a b )))) ; (((()) a) b) => ((a) b)
+    (is (= '[b]   (nested-l>> '( a () b )))) ; (((a) ()) b) => (b)
+    (is (= '[[]]  (nested-l>> '( a b () )))) ; (((a) b) ()) => (())
+
+    (is (= '[b]        (nested-l>> '( nil a b )))) ; ((() a) b) => (b)
+    ;; keep in mind that the output is still a nested chain,
+    (is (= '[[:- a b]] (nested-l>> '( a nil b )))) ; (((a)) b) => (a b)
+    (is (= '[a b nil]  (nested-l>> '( a b nil )))) ; (((a) b)) => (((a) b))
+    )
+
+  (testing "Correct transformation to nested FORM"
+    (is (= '[a [b [c]]] (apply form-nested-r (nested-r>> '( a b c )))))
+    (is (= '[:- a [b [c]]] (apply make-nested-r (nested-r>> '( a b c )))))
+    (is (= '[[[a] b] c] (apply form-nested-l (nested-l>> '( a b c )))))
+    (is (= '[:- [[a] b] c] (apply make-nested-l (nested-l>> '( a b c )))))
+
+    (is (= '[a [b]] (apply form-nested-r (nested-r>> '( a b () )))))
+    (is (= '[[]] (apply form-nested-r (nested-r>> '( a nil () )))))
+    (is (= '[[a] b] (apply form-nested-l (nested-l>> '( () a b )))))
+    (is (= '[[]] (apply form-nested-l (nested-l>> '( () nil a )))))
+
+    (is (= '[a b] (apply form-nested-l (nested-l>> '( a nil b )))))
+    (is (= '[:- a b] (apply make-nested-l (nested-l>> '( a nil b )))))))
 
 
 (deftest eval->expr-test

@@ -204,9 +204,8 @@
         (let [re-expr     (if (symx/arrangement? (first exprs))
                             (symx/arr-prepend sign (first exprs))
                             [tag_arrangement sign (first exprs)]) ;; apply?
-              [e & exprs] (core/simplify-expr-chain {:rtl? true}
-                                                    (cons re-expr (rest exprs))
-                                                    env)
+              [e & exprs] (core/simplify-nesting-chain
+                           {:rtl? true} (cons re-expr (rest exprs)) env)
               [x & r]     (if (symx/arrangement? e)
                             (op-get e :exprs)
                             [e])]

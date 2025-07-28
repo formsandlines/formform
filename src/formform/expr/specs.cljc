@@ -21,10 +21,12 @@
         :variable       ::variable
         :unknown-symbol keyword?))
 
+;; structural expression → form the expression as a sequence of expressions
 (s/def ::struct-expr
   (s/every ::expression
            :kind sequential?))
 
+;; FORM expression → structural expression that is not an operator
 (s/def ::form-expr
   (s/and ::struct-expr
          #((complement s/valid?) ::generic-operator %)))
@@ -39,16 +41,24 @@
 
 (s/def ::varseq ::varorder)
 
+;; expression chain → ordered sequence of expressions
 (s/def ::expr-chain
   (s/coll-of ::expression
-             :kind sequential?
-             :min-count 1))
+             ;; :min-count 1  ; ? verify if empty seq can be equiv to ( nil )
+             :kind sequential?))
 
-(s/def ::environment map?)
+;; nesting chain → interpret the expression chain as nested expressions
+;; * rightwards: `( a b c … )` → `( a [b [c […]]] )`
+;; * leftwards:  `( … x y z )` → `( [[[…] x] y] z )`
+(s/def ::nesting-chain-l ::expr-chain)
+(s/def ::nesting-chain-r ::expr-chain)
 
+;; context → unordered sequence of expressions
 (s/def ::context
   (s/coll-of ::expression
              :kind sequential?))
+
+(s/def ::environment map?)
 
 
 ;;-------------------------------------------------------------------------

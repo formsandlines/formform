@@ -455,8 +455,8 @@
 
 ;; ! check assumptions about env while merging nesting contexts via crossing
 ;; ! needs MASSIVE refactoring
-(defn simplify-expr-chain
-  ([chain env] (simplify-expr-chain {} chain env))
+(defn simplify-nesting-chain
+  ([chain env] (simplify-nesting-chain {} chain env))
   ([{:keys [rtl?] :or {rtl? false}} chain env]
    (vec
     (loop [[expr & r]  (if rtl? (reverse chain) chain)
