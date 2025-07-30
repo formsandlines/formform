@@ -538,32 +538,30 @@
 
 (s/fdef vdict
   :args (s/alt :ar1 (s/cat :vp->r (s/map-of ::sp/vpoint ::sp/const))
-               :ar2 (s/cat :opts  (s/keys :opt-un [:vdict.opts/default-result
-                                                   :opts/sorted?])
-                           :vp->r (s/map-of ::sp/vpoint ::sp/const)))
+               :ar2 (s/cat :vp->r (s/map-of ::sp/vpoint ::sp/const)
+                           :opts  (s/keys :opt-un [:vdict.opts/default-result
+                                                   :opts/sorted?])))
   :ret  ::sp/vdict)
 (defn vdict
-  "Generates a vdict given a map vpoint->result (result is a constant).
+  "Generates a vdict given a map `vpoint->result` (result is a constant).
 
   * if the corresponding vspace is not a subset of the set of keys from `vp->r`, the remaining results will be filled with :n or a given default constant
   * optional `sorted?` defaults to false since sorting large vspace dimensions can be expensive"
-  ([vpoint->result] (vdict {} vpoint->result))
-  ([opts vpoint->result]
-   (core/vdict opts vpoint->result)))
+  ([vpoint->result] (core/vdict {} vpoint->result))
+  ([vpoint->result opts] (core/vdict opts vpoint->result)))
 
 (s/fdef dna->vdict
-  :args (s/alt :ar1 (s/cat :dna ::sp/dna)
-               :ar2 (s/cat :opts (s/keys :opt-un [:opts/sorted?
-                                                  :opts.safety/unsafe?])
-                           :dna  ::sp/dna))
+  :args (s/alt :ar1 (s/cat :dna  ::sp/dna)
+               :ar2 (s/cat :dna  ::sp/dna
+                           :opts (s/keys :opt-un [:opts/sorted?
+                                                  :opts.safety/unsafe?])))
   :ret  ::sp/vdict)
 (defn dna->vdict
-  "Generates a vdict from a given dna.
+  "Generates a vdict from a given formDNA (`dna`).
 
   * optional `sorted?` defaults to false since sorting large vspace dimensions can be expensive"
   ([dna] (core/dna->vdict {} dna))
-  ([opts dna]
-   (core/dna->vdict opts dna)))
+  ([dna opts] (core/dna->vdict opts dna)))
 
 
 ;;-------------------------------------------------------------------------

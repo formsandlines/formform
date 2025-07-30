@@ -558,13 +558,13 @@
                              [:u :u] :i
                              ;; [:x :y] :m
                              [:u :u :i] :n}]
-                  (vdict {:default-result :u} vp->r))))))
+                  (vdict vp->r {:default-result :u}))))))
 
 
 (deftest dna->vdict-test
   (testing "Validity of vdict"
     (is ((every-pred vdict? sorted?)
-         (dna->vdict {:sorted? true} (rand-dna 4)))))
+         (dna->vdict (rand-dna 4) {:sorted? true}))))
   (testing "Correctness of transformation"
     (is (= (dna->vdict [:m :i :u :n])
            {[:n] :m, [:u] :i, [:i] :u, [:m] :n}))
@@ -580,11 +580,11 @@
 
 (deftest vdict->vmap-test
   (testing "Validity of vmap"
-    (is (vmap? (vdict->vmap (dna->vdict {} [:n]))))
-    (is (vmap? (vdict->vmap (dna->vdict {} [:u]))))
-    (is (vmap? (vdict->vmap (dna->vdict {} [:i]))))
-    (is (vmap? (vdict->vmap (dna->vdict {} [:m]))))
-    (is (vmap? (vdict->vmap (dna->vdict {} (rand-dna 3))))))
+    (is (vmap? (vdict->vmap (dna->vdict [:n] {}))))
+    (is (vmap? (vdict->vmap (dna->vdict [:u] {}))))
+    (is (vmap? (vdict->vmap (dna->vdict [:i] {}))))
+    (is (vmap? (vdict->vmap (dna->vdict [:m] {}))))
+    (is (vmap? (vdict->vmap (dna->vdict (rand-dna 3) {})))))
   (testing "Correctness of transformation"
     (is (= :n
            (vdict->vmap {[] :n})))

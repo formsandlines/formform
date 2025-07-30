@@ -469,7 +469,7 @@
 (defoperator tag_formDNA [varorder dna]
   (if (empty? varorder)
     (make (first dna))
-    (let [vdict (calc/dna->vdict {} dna)]
+    (let [vdict (calc/dna->vdict dna {})]
       (apply make
              (map (fn [[vpoint result]]
                     (apply form
@@ -554,6 +554,6 @@
 
   (str (calc/vdict->vmap
         (calc/dna->vdict
-         {} (op-get (core/=>* nil) :dna)))))
+         (op-get (core/=>* nil) :dna) {}))))
 
 

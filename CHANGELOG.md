@@ -27,7 +27,7 @@ All notable changes to this project will be documented in this file. This change
 - `expr/mark-exprs` is deprecated to be replaced by `expr/form-marked` and `expr/make-marked` (the “unmarked” variant), to avoid the need for an options map.
 - `expr/nest-exprs` is deprecated to be replaced by `expr/form-nested-l`, `expr/form-nested-r` (l/r distinguishes the nesting direction) and `expr/make-nested-l`, `expr/make-nested-r` (the “unmarked” variants), again to avoid the need for an options map.
 - `expr/simplify-expr-chain` is deprecated to be replaced by `expr/simplify-nested-l` and `expr/simplify-nested-r` (l/r distinguishes, again, the nesting direction). This is in line with the change above.
-- `expr/eval->expr-all` (alias `expr/=>*`), `expr/eval-all`, `calc/permute-dna` and `calc/dna-perspectives` now take `opts` as their last argument instead of the first one. This is to make argument order of the options map consistent with other functions in formform and with the convention in the Clojure community.
+- `expr/eval->expr-all` (alias `expr/=>*`), `expr/eval-all`, `calc/permute-dna`, `calc/dna-perspectives`, `calc/vdict` and `calc/dna->vdict` now take `opts` as their last argument instead of the first one. This is to make argument order of the options map consistent with other functions in formform and with the convention in the Clojure community.
 
 ### Fixed
 
