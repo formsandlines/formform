@@ -444,27 +444,31 @@
 (s/fdef permute-dna
   :args (s/& (s/alt :ar2 (s/cat :dna        ::sp/dna
                                 :perm-order ::sp/permutation-order)
-                    :ar3 (s/cat :opts (s/keys :opt-un [:opts.safety/limit?])
-                                :dna        ::sp/dna
-                                :perm-order ::sp/permutation-order))
-             #(let [{:keys [dna-seq perm-order]} (-> % second)]
-                (== (core/dna-dimension dna-seq)
+                    :ar3 (s/cat :dna        ::sp/dna
+                                :perm-order ::sp/permutation-order
+                                :opts (s/keys :opt-un [:opts.safety/limit?])))
+             #(let [{:keys [dna perm-order]} (-> % second)]
+                (== (core/dna-dimension dna)
                     (count perm-order))))
   :ret  ::sp/dna-perspective)
 (defn permute-dna
-  ([dna perm-order] (permute-dna {} dna perm-order))
-  ([opts dna perm-order]
-   (core/permute-dna-seq opts dna perm-order)))
+  "Given a formDNA (`dna`), generates its permutation (called a “perspective”) that matches the given `perm-order`.
+
+  `perm-order` must be a sequence of indices that correspond to each term/subdna of the `dna`. Think of each place in the sequence as a depth (shallowest → deepest) and each index as an identifier of the term in that depth.
+
+  For example, `[0 1 2]` is the default order of terms in a 3-dimensional formDNA. `[1 2 0]` would permute the terms, such that in the resulting formDNA term 0 is in depth 2, term 1 in depth 0 and term 2 in depth 1."
+  ([dna perm-order] (core/permute-dna-seq {} dna perm-order))
+  ([dna perm-order opts] (core/permute-dna-seq opts dna perm-order)))
 
 (s/fdef dna-perspectives
   :args (s/alt :ar1 (s/cat :dna ::sp/dna)
-               :ar2 (s/cat :opts (s/keys :opt-un [:opts.safety/limit?])
-                           :dna ::sp/dna))
+               :ar2 (s/cat :dna ::sp/dna
+                           :opts (s/keys :opt-un [:opts.safety/limit?])))
   :ret  ::sp/dna-perspective-group)
 (defn dna-perspectives
-  "Given a formDNA, generates all of its permutations and returns a map from permuted term order to the corresponding formDNA."
-  ([dna] (dna-perspectives {} dna))
-  ([opts dna]
+  "Given a formDNA (`dna`), generates all of its permutations and returns a map from permuted term order to the corresponding formDNA."
+  ([dna] (dna-perspectives dna {}))
+  ([dna opts]
    (let [dna-seq-psps (core/dna-seq-perspectives opts dna)]
      (with-meta (into {} dna-seq-psps)
        ;; retains key order from metadata (if available)

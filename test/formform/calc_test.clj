@@ -485,14 +485,33 @@
                           [:m :_])))))
 
 
+;; see `calc.core-test/permute-dna-seq-test` for more comprehensive tests
+(deftest permute-dna-test
+  (let [dna [:u :i :m :n
+             :u :i :m :n
+             :u :i :m :n
+             :u :i :m :n]]
+    (testing "Correctness of permutation"
+      (is (= (permute-dna dna [0 1])
+             [[0 1] dna]))
+      (is (= (permute-dna dna [1 0])
+             [[1 0] [:u :u :u :u
+                     :i :i :i :i
+                     :m :m :m :m
+                     :n :n :n :n]])))))
+
 (deftest dna-perspectives-test
   (testing "Correctness of permutations"
-    (is (= (dna-perspectives (make-dna (make-dna :u :i :m :n)
-                                       (make-dna :u :i :m :n)
-                                       (make-dna :u :i :m :n)
-                                       (make-dna :u :i :m :n)))
-           {[0 1] [:u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n],
-            [1 0] [:u :u :u :u :i :i :i :i :m :m :m :m :n :n :n :n]}))))
+    (is (= (dna-perspectives
+            (make-dna :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n))
+           {[0 1] [:u :i :m :n
+                   :u :i :m :n
+                   :u :i :m :n
+                   :u :i :m :n],
+            [1 0] [:u :u :u :u
+                   :i :i :i :i
+                   :m :m :m :m
+                   :n :n :n :n]}))))
 
 
 (deftest vpoint-test
