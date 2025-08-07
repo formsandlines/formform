@@ -3,6 +3,7 @@
             [formform.calc :as calc]
             [formform.expr.core :as core]
             [formform.expr :refer :all]
+            [formform.utils :refer [submap?]]
             [orchestra.spec.test :as stest]))
 
 (doseq [fsym fns-with-specs] (stest/instrument fsym))
@@ -580,44 +581,123 @@
     (is (= '[:- a b] (apply make-nested-l (nested-l>> '( a nil b )))))))
 
 
-(deftest eval->expr-test
+(deftest eval->x-test
   (testing "Reducable expressions"
     (testing "FORMs"
-      (are [x y] (= x y)
-        :n (=> (make nil))
-        :m (=> (make '()))
-        :u (=> (make :u))
-        :i (=> (make '(:u)))))
+      (are [x y] (= x (=> y) (==> y))
+        :n (make nil)
+        :m (make '())
+        :u (make :u)
+        :i (make '(:u))))
 
     (testing "Constants"
-      (are [x y] (= x y)
-        :n (=> (make :n))
-        :m (=> (make :m))
-        :u (=> (make :u))
-        :i (=> (make :i)))))
+      (are [x y] (= x (=> y) (==> y))
+        :n (make :n)
+        :m (make :m)
+        :u (make :u)
+        :i (make :i))))
 
   (testing "irreducable expressions"
-    (is (= :_ (=> (make 'a))))
-    (is (= :_ (=> (make '("x" ("y"))))))))
-
+    (is (= 'a (=> (make 'a))))
+    (is (= :x (=> [[:x]])))
+    (is (= '("x" ("y")) (=> (make '("x" ("y"))))))
+    (is (= :_ (==> (make 'a))))
+    (is (= :_ (==> [[:x]])))
+    (is (= :_ (==> (make '("x" ("y"))))))))
 
 (defn ->nmui [fdna-expr]
   (let [{:keys [varorder dna]} (op-data fdna-expr)]
     (apply str varorder "::" (reverse (calc/dna->digits calc/nmui-code dna)))))
 
-(deftest eval->expr-all-test
+(def opts-unreduced {:pre-simplify? false :reduce-dna? false})
+(def opts-reduced {:pre-simplify? true :reduce-dna? true})
+
+;; Note: by default, `=>*` adds extra reduction steps before & after the result
+;;       while `==>*` does not (to keep a predictable number of output terms)
+(deftest eval->x-all-test
+  (testing "Correct output shape, given various options" ;; all verified
+    (is (= :i
+           (=>* [:u])))
+    (is (= [:i]
+           (==>* [:u])))
+    (is (= :x
+           (=>* :x)))
+    (is (= [:_]
+           (==>* :x)))
+    (is (= :_
+           (=>* :x {} {:allow-value-holes? true})))
+    (is (= '(a :g)
+           (=>* ['a :g])))
+    (is (= '[:fdna [a] [:_ :_ :_ :n]]
+           (=>* ['a :g] {} {:allow-value-holes? true})))
+    (is (= [:_ :_ :_ :n]
+           (==>* ['a :g])))
+    (is (= [[:x]]
+           (=>* [[:x]] {} {:pre-simplify? false})))
+    (is (= :x
+           (=>* [[:x]] {} {:pre-simplify? true})))
+    (is (= :m
+           (=>* [:- [] ['b ['b]]])))
+    (is (= '[:fdna [b] [:m :m :m :m]]
+           (=>* [:- [] ['b ['b]]] {} opts-unreduced)))
+    (is (= [:m :m :m :m]
+           (==>* [:- [] ['b ['b]]])))
+    (is (= [:m]
+           (==>* [:- [] ['b ['b]]] {} opts-reduced)))
+
+    (is (= '((a (:x (b))))
+           (=>* [:- 'a [:x ['b]]])))
+    (is (= '[:fdna [a b] [:n :_ :_ :_ :u :u :_ :_ :i :_ :i :_ :m :m :m :m]]
+           (=>* [:- 'a [:x ['b]]] {} {:allow-value-holes? true})))
+    (is (= [:n :_ :_ :_ :u :u :_ :_ :i :_ :i :_ :m :m :m :m]
+           (==>* [:- 'a [:x ['b]]])))
+
+    (is (= '[:fdna [a] [:n :u :i :m]]
+           (=>* [:- 'a ['b ['b]]])
+           (=>* [:- 'a ['b ['b]]] {} {:pre-simplify? false})
+           (=>* [:- 'a ['b ['b]]] {} {:reduce-dna? false})))
+    (is (= '[:fdna [a b] [:n :n :n :n :u :u :u :u :i :i :i :i :m :m :m :m]]
+           (=>* [:- 'a ['b ['b]]] {} opts-unreduced)))
+    (is (= [:n :u :i :m]
+           (==>* [:- 'a ['b ['b]]] {} opts-reduced)
+           (==>* [:- 'a ['b ['b]]] {} {:pre-simplify? true})
+           (==>* [:- 'a ['b ['b]]] {} {:reduce-dna? true})))
+    (is (= [:n :n :n :n :u :u :u :u :i :i :i :i :m :m :m :m]
+           (==>* [:- 'a ['b ['b]]])))
+
+    (is (= '[:fdna [a c] [:n :u :i :m :u :u :m :m :i :m :i :m :m :m :m :m]]
+           (=>* [:- 'a ['b ['b]] 'c])))
+    (is (= [:n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :m
+            :u :u :m :m  :u :u :m :m  :u :u :m :m  :u :u :m :m
+            :i :m :i :m  :i :m :i :m  :i :m :i :m  :i :m :i :m
+            :m :m :m :m  :m :m :m :m  :m :m :m :m  :m :m :m :m]
+           (==>* [:- 'a ['b ['b]] 'c])))
+    (is (= [:n :u :i :m  :u :u :m :m  :i :m :i :m  :m :m :m :m]
+           (==>* [:- 'a ['b ['b]] 'c] {} opts-reduced)))
+    )
+  
   (testing "Correctness of returned combinatorial space"
-    (is (= [:fdna '() [:n]]
-           (=>* (make nil))))
+    (is (= :n
+           (=>* (make nil))
+           (=>* (make nil) {} opts-unreduced)))
+    (is (= [:n]
+           (==>* (make nil))
+           (==>* (make nil) {} opts-unreduced)))
 
     (is (= [:fdna '(a) [:n :u :i :m]]
-           (=>* (make 'a))))
+           (=>* (make 'a))
+           (=>* (make 'a) {} opts-unreduced)))
 
-    (is (= [:fdna '(a b) [:n :u :i :m
-                          :u :u :m :m
-                          :i :m :i :m
-                          :m :m :m :m]]
-           (=>* (make 'a 'b))))
+    (is (= [:n :u :i :m]
+           (==>* (make 'a))
+           (==>* (make 'a) {} opts-unreduced)))
+
+    (is (= [:fdna '(a b) [:n :u :i :m :u :u :m :m :i :m :i :m :m :m :m :m]]
+           (=>* (make 'a 'b))
+           (=>* (make 'a 'b) {} opts-unreduced)))
+
+    (is (= [:n :u :i :m :u :u :m :m :i :m :i :m :m :m :m :m]
+           (==>* (make 'a 'b) {} opts-unreduced)))
 
     (is (= [:fdna '(a b c)
             [:n :u :i :m  :u :u :m :m  :i :m :i :m  :m :m :m :m
@@ -739,45 +819,95 @@
            "[l e r]::3123121221213213311310321331321001231032230132103113121211113210"))))
 
 
+(deftest eval-tsds-test
+  (testing "Correct output shape"
+    (is (= [:i :m :m :m :m :m :m :m :m :m :m :m :m :m :m :m
+            :m :m :m :m :i :i :i :i :m :m :m :m :i :i :i :i
+            :m :m :m :m :m :m :m :m :i :u :i :u :u :u :u :u
+            :m :m :m :m :i :i :i :i :u :u :u :u :n :n :n :n]
+           (ts==>* 0 1 1 0 1 0)))))
+
+
 
 (deftest evaluate-test
-  (testing "Correct output format"
-    (is (= '{:result :n}
-           (evaluate [['x] [:n]])
-           (evaluate [['x] ['a]] {'a :n})))
-    (is (= '{:result x}
-           (evaluate [['x] [:m]])
-           (evaluate [['x] ['a]] {'a :m})))
-    (is (= '{:result ((x) (a))}
-           (evaluate [['x] ['a]])
-           (evaluate [:- [['x] ['a]] [[:seq-re :<r nil nil] 'a [:u]]])))))
+  (testing "Correct output shape"
+    (is (submap? '{:result :n, :simplified nil}
+                 (evaluate [['x] [:n]])
+                 (evaluate [['x] ['a]] {'a :n})))
+    (is (submap? '{:result :i, :simplified [:u] :env {}}
+                 (evaluate (form (seq-re :<r nil nil)))))
+    (is (submap? '{:result nil :simplified ((x) (:x)) :env {a :x}}
+                 (evaluate [['x] ['a]] {'a :x})))
+    (is (submap? '{:result nil :simplified ((x) (:x))}
+                 (evaluate [['x] [:x]])))
+    (is (submap? '{:result nil :simplified x}
+                 (evaluate [['x] [:m]])
+                 (evaluate [['x] ['a]] {'a :m})))
+    (is (submap? '{:result nil :simplified ((x) (a))}
+                 (evaluate [['x] ['a]])
+                 (evaluate [:- [['x] ['a]] [[:seq-re :<r nil nil] 'a [:u]]])))))
+
 
 (deftest eval-all-test
-  (testing "Correct output format"
-    (is (= '{:varorder [], :results ([[] :n])}
-           (eval-all [[:u] :u])))
-    (is (= '{:varorder ["apple"],
-             :results ([[:n] :n] [[:u] :n] [[:i] :i] [[:m] :i])}
+  (testing "Correct output shape"
+    (is (submap? '{:varorder [], :results {[] :n}}
+                 (eval-all [[:u] :u])))
+    (is (submap? '{:varorder ["apple"],
+                   :results {[:n] :n [:u] :n [:i] :i [:m] :i}}
            (eval-all [["apple"] :u])))
-    (is (= '{:varorder [a x],
-             :results ;; verified in FORM tricorder v1
-             ([[:n :n] :i]
-              [[:n :u] :i]
-              [[:n :i] :i]
-              [[:n :m] :i]
-              [[:u :n] :i]
-              [[:u :u] :m]
-              [[:u :i] :i]
-              [[:u :m] :m]
-              [[:i :n] :n]
-              [[:i :u] :n]
-              [[:i :i] :i]
-              [[:i :m] :i]
-              [[:m :n] :n]
-              [[:m :u] :u]
-              [[:m :i] :i]
-              [[:m :m] :m])}
-           (eval-all [:- [['x] ['a]] [:u 'a]])))))
+    (is (submap? '{:varorder [a x],
+                   :results ;; verified in FORM tricorder v1
+                   {[:n :n] :i [:n :u] :i [:n :i] :i [:n :m] :i
+                    [:u :n] :i [:u :u] :m [:u :i] :i [:u :m] :m
+                    [:i :n] :n [:i :u] :n [:i :i] :i [:i :m] :i
+                    [:m :n] :n [:m :u] :u [:m :i] :i [:m :m] :m}}
+                 (eval-all [:- [['x] ['a]] [:u 'a]])))
+    (is (submap? '{:varorder [a b],
+                   :results
+                   {[:u :m] nil, [:n :i] nil, [:n :u] nil, [:i :m] nil,
+                    [:n :n] :n, [:i :n] :i, [:m :m] :m, [:m :u] :m,
+                    [:u :i] nil, [:m :i] :m, [:i :i] :i, [:m :n] :m,
+                    [:n :m] nil, [:u :n] :u, [:u :u] :u, [:i :u] nil}}
+                 (eval-all [:- 'a [:x ['b]]])))
+    (is (submap? '{:varorder [a b],
+                   :results
+                   {[:u :m] :_, [:n :i] :_, [:n :u] :_, [:i :m] :_,
+                    [:n :n] :n, [:i :n] :i, [:m :m] :m, [:m :u] :m,
+                    [:u :i] :_, [:m :i] :m, [:i :i] :i, [:m :n] :m,
+                    [:n :m] :_, [:u :n] :u, [:u :u] :u, [:i :u] :_}}
+                 (eval-all [:- 'a [:x ['b]]] {} {:allow-value-holes? true})))
+    (is (submap? '{:varorder [a b],
+                   :results
+                   ([[:n :n] :n] [[:n :u] nil] [[:n :i] nil] [[:n :m] nil]
+                    [[:u :n] :u] [[:u :u] :u]  [[:u :i] nil] [[:u :m] nil]
+                    [[:i :n] :i] [[:i :u] nil] [[:i :i] :i]  [[:i :m] nil]
+                    [[:m :n] :m] [[:m :u] :m]  [[:m :i] :m]  [[:m :m] :m])}
+                 (eval-all [:- 'a [:x ['b]]] {} {:ordered-results? true})))
+    (is (submap? '{:varorder [a],
+                   :results
+                   {[:n] {:result nil, :simplified (:g),      :env {a :n}},
+                    [:u] {:result nil, :simplified (:u :g),   :env {a :u}},
+                    [:i] {:result nil, :simplified ([:u] :g), :env {a :i}},
+                    [:m] {:result :n,  :simplified nil,       :env {a :m}}}}
+                 (eval-all ['a :g] {} {:rich-results? true})))
+    (is (submap? '{:varorder [a],
+                   :results
+                   {[:n] {:result :_, :simplified (:g),      :env {a :n}},
+                    [:u] {:result :_, :simplified (:u :g),   :env {a :u}},
+                    [:i] {:result :_, :simplified ([:u] :g), :env {a :i}},
+                    [:m] {:result :n, :simplified nil,       :env {a :m}}}}
+                 (eval-all ['a :g] {} {:rich-results? true
+                                       :allow-value-holes? true})))
+
+    (is (submap? '{:varorder [a b],
+                   :results
+                   {[:n :n] :n, [:n :u] :n, [:n :i] :n, [:n :m] :n,
+                    [:u :n] :u, [:u :u] :u, [:u :i] :u, [:u :m] :u,
+                    [:i :n] :i, [:i :u] :i, [:i :i] :i, [:i :m] :i,
+                    [:m :n] :m, [:m :u] :m, [:m :i] :m, [:m :m] :m}}
+                 (eval-all [:- 'a ['b ['b]]])))
+    (is (submap? '{:varorder [a], :results {[:n] :n, [:u] :u, [:i] :i, [:m] :m}}
+                 (eval-all [:- 'a ['b ['b]]] {} {:pre-simplify? true})))))
 
 
 (deftest interpret-test

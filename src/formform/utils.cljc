@@ -212,6 +212,27 @@
     (mapv array-to-vector arr)
     arr))
 
+(defn submap?
+  "Returns true if m1 is a submap of m2 (all keys in m1 exist in m2 with the same values) and of any following input map."
+  ([m1 m2]
+   (= m1 (select-keys m2 (keys m1))))
+  ([m1 m2 & r]
+   (let [ks (keys m1)]
+     (apply = m1 (select-keys m2 ks) (map #(select-keys % ks) r)))))
+
+(comment
+  (= true (submap? {:a 1 :b 2} {:a 1 :b 2 :c 1}))
+
+  (= true (submap? {:a 1 :b 2}
+                   {:a 1 :b 2 :c 1}
+                   {:x "x" :a 1 0 nil :b 2}))
+  
+  (= false (submap? {:a 1 :b 2}
+                    {:a 5 :b 3 :c 1}))
+
+  (= false (submap? {:a 1 :b 2}
+                    {:a 1 :b 2 :c 1}
+                    {:x "x" :a 1 0 nil :b 1})))
 
 ;; RNG (random number generator) Wrapper
 

@@ -343,26 +343,6 @@
              overwrites))))
 
 
-;; (s/def ::tsds-selection
-;;   (s/coll-of #{0 1} :kind vector? :count 6))
-
-(s/fdef tsds-sel->dna
-  :args (s/cat :selection (s/coll-of #{0 1} :kind vector? :count 6))
-  :ret  ::calc-sp/dna)
-(defn tsds-sel->dna
-  "Convenience function that takes a 6-digit binary `selection` (as a vector) for a triple-selective decision system (TsDS) and returns the formDNA for the evaluated expression."
-  [selection]
-  (expr/op-get (expr/=>* (expr/make :tsds selection 'a 'b 'c)) :dna))
-
-(s/fdef exprs->dna
-  :args (s/* ::expr-sp/expression)
-  :ret  ::calc-sp/dna)
-(defn exprs->dna
-  "Convenience function that takes one or more `expressions` and returns the formDNA from their evaluation."
-  [& expressions]
-  (expr/op-get (expr/=>* (apply expr/make expressions)) :dna))
-
-
 (def ini-patterns
   "A collection of predefined patterns for use with `:figure` inis."
   {:ball
@@ -404,57 +384,60 @@
         l 'a, e 'b, r 'c]
     {:Mark1
      (selfi "Mark1"
-            (tsds-sel->dna [1 0 0 1 0 0]) ini-ball)
+            (expr/ts==>* 1 0 0 1 0 0) ini-ball)
      :StripesD100000
      (selfi "StripesD100000"
-            (tsds-sel->dna [1 0 0 0 0 0]) ini-rand)
+            (expr/ts==>* 1 0 0 0 0 0) ini-rand)
      :StripesL000100
      (selfi "StripesL000100"
-            (tsds-sel->dna [0 0 0 1 0 0]) ini-rand)
+            (expr/ts==>* 0 0 0 1 0 0) ini-rand)
      :Mono000101
      (selfi "Mono000101"
-            (tsds-sel->dna [0 0 0 1 0 1]) ini-rand)
+            (expr/ts==>* 0 0 0 1 0 1) ini-rand)
      :Rhythm101101
      (selfi "Rhythm101101"
-            (tsds-sel->dna [1 0 1 1 0 1]) ini-rand)
+            (expr/ts==>* 1 0 1 1 0 1) ini-rand)
      :NewSense
      (selfi "NewSense"
-            (tsds-sel->dna [1 1 0 1 0 0]) ini-rand)
+            (expr/ts==>* 1 1 0 1 0 0) ini-rand)
      :Slit
      (selfi "Slit"
-            (exprs->dna [[l] r] [[r] l]) ini-ball)
+            (expr/==>* [:- [[l] r] [[r] l]]) ini-ball)
      :xor4vRnd
      (selfi "xor4vRnd"
-            (exprs->dna [[l] r] [[r] l]) ini-rand)
+            (expr/==>* [:- [[l] r] [[r] l]]) ini-rand)
      :or4v
      (selfi "or4v"
-            (exprs->dna l r) ini-ball)
+            (expr/==>* [:- l r]) ini-ball)
      :xorReId
      (selfi "xorReId"
-            (exprs->dna (expr/seq-re :<r' l, r)
-                        (expr/seq-re :<r' r, l)) ini-ball)
+            (expr/==>* [:-
+                        (expr/seq-re :<r' l, r)
+                        (expr/seq-re :<r' r, l)]) ini-ball)
      :xorReIdRnd
      (selfi "xorReIdRnd"
-            (exprs->dna (expr/seq-re :<r' l, r)
-                        (expr/seq-re :<r' r, l)) ini-rand)
+            (expr/==>* [:-
+                        (expr/seq-re :<r' l, r)
+                        (expr/seq-re :<r' r, l)]) ini-rand)
      :Rule4v30
      (selfi "Rule4v30"
-            (exprs->dna [[l] e r] [[e] l] [[r] l]) ini-ball)
+            (expr/==>* [:- [[l] e r] [[e] l] [[r] l]]) ini-ball)
      :Rule4v111
      (selfi "Rule4v111"
-            (exprs->dna [[[l] e] r] [[[l] r] e] [[[e] r] l]) ini-ball)
+            (expr/==>* [:- [[[l] e] r] [[[l] r] e] [[[e] r] l]]) ini-ball)
      :Structure111Re
      (selfi "Structure111Re"
-            (tsds-sel->dna [1 0 1 1 0 0]) ini-ball)
+            (expr/ts==>* 1 0 1 1 0 0) ini-ball)
      :CoOneAnother
      (selfi "CoOneAnother"
-            (tsds-sel->dna [1 0 1 1 0 0]) ini-rand)
+            (expr/ts==>* 1 0 1 1 0 0) ini-rand)
      :Rule4v110
      (selfi "Rule4v110"
-            (exprs->dna [[e] r] [[r] e] [[r] l]) ini-ball)
+            (expr/==>* [:- [[e] r] [[r] e] [[r] l]]) ini-ball)
      :uniTuringReRnd
      (selfi "uniTuringReRnd"
-            (exprs->dna [[(tsds-sel->dna [1 0 1 1 0 0])] [l e r]]) ini-rand)}))
+            (expr/==>* [[(expr/ts==>* 1 0 1 1 0 0)] [l e r]])
+            ini-rand)}))
 
 
 (s/fdef ca-iterator

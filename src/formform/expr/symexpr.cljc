@@ -227,9 +227,13 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Core Symbols
 
-(defsymbol :n nil)
-(defsymbol :m [])
-(defsymbol :u [:seq-re :<r nil nil] :reducer (fn [u _] u)) ;; ! not DRY
+(def void  nil)
+(def mark  [])
+(def uform [:seq-re :<r nil nil])
+
+(defsymbol :n void)
+(defsymbol :m mark)
+(defsymbol :u uform :reducer (fn [u _] u))
 (defsymbol :i [:u])
 
 (defsymbol :0 :n)
@@ -239,10 +243,16 @@
 
 (defsymbol :mn :u)
 
-(def expr->const {nil                     :n
-                  []                      :m
-                  [:seq-re :<r nil nil]   :u
-                  [[:seq-re :<r nil nil]] :i
-                  [:u]                    :i})
+;; simplest possible expression -> constant
+(def expr->const {void    :n
+                  mark    :m
+                  uform   :u
+                  [uform] :i
+                  [:u]    :i
+
+                  :n :n
+                  :m :m
+                  :u :u
+                  :i :i})
 
 

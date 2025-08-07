@@ -99,7 +99,7 @@
 ;; Here is a _mindFORM_ whose rule acts on the results of the familiar _Slit_ expression and whose initialization looks like the _“ball”_ ini you may know from _uFORM iFORM_ (`:i :u :m :u :i`), but translated into 2D:
 
 (def slit2d-spec
-  (make-mindform (exprs->dna '[[a] b] '[[b] a])
+  (make-mindform (expr/==>* '[:- [[a] b] [[b] a]])
                  (make-ini :figure :n (ini-patterns :ball2d) :center)))
 
 ;; By the way, you can find useful ini patterns, among them the familiar 1D-“ball” pattern, in `ini-patterns`:
@@ -119,7 +119,7 @@ ini-patterns
 
 ^{::clerk/viewer viewer-ca2d
   ::clerk/render-opts {:formform/cellsize 6}}
-(ca-iterator slit2d-spec [23 23] 25)
+(ca-iterator slit2d-spec [23 23] 8)
 
 ;; Did you notice that `make-mindform` doesn’t take the input expression itself, but its _formDNA_? Let’s explore how `formform.emul` uses it as a ruleset.
 
@@ -127,9 +127,9 @@ ini-patterns
 
 ;; If you haven’t encountered _formDNA_ before in _formform_, it is essentially a value structure that acts like an (implicit/abstract) lookup-table between all possible inputs for the expression and their corresponding result.
 
-;; When you evaluate any FORM expression using `formform.expr/=>*`, you will get a _formDNA expression_, which wraps the actual _formDNA_ data. Using `formform.expr/op-get`, we can extract it, but the `exprs->dna` function makes it more convenient:
+;; When you evaluate any FORM expression using `formform.expr/=>*`, you will get a _formDNA expression_, which wraps the actual _formDNA_ data. Using `formform.expr/op-get`, we can extract it, but the `expr/eval->val-all` (short: `eval/==>*`) function makes it more convenient:
 
-(def dna-slit (exprs->dna '[[a] b] '[[b] a]))
+(def dna-slit (expr/==>* '[:- [[a] b] [[b] a]]))
 
 ;; In graphical form:
 
@@ -137,10 +137,10 @@ ini-patterns
   ::clerk/viewer viewer-vrow}
 dna-slit
 
-;; Here is the _formDNA_ from _CoOneAnother_, which we can get directly from the binary selection of its _triple-selective decision system_ (see _uFORM iFORM_), using `tsds-sel->dna`:
+;; Here is the _formDNA_ from _CoOneAnother_, which we can get directly from the binary selection of its _triple-selective decision system_ (see _uFORM iFORM_), using `eval-tsds->val-all` (short: `ts==>*`):
 
 ^{::clerk/viewer viewer-vrow}
-(def dna-coa (tsds-sel->dna [1 0 1 1 0 0]))
+(def dna-coa (expr/ts==>* 1 0 1 1 0 0))
 
 ;; > Hmmm… a part of this pattern seems familiar. I’ll leave the interpretation to the reader as it doesn’t fit the scope of this introduction. (:
 
@@ -406,26 +406,26 @@ dna-slit
 
 (def lifeform-clustered
   (make-lifeform
-   (tsds-sel->dna [1 0 1 1 0 0])
+   (expr/ts==>* 1 0 1 1 0 0)
    {:overwrites {:ini-spec (make-ini :figure-repeat {:weights 0.2}
                                      :n (fill-rect 7 7 :?)
                                      :center [2 2] [5 5])}}))
 
 ^{::clerk/viewer viewer-ca2d
   ::clerk/render-opts {:formform/cellsize 3 :formform/grid-px 0}}
-(ca-iterator lifeform-clustered [35 35] 18)
+(ca-iterator lifeform-clustered [35 35] 6)
 
 ;; For entirely new creations, `specify-ca` lets you define a CA specification from scratch:
 
 (def crossform-ca
   (specify-ca {:ini-spec (make-ini :random {:weights 0.05})
-               :rule-spec (make-rule :match (exprs->dna '[a [b [c [d]]]]))
+               :rule-spec (make-rule :match (expr/==>* '[a [b [c [d]]]]))
                :umwelt-spec (make-umwelt :von-neumann :row-first false)}
               "crossFORM"))
 
 ^{::clerk/viewer viewer-ca2d
   ::clerk/render-opts {:formform/cellsize 3 :formform/grid-px 0}}
-(ca-iterator crossform-ca [35 35] 12)
+(ca-iterator crossform-ca [35 35] 6)
 
 ;; > Note: since there just a few predefined umwelt- and rule-specs right now and they work best in specific combinations, variation in CA specifications is very limited. However, you can extend formform.emul with your own ini-, rule- or umwelt-types via `defini`, `defumwelt` and `defrule`. This is beyond the scope of this introduction; take a look at the docs for these macros to learn more.
 

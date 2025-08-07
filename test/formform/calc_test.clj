@@ -26,7 +26,8 @@
   (testing "Content validity"
     (is (dna? [:n :u :u :m]))
     (is (not (dna? :nuum)))
-    (is (not (dna? [:_])))
+    ;; ! dna can now have holes -> need to reassess
+    ;; (is (not (dna? [:_])))
     (is (not (dna? [:n :a :i :m])))
     (is (not (dna? [0 1 2 3])))
     (is (not (dna? ["n"]))))

@@ -62,8 +62,10 @@
 ;; ? necessary
 (s/def ::dna-count #(some? (core/dna-dimension %)))
 
+;; ! check if holes should be part of the spec, or rather something like ::dna?
 (s/def ::dna
-  (s/and (s/coll-of core/consts
+  (s/and (s/coll-of (s/or :const ::const
+                          :hole  ::var-const)
                     :kind sequential?
                     :min-count 1)
          (comp (partial s/valid? ::dna-length)
@@ -131,8 +133,8 @@
 
 (s/def ::vdict
   (s/and map?
-         #(s/valid? ::vspace (keys %))
-         #(s/valid? ::dna    (vals %))))
+         #(s/valid? ::vspace  (keys %))
+         #(s/valid? ::dna-seq (vals %))))
 
 ;;-------------------------------------------------------------------------
 ;; vmap

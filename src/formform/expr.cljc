@@ -221,8 +221,15 @@
   [n]
   (core/gen-vars n))
 
+;; ? do we need this function
 (defn expr->const
-  "Given an expression, returns the corresponding constant value."
+  "Returns the constant value/expression that corresponds to its simplest (as per `simplify`) input `expr` (including itself):  
+      nil                     → :n
+      []                      → :m
+      [:seq-re :<r nil nil]   → :u
+      [[:seq-re :<r nil nil]] → :i
+      [:u]                    → :i
+  "
   [expr]
   (symx/expr->const expr))
 
@@ -415,6 +422,11 @@
   [fdna]
   (ops/formDNA-perspectives fdna))
 
+#_
+(defn dna->expr
+  [dna]
+  (make :fdna (gen-vars (calc/dna-dimension dna)) dna))
+
 
 ;;=========================================================================
 ;; Compound Expressions
@@ -453,22 +465,28 @@
 ;;-------------------------------------------------------------------------
 ;; Compare expressions
 
+;; ! check if correct
 (s/fdef equal
   :args (s/* ::sp/expression)
   :ret  boolean?)
 (defn equal
   "Equality check for expressions. Two expressions are considered equal, if their formDNAs are equal. Compares formDNAs from evaluation results of each expression by calling `calc/equal-dna`.
 
+  WARNING: Procedure and assumptions are being reassessed. Use with caution!
+
   * ordering of variable names in formDNA matters, see `find-vars`
   * stricter than `equiv`, which compares by `calc/equiv-dna`"
   [& exprs]
   (apply core/equal exprs))
 
+;; ! check if correct
 (s/fdef equiv
   :args (s/* ::sp/expression)
   :ret  boolean?)
 (defn equiv
   "Equivalence check for expressions. Two expressions are considered equivalent, if their formDNAs are equivalent. Compares formDNAs from evaluation results of each expression by calling `calc/equiv-dna`.
+
+  WARNING: Procedure and assumptions are being reassessed. Use with caution!
 
   * ordering of variable names in formDNA is irrelevant
   * looser than `equal`, which compares by `calc/equal-dna`
@@ -658,36 +676,97 @@
   :args (s/alt :ar1 (s/cat :expr ::sp/expression)
                :ar2 (s/cat :expr ::sp/expression
                            :env  ::sp/environment))
-  :ret  ::calc-sp/const?)
+  :ret  ::sp/expression)
 (defn eval->expr
-  "Evaluates a FORM `expr` with an optional `env` and returns a constant expression or an uninterpretable “value hole” `:_` (in case a value cannot be determined).  
-  * `env` must be a map from variables to expressions
-
-  Note: the function `evaluate` yields equivalent results to this one, but returns the simplified expression instead of a hole for uninterpretable values."
+  "Evaluates a FORM `expr` with an optional `env` and returns an expression: either a constant or the simplified input expression, if it could not be determined to a value.  
+  * `env` must be a map from variables to expressions"
   ([expr] (core/=> expr))
   ([expr env] (core/=> expr env)))
 (def => eval->expr)
 
-;; ? remove in impl
+
+(s/def :opts/allow-value-holes? boolean?)
+(s/def :opts/reduce-dna? boolean?)
+(s/def :opts/pre-simplify? boolean?)
+(s/def :opts/ordered-results? boolean?)
+(s/def :opts/rich-results? boolean?)
+
 (s/fdef eval->expr-all
   :args (s/alt :ar1 (s/cat :expr ::sp/expression)
                :ar2 (s/cat :expr ::sp/expression
                            :env  ::sp/environment)
                :ar3 (s/cat :expr ::sp/expression
                            :env  ::sp/environment
-                           :opts (s/keys :opt-un [::sp/varorder])))
-  :ret  ::sp/formDNA)
+                           :opts (s/keys :opt-un [::sp/varorder
+                                                  :opts/allow-value-holes?
+                                                  :opts/reduce-dna?
+                                                  :opts/pre-simplify?])))
+  :ret  ::sp/expression)
 (defn eval->expr-all
-  "Like `eval->expr`, but evaluates all possible interpretations of any occurring variable in the `expr` and returns a formDNA expression.  
+  "Like `eval->expr`, but evaluates all possible interpretations of any occurring variable in the `expr`. Returns an expression: either a constant, a formDNA expression (which collects all interpretation results) or the simplified input expression, if it could not be determined to a value in any of its interpretations.  
   * `env` must be a map from variables to expressions
 
-  An `opts` map can be provided with a `:varorder` entry to set the variable interpretation order for the resulting formDNA.
-
-  Note: the function `eval-all` returns equivalent results to this one, but in a more human-readable format."
-  ([expr] (core/=>* expr))
-  ([expr env] (core/=>* expr env))
-  ([expr env opts] (core/=>* opts expr env)))
+  An `opts` map can be provided with the following keys:
+  * `:varorder` → sets the variable interpretation order for the resulting formDNA
+  * `:allow-value-holes?` → (default: `false`) sets a “value hole” (`:_`) in place of an uninterpretable result
+  * `:pre-simplify?` → (default: `true`) simplifies the expression before interpretation, which might reduce terms and therefore evaluation time
+  * `:reduce-dna?` → (default: `true`) if result is a formDNA expression which can be reduced to fewer terms, reduces it to further simplify the output"
+  ([expr] (core/=>* expr {} {}))
+  ([expr env] (core/=>* expr env {}))
+  ([expr env opts] (core/=>* expr env opts)))
 (def =>* eval->expr-all)
+
+
+(s/fdef eval->val
+  :args (s/alt :ar1 (s/cat :expr ::sp/expression)
+               :ar2 (s/cat :expr ::sp/expression
+                           :env  ::sp/environment))
+  :ret  ::calc-sp/const?)
+(defn eval->val
+  "Evaluates a FORM `expr` with an optional `env` and returns a value: either a constant or a “value hole” `:_` (in case a value cannot be determined, which usually happens when variables remain uninterpreted).  
+  * `env` must be a map from variables to expressions"
+  ([expr] (core/==> expr))
+  ([expr env] (core/==> expr env)))
+(def ==> eval->val)
+
+(s/fdef eval->val-all
+  :args (s/alt :ar1 (s/cat :expr ::sp/expression)
+               :ar2 (s/cat :expr ::sp/expression
+                           :env  ::sp/environment)
+               :ar3 (s/cat :expr ::sp/expression
+                           :env  ::sp/environment
+                           :opts (s/keys :opt-un [::sp/varorder
+                                                  :opts/reduce-dna?
+                                                  :opts/pre-simplify?])))
+  :ret  ::calc-sp/dna)
+(defn eval->val-all
+  "Like `eval->val`, but evaluates all possible interpretations of any occurring variable in the `expr`. Returns a complex value called formDNA, which collects all interpretation results.
+  * `env` must be a map from variables to expressions
+
+  Note: interpretation results might (in very rare cases) include “value holes” `:_`, if a value cannot be determined. This applies to unregistered symbols (like `:pie`) or uninterpretable results from custom, user-defined operators. To avoid holes, wrap them in unclear FORMs, e.g. `(make :uncl :pie)`.
+
+  An `opts` map can be provided with the following keys:
+  * `:varorder` → sets the variable interpretation order for the resulting formDNA
+  * `:pre-simplify?` → (default: `false`) simplifies the expression before interpretation, which might reduce terms and therefore evaluation time
+  * `:reduce-dna?` → (default: `false`) if result is a formDNA expression which can be reduced to fewer terms, reduces it to further simplify the output"
+  ([expr] (core/==>* expr {} {}))
+  ([expr env] (core/==>* expr env {}))
+  ([expr env opts] (core/==>* expr env opts)))
+(def ==>* eval->val-all)
+
+
+(s/fdef eval-tsds->val-all
+  :args (s/& (s/* #{0 1}) #(== (count %) 6))
+  :ret  ::calc-sp/dna)
+(defn eval-tsds->val-all
+  "Convenience function that takes a 6-digit binary `selection` (as a vector) for a triple-selective decision system (TsDS) and returns the formDNA for the (as by `eval->val-all`) evaluated expression.
+
+  Note: contrary to `eval->val-all`, the resulting formDNA does not get reduced."
+  [& selection]
+  (core/==>* (make :tsds (vec selection) 'a 'b 'c)
+             {} {:opts/reduce-dna? false :opts/pre-simplify? false}))
+(def ts==>* eval-tsds->val-all)
+
 
 (s/def :evaluate/result (s/or :const ::calc-sp/const
                               :expr  ::sp/expression))
@@ -698,27 +777,26 @@
                            :env  ::sp/environment))
   :ret  (s/keys :req-un [:evaluate/result]))
 (defn evaluate
-  "Evaluates a FORM `expr` with an optional `env` and returns a map with a `:result` entry that is either a constant or the simplified expression, if it could not be determined to a value.  
-  * `env` must be a map from variables to expressions
-  * attaches metadata to the result that always includes the simplified expression
+  "Evaluates a FORM `expr` with an optional `env` and returns a map with a `:result` entry that is either a constant or `nil`, if it could not be determined to a value. It also contains a `:simplified` entry with the simplified expression.  
+  * `env` must be a map from variables to expressions"
+  ([expr] (core/evaluate expr {}))
+  ([expr env] (core/evaluate expr env)))
 
-  Note: the function `eval->expr` yields equivalent results to this one, but always returns a value, so uninterpretable values are just “holes” `:_` that stand for any constant."
-  ([expr] (evaluate expr {}))
-  ([expr env]
-   (let [res (core/eval-simplified expr env)
-         v   (let [v (:val res)]
-               (if (= :_ v)
-                 (:expr res)
-                 v))]
-     (with-meta {:result v} res))))
 
 (s/def :eval-all/results
-  (s/and (s/coll-of
-          (s/cat :interpretation (s/coll-of ::calc-sp/const
-                                            :kind sequential?)
-                 :result         ::calc-sp/const)
-          :kind sequential?)
-         ::calc-sp/dna-count))
+  (let [interpr-spec ::calc-sp/vpoint
+        result-spec  (s/or :const ::calc-sp/const
+                           :hole  ::calc-sp/var-const
+                           :none  nil?
+                           :map   (s/keys :req-un [:evaluate/result]))]
+    (s/or :unordered-map?
+          (s/and (s/map-of interpr-spec result-spec)
+                 ::calc-sp/dna-count)
+          :ordered-seq?
+          (s/and (s/coll-of (s/cat :interpretation interpr-spec
+                                   :result         result-spec)
+                            :kind sequential?)
+                 ::calc-sp/dna-count))))
 
 (s/fdef eval-all
   :args (s/alt :ar1 (s/cat :expr ::sp/expression)
@@ -726,29 +804,29 @@
                            :env  ::sp/environment)
                :ar3 (s/cat :expr ::sp/expression
                            :env  ::sp/environment
-                           :opts (s/keys :opt-un [::sp/varorder])))
+                           :opts (s/keys :opt-un [::sp/varorder
+                                                  :opts/ordered-results?
+                                                  :opts/allow-value-holes?
+                                                  :opts/pre-simplify?
+                                                  :opts/rich-results?])))
   :ret  (s/keys :req-un [::sp/varorder :eval-all/results]))
 (defn eval-all
   "Like `evaluate`, but evaluates all possible interpretations of any occurring variable in the `expr`, with an optional `env`.  
   * `env` must be a map from variables to expressions
 
   Returns a map with the following entries:  
-  * `:results` → sequence of `[<interpretation> <result>]` tuples, think of it as a kind of value table
+  * `:results` → map (or seq. if `:ordered-results?`) of `<interpretation> <result>` entries (with `result` like in `evaluate`), think of it as a kind of value table
   * `:varorder` → the reading order of variable interpretations
 
-  An `opts` map can be provided with a `:varorder` entry to set a custom variable interpretation order.
-
-  Note: the function `eval->expr-all` returns equivalent results to this one, but as a formDNA expression."
-  ([expr] (eval-all expr {} {}))
-  ([expr env] (eval-all expr env {}))
-  ([expr env opts]
-   (let [{:keys [varorder results] :as res}
-         (core/eval-simplified* (merge opts {:only-vals? false}) expr env)
-         vdict (map #(vector (mapv (:env %) varorder)
-                             (:val %))
-                    results)]
-     ;; ? metadata really required
-     (with-meta {:varorder varorder :results vdict} res))))
+  An `opts` map can be provided with the following keys:
+  * `:varorder` → sets the variable interpretation order for the results
+  * `:ordered-results?` → returns a sequence of ordered results instead of a map
+  * `:rich-results?` → each results value will be a map as if returned by `evaluate`
+  * `:pre-simplify?` → (default: `false`) simplifies the expression before interpretation, which might reduce terms and therefore evaluation time
+  * `:allow-value-holes?` → (default: `false`) sets a “value hole” (`:_`) in place of `nil` for an uninterpretable result"
+  ([expr] (core/eval-all expr {} {}))
+  ([expr env] (core/eval-all expr env {}))
+  ([expr env opts] (core/eval-all expr env opts)))
 
 
 ;; Exclude all multimethods
@@ -771,6 +849,36 @@
 
 
 (comment
+  (=> ['a])
+  (=>* [])
+
+  (==> ['a])
+  (==>* [])
+
+  (eval-all [:mem [['a ['a]]] 'a])
+  ;; => [:fdna [a] [:m :i :u :n]]
+  (simplify [:mem [['a ['a]]] 'a])
+
+  (meta (evaluate ['a [['a]]]))
+
+  (require '[formform.calc :as calc])
+
+  (map (fn [vars vv]
+         (->> (apply hash-map (interleave vars vv))
+              (simplify '[a [b]])))
+       (repeat ['a 'b])
+       (calc/vspace 2))
+
+  ,)
+
+(comment
+
+  (make :uncl "hey")
+  (==>* ['a (make :uncl :g)])
+
+  ,)
+
+(comment
   ;; ? should `::sp/expression` spec `::sp/operator` instead of `::sp/generic-operator`
   (s/conform ::sp/expression [:uncl "ä"]) ;=> [:operator {:tag :uncl, :label "ä"}]
 
@@ -785,4 +893,39 @@
   (s/valid? ::sp/operator (seq-re {} nil))
   (seq-reentry-opts->sign {})
   (seq-reentry-sign->opts :<r))
+
+(comment
+
+  (s/conform :eval-all/results
+             (:results
+              (eval-all [:- 'a [:x ['b]]] {} {:allow-value-holes? true})))
+
+  (s/conform :eval-all/results
+             (:results
+              (eval-all [:- 'a [:x ['b]]] {} {:allow-value-holes? true
+                                              :rich-results? true})))
+
+  (s/conform :eval-all/results
+             (:results
+              (eval-all [:- 'a [:x ['b]]] {} {:allow-value-holes? true
+                                              :ordered-results? true})))
+
+  (s/conform :eval-all/results
+             (:results (eval-all [:- 'a [['b]]])))
+
+    (s/conform :eval-all/results
+             (:results (eval-all [:- 'a [['b]]]
+                                 {} {:ordered-results? true})))
+
+  (s/conform :eval-all/results
+             (:results
+              (eval-all [:- 'a [:x ['b]]] {} {:allow-value-holes? true})))
+
+  (s/conform :eval-all/results
+             (:results (eval-all [:- 'a [:x ['b]]])))
+
+  (s/conform :eval-all/results
+             (:results (eval-all [:- 'a [['b]]])))
+
+  )
 

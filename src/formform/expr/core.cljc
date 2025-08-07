@@ -370,7 +370,7 @@
                      :u   :u
                      [:u] :i
                      calc/var-const)]
-    {:expr simpl-expr
+    {:simplified simpl-expr
      :env env
      :val result}))
 
@@ -381,39 +381,126 @@
 ;; ? remove `reverse-results?` bc formDNA no longer reversed
 ;;   -> maybe a more general sort-code option
 (defn eval-simplified*
-  [{:keys [varorder only-vals? reverse-results?]} expr global-env]
-  (let [vars (if (nil? varorder) (find-vars expr {:ordered? true}) varorder)
-        vspc (calc/vspace (if reverse-results?
-                            nuim-code-reversed
-                            calc/nuim-code)
-                          (count vars))
+  [expr global-env
+   {:keys [varorder only-vals? reduce-dna? pre-simplify? sort-code]
+    :or {sort-code calc/nuim-code}}]
+  (let [simpl-expr (if pre-simplify? (cnt> expr global-env) expr)
+        vars (if (nil? varorder)
+               (find-vars simpl-expr {:ordered? true})
+               varorder)
+        vspc (calc/vspace sort-code (count vars))
         envs (mapv (comp (partial merge global-env)
                          (partial apply hash-map)
                          (partial interleave vars)) vspc)
         results (mapv (if only-vals?
-                        (comp :val (partial eval-simplified expr))
-                        (partial eval-simplified expr)) envs)]
-    {:varorder (vec vars)
+                        ;; only-vals -> dna (possibly with holes)
+                        (comp :val (partial eval-simplified simpl-expr))
+                        ;; otherwise -> vector of maps
+                        (partial eval-simplified simpl-expr))
+                      envs)
+        [varorder results] (if (and only-vals? reduce-dna?)
+                             (calc/reduce-dna-seq (vec vars) results)
+                             [(vec vars) results])]
+    {:varorder varorder
      :vspace vspc
+     :simplified simpl-expr
      :results results}))
 
 ;; (defn calc*
 ;;   [expr])
 
+;; eval to expression
+
 (defn =>
   ([expr] (=> expr {}))
   ([expr env]
-   (:val (eval-simplified expr env))))
+   (let [{:keys [simplified val]} (eval-simplified expr env)]
+     (if (= calc/var-const val)
+       simplified
+       val))))
 
 (defn =>*
   ([expr] (=>* expr {}))
-  ([expr env] (=>* {} expr env))
-  ([opts expr env]
-   (let [{:keys [varorder results]}
-         (eval-simplified*
-          (merge opts {:only-vals? true}) expr env)]
-     [tag_formDNA varorder results])))
+  ([expr env] (=>* expr env {}))
+  ([expr env {:keys [allow-value-holes?] :as opts}]
+   (let [{:keys [varorder results simplified]}
+         (eval-simplified* expr env
+                           (merge {:pre-simplify? true
+                                   :reduce-dna? true}
+                                  opts
+                                  {:only-vals? true}))]
+     (cond
+       ;; if results contain holes -> return simplified expression
+       (and (not allow-value-holes?)
+            (some #{:_} results)) simplified
+       ;; if there is just one result -> return simple value
+       (== (count results) 1) (first results)
+       ;; otherwise -> return results as a formDNA expression
+       :else [tag_formDNA varorder results]))))
 
+;; eval to value
+
+(defn ==>
+  ([expr] (==> expr {}))
+  ([expr env]
+   (:val (eval-simplified expr env))))
+
+(defn ==>*
+  ([expr] (==>* expr {}))
+  ([expr env] (==>* {} expr env))
+  ([expr env opts]
+   (:results
+    (eval-simplified* expr env
+                      (merge {:pre-simplify? false
+                              :reduce-dna? false}
+                             opts
+                             {:only-vals? true})))))
+
+
+;; eval to data
+
+(defn evaluate
+  [expr env]
+  (let [{:keys [val simplified env]} (eval-simplified expr env)]
+    {:result (when-not (= :_ val) val)
+     :simplified simplified
+     :env env}))
+
+(defn eval-all
+  [expr env
+   {:keys [ordered-results? allow-value-holes? rich-results?] :as opts}]
+  (let [{:keys [varorder
+                results]} (eval-simplified*
+                           expr env (merge opts
+                                           {:only-vals? false
+                                            :reduce-dna? false}))
+        vdict (mapv (fn [{:keys [val env simplified]}]
+                      (let [result (when-not (and (= val :_)
+                                                  (not allow-value-holes?))
+                                     val)]
+                        (vector (mapv env varorder)
+                                (if rich-results?
+                                  {:result result
+                                   :simplified simplified
+                                   :env env}
+                                  result))))
+                    results)]
+    {:varorder varorder :results (if ordered-results?
+                                   vdict
+                                   (into {} vdict))}))
+
+
+;; compare expressions
+
+(defn equal
+  [& exprs]
+  (let [varlists (mapv #(find-vars % {:ordered? true}) exprs)
+        dnas     (mapv #(==>* % {} {:pre-simplify? false :reduce-dna? false})
+                       exprs)]
+    (and (apply = varlists)
+         (apply calc/equal-dna dnas))))
+
+#_
 (defn equal
   [& exprs]
   (let [data     (map (comp symx/op-data =>*) exprs)
@@ -424,7 +511,20 @@
 
 (defn equiv
   [& exprs]
+  (apply calc/equiv-dna
+         (mapv #(==>* % {} {:pre-simplify? false :reduce-dna? false})
+               exprs)))
+
+#_
+(defn equiv
+  [& exprs]
   (apply calc/equiv-dna (map (comp #(symx/op-get % :dna) =>*) exprs)))
+
+
+(comment
+  (false? (equal ['a ['b]] ['a ['b] ['c ['c]]]))
+  (true? (equiv ['a ['b]] ['a ['b] ['c ['c]]]))
+  ,)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -315,6 +315,9 @@
                  (set/subset? #{:l :e :r} (symx/op-data %))))
 
 ;; Triple-selective decision system (see p. 90 (appendix) in uFORM iFORM)
+;; ! implement reducer for simple cases (only variables or simple exprs)
+;;   that looks up precalculated results instead of interpreting the symexpr
+;; ? maybe there can be calc/tsds-sel->dna for those cases
 (defoperator :tsds [selection l e r]
   (->> [[l e r] [r e l] [e r l] [l r e] [r l e] [e l r]]
        (mapv (fn [b exprs] (when-not (zero? b)
@@ -529,9 +532,9 @@
   (core/=>* ['a 'b])
   (core/=>* ['a 'b [:fdna ['c] [:n :u :i :m]]])
 
-  (core/=>* {:varorder ['l 'e 'r]}
-            (make (seq-re :<r 'l 'e 'r)
-                  (seq-re :<r 'l 'r 'e)) {})
+  (core/=>* (make (seq-re :<r 'l 'e 'r)
+                  (seq-re :<r 'l 'r 'e))
+            {} {:varorder ['l 'e 'r]})
 
   (defoperator :x5 [x] (repeat 5 x))
   (defoperator :xn [n x] (repeat n x))

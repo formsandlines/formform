@@ -16,10 +16,11 @@ All notable changes to this project will be documented in this file. This change
 - `nuim-code` and `nmui-code` definitions in the API for convenience
 - `rand-const`, `rand-dna` and `rand-vpoint` can now all take a seed for reproducability in randomization
 - Added `rand-const-weighted`, `rand-dna-weighted` and `rand-vpoint-weighted` variants, which take a weights argument for uneven probability in random constant generation
+- `eval→val`/`==>` and `eval→val-all`/`==>*` are two new functions in the `expr` module. The former only returns simple values, including “holes” `:_`. The latter returns only complex values, i.e. raw formDNA (possibly with holes). In essence, they return output that can be processed by functions in the `calc` as well as the new `emul` module.
+- `eval-tsds->val-all` behaves just like `==>*`, but takes a 6-digit binary selection for a TsDS expr., which is especially convenient for `emul` functions
 
 ### Changed
 
-- `=>*` aka `eval->expr-all` does now return formDNA as a proper vector that is already reversed at creation-time instead of adding performance cost with an `rseq`
 - Changed constant/formDNA to lowercase in FORMula notation as well as in formform syntax. It is now much more pleasent to read than with uppercase and more aligned with the conventions in mathematical texts such as uFORM iFORM and LoF, which was the primary reason for this breaking change. Please also read about the change to formDNA notation below that went along with this one.
 - Reversed the order of formDNA, which now reads left-to-right instead of right-to-left. The main reason for this change is to make formDNA more intuitive in reading and writing and reduce the mental load to reverse the order in your head. I apologize for this breaking change if you were already using formDNA; there will most certainly be no further changes to the notation. It went along with the new lowercase convention for constants, so that your existing formDNA data will not suddenly become incorrect and instead throws an exception, so you can safely make the transition. 
 - Removed 0-arity in `rand-vpoint` because the new random functions don’t return an infinite lazy seq (I believe that has never been useful anyway).
@@ -28,6 +29,9 @@ All notable changes to this project will be documented in this file. This change
 - `expr/nest-exprs` is deprecated to be replaced by `expr/form-nested-l`, `expr/form-nested-r` (l/r distinguishes the nesting direction) and `expr/make-nested-l`, `expr/make-nested-r` (the “unmarked” variants), again to avoid the need for an options map.
 - `expr/simplify-expr-chain` is deprecated to be replaced by `expr/simplify-nested-l` and `expr/simplify-nested-r` (l/r distinguishes, again, the nesting direction). This is in line with the change above.
 - `expr/eval->expr-all` (alias `expr/=>*`), `expr/eval-all`, `calc/permute-dna`, `calc/dna-perspectives`, `calc/vdict` and `calc/dna->vdict` now take `opts` as their last argument instead of the first one. This is to make argument order of the options map consistent with other functions in formform and with the convention in the Clojure community.
+- `expr/eval→expr` / `expr/=>` now returns the simplified expression instead of a hole `:_` for uninterpretable input (such as unregistered symbols or uninterpreted variables). Likewise, `expr/eval→expr-all` / `expr/=>*` returns the pre-simplified, uninterpreted expression if it could not be determined to a value in any of its interpretations. It will also just return simple values instead of wrapping them in a formDNA expr. There are some new options explained in the docstring.
+- `evaluate` now separates output values in `:result` and the simplified expression in `:simplified`. The result is now `nil` if it could not be determined to a value. `eval-all` now by default returns a map for `:results` instead of a seq (the option `:ordered-results?` can switch it back if order matters). Results are value constants or `nil`. Additional options are explained in the docstring.
+
 
 ### Fixed
 

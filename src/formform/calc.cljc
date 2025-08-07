@@ -348,6 +348,7 @@
   Note: `dna-seq` can have any type of elements (not only constants)"
   ([dna-seq]
    (core/reduce-dna-seq dna-seq))
+  ;; ! maybe terms last in arg list
   ([terms dna-seq]
    (core/reduce-dna-seq terms dna-seq)))
 
