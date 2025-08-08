@@ -266,7 +266,7 @@
 
 (evaluate [[]])
 
-;; If the simplified expression cannot be determined to a constant, it will be returned as is:
+;; Notice that `evaluate` also gives us the simplified expression. This is especially useful when it cannot be determined to a single value:
 
 (evaluate [:uncl "love"])
 
@@ -274,10 +274,12 @@
 
 (evaluate [:uncl "love"] {"love" :m})
 
-;; Or you can use `eval-all` to evaluate the expression with all possible interpretation of all variables. The `:results` are provided as key-value pairs, where the key is a list of interpretations for each variable in the order specified by `:varorder`.
+;; Or you can use `eval-all` to evaluate the expression with all possible interpretations for all variables. The `:results` are provided as tuples, where the first item is a list of interpretations for each variable in the order specified by `:varorder`.
 
+^{::clerk/auto-expand-results? true}
 (eval-all [:uncl "love"])
 
+^{::clerk/auto-expand-results? true}
 (eval-all [['a] 'b])
 
 

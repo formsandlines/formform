@@ -688,7 +688,6 @@
 (s/def :opts/allow-value-holes? boolean?)
 (s/def :opts/reduce-dna? boolean?)
 (s/def :opts/pre-simplify? boolean?)
-(s/def :opts/ordered-results? boolean?)
 (s/def :opts/rich-results? boolean?)
 
 (s/fdef eval->expr-all
@@ -789,14 +788,10 @@
                            :hole  ::calc-sp/var-const
                            :none  nil?
                            :map   (s/keys :req-un [:evaluate/result]))]
-    (s/or :unordered-map?
-          (s/and (s/map-of interpr-spec result-spec)
-                 ::calc-sp/dna-count)
-          :ordered-seq?
-          (s/and (s/coll-of (s/cat :interpretation interpr-spec
-                                   :result         result-spec)
-                            :kind sequential?)
-                 ::calc-sp/dna-count))))
+    (s/and (s/coll-of (s/cat :interpretation interpr-spec
+                             :result         result-spec)
+                      :kind sequential?)
+           ::calc-sp/dna-count)))
 
 (s/fdef eval-all
   :args (s/alt :ar1 (s/cat :expr ::sp/expression)
@@ -805,7 +800,6 @@
                :ar3 (s/cat :expr ::sp/expression
                            :env  ::sp/environment
                            :opts (s/keys :opt-un [::sp/varorder
-                                                  :opts/ordered-results?
                                                   :opts/allow-value-holes?
                                                   :opts/pre-simplify?
                                                   :opts/rich-results?])))
@@ -815,12 +809,11 @@
   * `env` must be a map from variables to expressions
 
   Returns a map with the following entries:  
-  * `:results` → map (or seq. if `:ordered-results?`) of `<interpretation> <result>` entries (with `result` like in `evaluate`), think of it as a kind of value table
+  * `:results` → vector of `[<interpretation> <result>]` tuples (with `result` like in `evaluate`), think of it as a kind of value table
   * `:varorder` → the reading order of variable interpretations
 
   An `opts` map can be provided with the following keys:
   * `:varorder` → sets the variable interpretation order for the results
-  * `:ordered-results?` → returns a sequence of ordered results instead of a map
   * `:rich-results?` → each results value will be a map as if returned by `evaluate`
   * `:pre-simplify?` → (default: `false`) simplifies the expression before interpretation, which might reduce terms and therefore evaluation time
   * `:allow-value-holes?` → (default: `false`) sets a “value hole” (`:_`) in place of `nil` for an uninterpretable result"
@@ -875,6 +868,9 @@
 
   (make :uncl "hey")
   (==>* ['a (make :uncl :g)])
+
+  (require '[formform.calc :as calc])
+  (-> (eval-all [['a] 'b]) :results (calc/filter-dna [:u :i]))
 
   ,)
 

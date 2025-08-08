@@ -850,63 +850,57 @@
 
 (deftest eval-all-test
   (testing "Correct output shape"
-    (is (submap? '{:varorder [], :results {[] :n}}
+    (is (submap? '{:varorder [], :results [[[] :n]]}
                  (eval-all [[:u] :u])))
     (is (submap? '{:varorder ["apple"],
-                   :results {[:n] :n [:u] :n [:i] :i [:m] :i}}
-           (eval-all [["apple"] :u])))
+                   :results [[[:n] :n] [[:u] :n] [[:i] :i] [[:m] :i]]}
+                 (eval-all [["apple"] :u])))
     (is (submap? '{:varorder [a x],
                    :results ;; verified in FORM tricorder v1
-                   {[:n :n] :i [:n :u] :i [:n :i] :i [:n :m] :i
-                    [:u :n] :i [:u :u] :m [:u :i] :i [:u :m] :m
-                    [:i :n] :n [:i :u] :n [:i :i] :i [:i :m] :i
-                    [:m :n] :n [:m :u] :u [:m :i] :i [:m :m] :m}}
+                   [[[:n :n] :i] [[:n :u] :i] [[:n :i] :i] [[:n :m] :i]
+                    [[:u :n] :i] [[:u :u] :m] [[:u :i] :i] [[:u :m] :m]
+                    [[:i :n] :n] [[:i :u] :n] [[:i :i] :i] [[:i :m] :i]
+                    [[:m :n] :n] [[:m :u] :u] [[:m :i] :i] [[:m :m] :m]]}
                  (eval-all [:- [['x] ['a]] [:u 'a]])))
     (is (submap? '{:varorder [a b],
                    :results
-                   {[:u :m] nil, [:n :i] nil, [:n :u] nil, [:i :m] nil,
-                    [:n :n] :n, [:i :n] :i, [:m :m] :m, [:m :u] :m,
-                    [:u :i] nil, [:m :i] :m, [:i :i] :i, [:m :n] :m,
-                    [:n :m] nil, [:u :n] :u, [:u :u] :u, [:i :u] nil}}
+                   [[[:n :n] :n ] [[:n :u] nil] [[:n :i] nil] [[:n :m] nil]
+                    [[:u :n] :u ] [[:u :u] :u ] [[:u :i] nil] [[:u :m] nil]
+                    [[:i :n] :i ] [[:i :u] nil] [[:i :i] :i ] [[:i :m] nil]
+                    [[:m :n] :m ] [[:m :u] :m ] [[:m :i] :m ] [[:m :m] :m ]]}
                  (eval-all [:- 'a [:x ['b]]])))
     (is (submap? '{:varorder [a b],
                    :results
-                   {[:u :m] :_, [:n :i] :_, [:n :u] :_, [:i :m] :_,
-                    [:n :n] :n, [:i :n] :i, [:m :m] :m, [:m :u] :m,
-                    [:u :i] :_, [:m :i] :m, [:i :i] :i, [:m :n] :m,
-                    [:n :m] :_, [:u :n] :u, [:u :u] :u, [:i :u] :_}}
+                   [[[:n :n] :n] [[:n :u] :_] [[:n :i] :_] [[:n :m] :_]
+                    [[:u :n] :u] [[:u :u] :u] [[:u :i] :_] [[:u :m] :_]
+                    [[:i :n] :i] [[:i :u] :_] [[:i :i] :i] [[:i :m] :_]
+                    [[:m :n] :m] [[:m :u] :m] [[:m :i] :m] [[:m :m] :m]]}
                  (eval-all [:- 'a [:x ['b]]] {} {:allow-value-holes? true})))
-    (is (submap? '{:varorder [a b],
-                   :results
-                   ([[:n :n] :n] [[:n :u] nil] [[:n :i] nil] [[:n :m] nil]
-                    [[:u :n] :u] [[:u :u] :u]  [[:u :i] nil] [[:u :m] nil]
-                    [[:i :n] :i] [[:i :u] nil] [[:i :i] :i]  [[:i :m] nil]
-                    [[:m :n] :m] [[:m :u] :m]  [[:m :i] :m]  [[:m :m] :m])}
-                 (eval-all [:- 'a [:x ['b]]] {} {:ordered-results? true})))
     (is (submap? '{:varorder [a],
                    :results
-                   {[:n] {:result nil, :simplified (:g),      :env {a :n}},
-                    [:u] {:result nil, :simplified (:u :g),   :env {a :u}},
-                    [:i] {:result nil, :simplified ([:u] :g), :env {a :i}},
-                    [:m] {:result :n,  :simplified nil,       :env {a :m}}}}
+                   [[[:n] {:result nil, :simplified (:g),      :env {a :n}}],
+                    [[:u] {:result nil, :simplified (:u :g),   :env {a :u}}],
+                    [[:i] {:result nil, :simplified ([:u] :g), :env {a :i}}],
+                    [[:m] {:result :n,  :simplified nil,       :env {a :m}}]]}
                  (eval-all ['a :g] {} {:rich-results? true})))
     (is (submap? '{:varorder [a],
                    :results
-                   {[:n] {:result :_, :simplified (:g),      :env {a :n}},
-                    [:u] {:result :_, :simplified (:u :g),   :env {a :u}},
-                    [:i] {:result :_, :simplified ([:u] :g), :env {a :i}},
-                    [:m] {:result :n, :simplified nil,       :env {a :m}}}}
+                   [[[:n] {:result :_, :simplified (:g),      :env {a :n}}],
+                    [[:u] {:result :_, :simplified (:u :g),   :env {a :u}}],
+                    [[:i] {:result :_, :simplified ([:u] :g), :env {a :i}}],
+                    [[:m] {:result :n, :simplified nil,       :env {a :m}}]]}
                  (eval-all ['a :g] {} {:rich-results? true
                                        :allow-value-holes? true})))
 
     (is (submap? '{:varorder [a b],
                    :results
-                   {[:n :n] :n, [:n :u] :n, [:n :i] :n, [:n :m] :n,
-                    [:u :n] :u, [:u :u] :u, [:u :i] :u, [:u :m] :u,
-                    [:i :n] :i, [:i :u] :i, [:i :i] :i, [:i :m] :i,
-                    [:m :n] :m, [:m :u] :m, [:m :i] :m, [:m :m] :m}}
+                   [[[:n :n] :n] [[:n :u] :n] [[:n :i] :n] [[:n :m] :n]
+                    [[:u :n] :u] [[:u :u] :u] [[:u :i] :u] [[:u :m] :u]
+                    [[:i :n] :i] [[:i :u] :i] [[:i :i] :i] [[:i :m] :i]
+                    [[:m :n] :m] [[:m :u] :m] [[:m :i] :m] [[:m :m] :m]]}
                  (eval-all [:- 'a ['b ['b]]])))
-    (is (submap? '{:varorder [a], :results {[:n] :n, [:u] :u, [:i] :i, [:m] :m}}
+    (is (submap? '{:varorder [a],
+                   :results [[[:n] :n] [[:u] :u] [[:i] :i] [[:m] :m]]}
                  (eval-all [:- 'a ['b ['b]]] {} {:pre-simplify? true})))))
 
 

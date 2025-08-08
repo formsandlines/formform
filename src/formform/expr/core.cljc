@@ -468,7 +468,7 @@
 
 (defn eval-all
   [expr env
-   {:keys [ordered-results? allow-value-holes? rich-results?] :as opts}]
+   {:keys [allow-value-holes? rich-results?] :as opts}]
   (let [{:keys [varorder
                 results]} (eval-simplified*
                            expr env (merge opts
@@ -485,9 +485,7 @@
                                    :env env}
                                   result))))
                     results)]
-    {:varorder varorder :results (if ordered-results?
-                                   vdict
-                                   (into {} vdict))}))
+    {:varorder varorder :results vdict}))
 
 
 ;; compare expressions

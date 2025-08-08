@@ -4,6 +4,7 @@
             [formform.emul :refer :all]
             [formform.emul.interfaces :as i]
             [formform.calc :as calc]
+            [formform.expr :as expr]
             [formform.utils :as utils]
             [orchestra.spec.test :as stest]))
 
@@ -49,21 +50,6 @@
             [:m :i :n]
             [:i :n :u]]))))
 
-
-#_
-(comment
-    (def alignments [:topleft :topcenter :topright
-                     :left :center :right
-                     :bottomleft :bottomcenter :bottomright])
-    (for [pos   alignments
-          align alignments]
-      [pos align
-       (sys-ini (make-ini :figure :n [[:u :i :m]
-                                      [:i :m :u]
-                                      [:m :u :i]]
-                          {:pos pos :align align})
-                [5 5])])
-    ,)
 
 (deftest ini-figure-test
   (testing "correct 1D figure position and alignment"
@@ -1090,7 +1076,7 @@
   (testing "100000mindFORM1 snapshot congruence with iterator"
     (let [ca-data (snapshots->ca :mindform
                                  (mindform-snaps :100000mindFORM1-0000s)
-                                 (tsds-sel->dna [1 0 0 0 0 0]))]
+                                 (expr/ts==>* 1 0 0 0 0 0))]
       (is (apply equiv-iterator-evolution? ca-data))
       (is (apply equiv-automaton-evolution? ca-data)))
 
@@ -1105,7 +1091,7 @@
   (testing "100101mindFORM snapshot congruence with iterator"
     (let [ca-data (snapshots->ca :mindform
                                  (mindform-snaps :100101mindFORM_0000s)
-                                 (tsds-sel->dna [1 0 0 1 0 1]))]
+                                 (expr/ts==>* 1 0 0 1 0 1))]
       (is (apply equiv-iterator-evolution? ca-data))
       (is (apply equiv-automaton-evolution? ca-data)))
 
@@ -1121,7 +1107,7 @@
   (testing "100101lifeFORMs_0000s snapshot congruence with iterator"
     (let [ca-data (snapshots->ca :lifeform
                                  (lifeform-snaps :100101lifeFORMs_0000s)
-                                 (tsds-sel->dna [1 0 0 1 0 1]))]
+                                 (expr/ts==>* 1 0 0 1 0 1))]
       (is (apply equiv-iterator-evolution? ca-data))
       (is (apply equiv-automaton-evolution? ca-data))))
 
@@ -1129,7 +1115,7 @@
     (let [ca-data (snapshots->ca :lifeform
                                  (lifeform-snaps :101101circulator_0000s)
                                  ;; the TSDS is NOT 101101 but 100101!
-                                 (tsds-sel->dna [1 0 0 1 0 1]))]
+                                 (expr/ts==>* 1 0 0 1 0 1))]
       (is (apply equiv-iterator-evolution? ca-data))
       (is (apply equiv-automaton-evolution? ca-data)))))
 
@@ -1138,7 +1124,7 @@
     (let [ca-data (snapshots->ca :decisionform
                                  (decisionform-snaps
                                   :100101decisionFORMs_0000s)
-                                 (tsds-sel->dna [1 0 0 1 0 1]))]
+                                 (expr/ts==>* 1 0 0 1 0 1))]
       (is (apply equiv-iterator-evolution? ca-data))
       (is (apply equiv-automaton-evolution? ca-data)))))
 
@@ -1199,13 +1185,13 @@
 
   (let [ca-data (snapshots->ca :lifeform
                                (lifeform-snaps :101101circulator_0000s)
-                               (tsds-sel->dna [1 0 0 1 0 1]))]
+                               (expr/ts==>* 1 0 0 1 0 1))]
     (apply equiv-iterator-evolution? ca-data))
 
   
   (let [ca-data (snapshots->ca :lifeform
                                (lifeform-snaps :100101lifeFORMs_0000s)
-                               (tsds-sel->dna [1 0 0 1 0 1]))]
+                               (expr/ts==>* 1 0 0 1 0 1))]
     ;; (apply equiv-iterator-evolution? ca-data)
     (apply equiv-automaton-evolution? ca-data))
 
@@ -1214,7 +1200,7 @@
   (def res (:size snapshot))
 
   (= (->> (ca-iterator
-           (make-lifeform (tsds-sel->dna [1 0 0 1 0 1])
+           (make-lifeform (expr/ts==>* 1 0 0 1 0 1)
                           {:overwrites {:ini-spec
                                         (make-ini :fill-all ini-gen)}})
            
@@ -1228,7 +1214,7 @@
     (some
      (fn [perm]
        (= (->> (ca-iterator
-                (make-lifeform (tsds-sel->dna perm)
+                (make-lifeform (apply expr/ts==>* perm)
                                {:overwrites {:ini-spec
                                              (make-ini :fill-all ini-gen)}})
                 [res])
@@ -1240,15 +1226,15 @@
   
   (let [ca-data (snapshots->ca :mindform
                                (mindform-snaps :100000mindFORM1-0000s)
-                               (tsds-sel->dna [1 0 0 0 0 0]))]
+                               (expr/ts==>* 1 0 0 0 0 0))]
     (apply equiv-automaton-evolution? ca-data))
 
-  (def atm (create-ca (make-species :selfi
-                                    [:n :n :n :n
-                                     :n :i :n :i
-                                     :i :i :i :i
-                                     :i :u :i :u]
-                                    (make-ini :ball))
+  (def atm (create-ca (make-selfi [:n :n :n :n
+                                   :n :i :n :i
+                                   :i :i :i :i
+                                   :i :u :i :u]
+                                  (make-ini :figure :n (ini-patterns :ball)
+                                            :center))
                       [10]))
   (get-system-time atm)
   (get-resolution atm)
