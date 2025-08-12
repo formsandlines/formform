@@ -18,6 +18,8 @@ All notable changes to this project will be documented in this file. This change
 - Added `rand-const-weighted`, `rand-dna-weighted` and `rand-vpoint-weighted` variants, which take a weights argument for uneven probability in random constant generation
 - `eval->val`/`==>` and `eval->val-all`/`==>*` are two new functions in the `expr` module. The former only returns simple values, including “holes” `:_`. The latter returns only complex values, i.e. raw formDNA (possibly with holes). In essence, they return output that can be processed by functions in the `calc` as well as the new `emul` module.
 - `eval-tsds->val-all` behaves just like `==>*`, but takes a 6-digit binary selection for a TsDS expr., which is especially convenient for `emul` functions
+- Added `calc/partial-dna?` predicate to check if formDNA contains holes.
+- Extended `calc/rel` and `calc/inv` to enable correct arithmetic with value holes.
 
 ### Changed
 
@@ -31,6 +33,8 @@ All notable changes to this project will be documented in this file. This change
 - `expr/eval->expr-all` (alias `expr/=>*`), `expr/eval-all`, `calc/permute-dna`, `calc/dna-perspectives`, `calc/vdict` and `calc/dna->vdict` now take `opts` as their last argument instead of the first one. This is to make argument order of the options map consistent with other functions in formform and with the convention in the Clojure community.
 - `expr/eval->expr` / `expr/=>` now returns the simplified expression instead of a hole `:_` for uninterpretable input (such as unregistered symbols or uninterpreted variables). Likewise, `expr/eval->expr-all` / `expr/=>*` returns the pre-simplified, uninterpreted expression if it could not be determined to a value in any of its interpretations. It will also just return simple values instead of wrapping them in a formDNA expr. There are some new options explained in the docstring.
 - `evaluate` now separates output values in `:result` and the simplified expression in `:simplified`. The result is now `nil` if it could not be determined to a value. For `eval-all`, results are either value constants or `nil`, but can optionally be maps with the same entries as from `evaluate`. Options are explained in the docstring.
+- Renamed `calc/equal-dna`, `calc/equiv-dna`, `expr/equal` and `expr/equiv` to have `?` appended to their name, to follow the convention for predicates.
+- Changed `calc/reduce-dna-seq` to check if the dna-seq contains value holes (`:_`) and in that case just return it, because reduction with value holes is not possible (extension is, though!).
 
 
 ### Fixed

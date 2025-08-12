@@ -76,12 +76,12 @@
 (def nmui-code core/nmui-code)
 
 (def consts
-  "Set of all 4 constants"
+  "Set of all 4 constants."
   core/consts)
 
-(def var-const
-  "Variable constant (like a hole/placeholder)"
-  core/var-const)
+(def val-hole
+  "“Value hole” – placeholder for an unknown/missing result. Denotes a constant, but like a black box, we cannot know which one."
+  core/val-hole)
 
 (def const?
   "Checks if the argument is a valid constant."
@@ -157,10 +157,10 @@
 ;; Convert constants
 
 (s/fdef digit->const
-  :args (s/alt :ar1 ::sp/const-int?
+  :args (s/alt :ar1 ::sp/const_-int
                :ar2 (s/cat :sort-code ::sp/sort-code
-                           :int ::sp/const-int?))
-  :ret  ::sp/const?)
+                           :int ::sp/const_-int))
+  :ret  ::sp/const_)
 (defn digit->const
   "Converts a digit to its corresponding constant representation."
   ([n] (core/digit->const nuim-code n))
@@ -168,10 +168,10 @@
    (core/digit->const sort-code n)))
 
 (s/fdef char->const
-  :args (s/alt :ar1 ::sp/const-char?
+  :args (s/alt :ar1 ::sp/const_-char
                :ar2 (s/cat :sort-code ::sp/sort-code
-                           :char (s/nonconforming ::sp/const-char?)))
-  :ret  ::sp/const?)
+                           :char (s/nonconforming ::sp/const_-char)))
+  :ret  ::sp/const_)
 (defn char->const
   "Coerces a `char` to a corresponding `constant`."
   ([c] (core/char->const nuim-code c))
@@ -182,7 +182,7 @@
   :args (s/alt :ar1 ::sp/const
                :ar2 (s/cat :sort-code ::sp/sort-code
                            :const ::sp/const))
-  :ret  ::sp/const-int?)
+  :ret  ::sp/const_-int)
 (defn const->digit
   "Converts a `constant` to a `digit` corresponding to an optional `sort-code` or the default `nuim-code`."
   ([c] (core/const->digit nuim-code c))
@@ -195,6 +195,9 @@
 
 (def dna-dimension? (partial s/valid? ::sp/dna-count))
 (def dna? (partial s/valid? ::sp/dna))
+(def partial-dna? (partial s/valid? (s/and (fn [xs] (some #{:_} xs))
+                                           ::sp/dna_)))
+
 
 (s/fdef dna-dimension
   :args (s/cat :xs sequential?)
@@ -207,6 +210,7 @@
   [xs]
   (core/dna-dimension xs))
 
+;; ? extend to allow holes `:_` / `-1`
 (s/fdef make-dna
   :args (s/and (s/nonconforming ::sp/dna-seq-elem-tree)
                #(dna-dimension? (flatten %)))
@@ -274,10 +278,10 @@
 ;; Sort formDNA
 
 (s/fdef reorder-dna-seq
-  :args (s/cat :dna-seq        ::sp/dna-seq
+  :args (s/cat :dna-seq        ::sp/dna-seq_
                :sort-code-from ::sp/sort-code
                :sort-code-to   ::sp/sort-code)
-  :ret  ::sp/dna-seq)
+  :ret  ::sp/dna-seq_)
 (defn reorder-dna-seq
   "Reorders given formDNA/`dna-seq` from `sort-code-from` to `sort-code-to`.
 
@@ -290,33 +294,58 @@
 
 ;; Compare formDNA
 
-(s/fdef equal-dna
+(s/fdef equal-dna?
   :args (s/every ::sp/dna :min-count 1)
   :ret  boolean?)
-(defn equal-dna
-  "Equality check for formDNA. Two formDNAs are considered equal, if they contain the same constants in the same order. Stricter than `equiv-dna`, where permutations are considered equal."
-  [& dnas]
-  (apply core/equal-dna dnas))
+(defn equal-dna?
+  "Equality check for formDNA. Two formDNAs are considered equal, if they contain the same constants in the same order. Stricter than `equiv-dna?`, where permutations are considered equal.
 
-(s/fdef equiv-dna
+  Note: partial formDNA (which includes holes (`:_`)) cannot be compared and thus are not valid input. If you know/assume equality for holes, use `equal-partial-dna-assuming-holes-equal?`."
+  [& dnas]
+  {:pre [(not (some (partial some #(= :_ %)) dnas))]}
+  (apply core/equal-dna? dnas))
+
+(s/fdef equiv-dna?
   :args (s/every ::sp/dna :min-count 1)
   :ret  boolean?)
-(defn equiv-dna
-  "Equivalence check for formDNA. Two formDNAs are considered equivalent, if they belong to the same equivalence-class of `dna-perspectives` (i.e. if they are permutations of each other)."
+(defn equiv-dna?
+  "Equivalence check for formDNA. Two formDNAs are considered equivalent, if they belong to the same equivalence-class of `dna-perspectives` (i.e. if they are permutations of each other).
+
+  Note: partial formDNA (which includes holes (`:_`)) cannot be compared and thus are not valid input. If you know/assume equality for holes, use `equiv-partial-dna-assuming-holes-equal?`."
   [& dnas]
-  (apply core/equiv-dna dnas))
+  {:pre [(not (some (partial some #(= :_ %)) dnas))]}
+  (apply core/equiv-dna? dnas))
+
+
+;; ? or `unsafe-equal-dna?`
+
+(s/fdef equal-partial-dna-assuming-holes-equal?
+  :args (s/every ::sp/dna_ :min-count 1)
+  :ret  boolean?)
+(defn equal-partial-dna-assuming-holes-equal?
+  "Equality check for partial formDNA (derived from `equal-dna?`), under the assumption that all holes (`:_`) originate from the same expression and thus their supposed value would be equal."
+  [& dnas]
+  (apply core/equal-dna? dnas))
+
+(s/fdef equiv-partial-dna-assuming-holes-equal?
+  :args (s/every ::sp/dna_ :min-count 1)
+  :ret  boolean?)
+(defn equiv-partial-dna-assuming-holes-equal?
+  "Equivalence check for partial formDNA (derived from `equiv-dna?`), under the assumption that all holes (`:_`) originate from the same expression and thus their supposed value would be equal."
+  [& dnas]
+  (apply core/equiv-dna? dnas))
 
 
 ;; Transform formDNA
 
 (s/fdef expand-dna-seq
-  :args (s/alt :ar2 (s/cat :dna-seq ::sp/dna-seq
+  :args (s/alt :ar2 (s/cat :dna-seq ::sp/dna-seq_
                            :ext-dim ::sp/dna-dimension)
-               :ar3 (s/& (s/cat :dna-seq ::sp/dna-seq
+               :ar3 (s/& (s/cat :dna-seq ::sp/dna-seq_
                                 :dim     ::sp/dna-dimension
                                 :ext-dim ::sp/dna-dimension)
                          #(<= (:dim %) (:ext-dim %))))
-  :ret  ::sp/dna-seq
+  :ret  ::sp/dna-seq_
   :fn   #(== (-> % :args second :ext-dim)
              (core/dna-dimension (-> % :ret))))
 (defn expand-dna-seq
@@ -329,14 +358,15 @@
   ([dna-seq dim ext-dim]
    (core/expand-dna-seq dna-seq dim ext-dim)))
 
+;; ? `unsafe-` variant for partial dna
 (s/fdef reduce-dna-seq
-  :args (s/alt :ar1 (s/cat :dna-seq ::sp/dna-seq)
+  :args (s/alt :ar1 (s/cat :dna-seq ::sp/dna-seq_)
                :ar2 (s/& (s/cat :terms   sequential?
-                                :dna-seq ::sp/dna-seq)
+                                :dna-seq ::sp/dna-seq_)
                          #(== (count (:terms %))
                               (core/dna-dimension (:dna-seq %)))))
   :ret  (s/and (s/cat :terms   sequential?
-                      :dna-seq ::sp/dna-seq)
+                      :dna-seq ::sp/dna-seq_)
                #(== (core/dna-dimension (-> % :dna-seq))
                     (count (-> % :terms)))))
 (defn reduce-dna-seq
@@ -350,11 +380,11 @@
    (core/reduce-dna-seq dna-seq))
   ;; ! maybe terms last in arg list
   ([terms dna-seq]
-   (core/reduce-dna-seq terms dna-seq)))
+   (core/reduce-dna-seq terms dna-seq {})))
 
 ;; (s/fdef filter-dna-seq
 ;;   :args (s/and (s/cat :dna-seq          ::sp/dna-seq
-;;                       :depth-selections (s/coll-of ::sp/const-int?
+;;                       :depth-selections (s/coll-of ::sp/const_-int
 ;;                                                    :kind sequential?))
 ;;                #(== (core/dna-dimension (-> % :dna-seq))
 ;;                     (count (-> % :depth-selections))))
@@ -368,20 +398,20 @@
 ;;   (core/filter-dna-seq dna-seq depth-selections))
 
 (s/fdef filter-dna
-  :args (s/& (s/cat :dna    ::sp/dna
+  :args (s/& (s/cat :dna    ::sp/dna_
                     :vpoint ::sp/vpoint)
              #(== (core/dna-dimension (-> % :dna))
                   (count (-> % :vpoint))))
-  :ret  ::sp/dna)
+  :ret  ::sp/dna_)
 (defn filter-dna
   "Filters a `dna` by selecting specific parts corresponding to a given `vpoint`, which acts as a coordinate vector in its value space.
 
-  * use holes `:_` to indicate a variable selection"
+  * use holes `:_` in `vpoint` to indicate a variable selection"
   [dna vpoint]
   (core/filter-dna dna vpoint))
 
 (s/fdef dna-get
-  :args (s/& (s/cat :dna    ::sp/dna
+  :args (s/& (s/cat :dna    ::sp/dna_
                     :vpoint (s/every ::sp/const
                                      :kind sequential?))
              #(== (core/dna-dimension (-> % :dna))
@@ -402,7 +432,7 @@
   :args (sp/spec--dna-seq-args (s/coll-of ::sp/const-int 
                                           :min-count 1
                                           :kind sequential?))
-  :ret  ::sp/dna)
+  :ret  ::sp/dna_)
 (defn digits->dna
   "Converts a `seqable?` of digits (as string/char or integer) to formDNA.
   
@@ -429,7 +459,7 @@
   :args (sp/spec--dna-seq-args (s/coll-of ::sp/const-char
                                           :min-count 1
                                           :kind sequential?))
-  :ret  ::sp/dna)
+  :ret  ::sp/dna_)
 (defn chars->dna
   "Converts a `seqable?` of chars to formDNA.
   
@@ -443,9 +473,9 @@
 ;; formDNA perspective
 
 (s/fdef permute-dna
-  :args (s/& (s/alt :ar2 (s/cat :dna        ::sp/dna
+  :args (s/& (s/alt :ar2 (s/cat :dna        ::sp/dna_
                                 :perm-order ::sp/permutation-order)
-                    :ar3 (s/cat :dna        ::sp/dna
+                    :ar3 (s/cat :dna        ::sp/dna_
                                 :perm-order ::sp/permutation-order
                                 :opts (s/keys :opt-un [:opts.safety/limit?])))
              #(let [{:keys [dna perm-order]} (-> % second)]
@@ -462,8 +492,8 @@
   ([dna perm-order opts] (core/permute-dna-seq opts dna perm-order)))
 
 (s/fdef dna-perspectives
-  :args (s/alt :ar1 (s/cat :dna ::sp/dna)
-               :ar2 (s/cat :dna ::sp/dna
+  :args (s/alt :ar1 (s/cat :dna ::sp/dna_)
+               :ar2 (s/cat :dna ::sp/dna_
                            :opts (s/keys :opt-un [:opts.safety/limit?])))
   :ret  ::sp/dna-perspective-group)
 (defn dna-perspectives
@@ -552,8 +582,8 @@
   ([vpoint->result opts] (core/vdict opts vpoint->result)))
 
 (s/fdef dna->vdict
-  :args (s/alt :ar1 (s/cat :dna  ::sp/dna)
-               :ar2 (s/cat :dna  ::sp/dna
+  :args (s/alt :ar1 (s/cat :dna  ::sp/dna_)
+               :ar2 (s/cat :dna  ::sp/dna_
                            :opts (s/keys :opt-un [:opts/sorted?
                                                   :opts.safety/unsafe?])))
   :ret  ::sp/vdict)
@@ -591,7 +621,7 @@
   (core/vdict->vmap vdict))
 
 (s/fdef dna->vmap
-  :args (s/cat :dna ::sp/dna)
+  :args (s/cat :dna ::sp/dna_)
   :ret  ::sp/vmap)
 (defn dna->vmap
   [dna]
@@ -619,24 +649,28 @@
 ;; Arithmetic
 
 (s/fdef rel
-  :args (s/* (s/or :const ::sp/const
-                   :dna   ::sp/dna))
-  :ret  (s/or :const ::sp/const
-              :dna   ::sp/dna))
+  :args (s/* (s/or :const ::sp/const_
+                   :dna   ::sp/dna_))
+  :ret  (s/or :const ::sp/const_
+              :dna   ::sp/dna_))
 (defn rel
-  "Relates the values of 2 constants in a formDNA to each other."
+  "Relates the values of all given arguments (which must either be all constants or all formDNAs) to each other.
+
+  Note: relations with value holes (`:_`) can only be dominated by the mark (`:m`) and will otherwise result in value holes."
   [& consts-or-dnas]
   (apply core/rel consts-or-dnas))
 ;; alias
 (def -- "Alias to `rel`." rel)
 
 (s/fdef inv
-  :args (s/* (s/or :const ::sp/const
-                   :dna   ::sp/dna))
-  :ret  (s/or :const ::sp/const
-              :dna   ::sp/dna))
+  :args (s/* (s/or :const ::sp/const_
+                   :dna   ::sp/dna_))
+  :ret  (s/or :const ::sp/const_
+              :dna   ::sp/dna_))
 (defn inv
-  "Inverts the value of a every constant in a formDNA."
+  "Inverts the value of a given constant or formDNA. With multiple arguments, will relate all arguments (via `rel`) and then invert the result.
+
+  Note: value holes (`:_`) will invert to value holes."
   [& consts-or-dnas]
   (apply core/inv consts-or-dnas))
 ;; alias
@@ -646,3 +680,12 @@
 
 (def ^:no-doc fns-with-specs (utils/list-fn-specs "formform.calc"))
 
+
+
+(comment
+  (rel [:_ :u :i :_] [:n :_ :i :m])
+  (rel [:n :_ :i :m] :m)
+
+  (inv [:_ :u :i :_] [:n :_ :i :m])
+
+  ,)

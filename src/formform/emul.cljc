@@ -212,7 +212,7 @@
   :args (s/cat :rule-spec ::sp/rule-spec
                :umwelt    ::sp/umwelt
                :cell      ::sp/cell)
-  :ret  ::calc-sp/const?)
+  :ret  ::calc-sp/const_)
 (defn apply-rule
   "Returns a cell value given a `rule-spec` (via `make-rule`), an `umwelt` (via `observe-umwelt`) and the current `cell` (a vector of the shape `[[x ?y] value]`)."
   [rule-spec umwelt cell]

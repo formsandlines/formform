@@ -1397,132 +1397,132 @@
            '[[(a ([:seq-re :<..r nil])) (a ([:seq-re :<r nil]))]]))))
 
 
-(deftest equal-test
+(deftest equal?-test
   (testing "Trivial cases"
-    (are [x] (equal x x)
+    (are [x] (equal? x x)
       nil [] [:- 'a 'b] [['a] :u] (seq-re :<r "x" "y"))
-    (is (equal nil [[]] [[] []]))
-    (is (equal [] [nil] [[[]]] [[[] []]] [:- [] []])))
+    (is (equal? nil [[]] [[] []]))
+    (is (equal? [] [nil] [[[]]] [[[] []]] [:- [] []])))
 
 
   (testing "Non-equality with redundant variables"
-    (is (not (equal '[[a] a] :n)))
-    (is (not (equal '[[p] p] nil)))
-    (is (not (equal '[:- b [[a] a]] 'b)))
-    (is (not (equal (seq-re :<r '(a (a)) 'b '(c (c)))
-                    (seq-re :<r nil 'b nil)))))
+    (is (not (equal? '[[a] a] :n)))
+    (is (not (equal? '[[p] p] nil)))
+    (is (not (equal? '[:- b [[a] a]] 'b)))
+    (is (not (equal? (seq-re :<r '(a (a)) 'b '(c (c)))
+                     (seq-re :<r nil 'b nil)))))
 
 
   (testing "Non-equality with different variable names"
-    (is (equal '[:- a a] 'a))
-    (is (not (equal '[:- a a] 'x))))
+    (is (equal? '[:- a a] 'a))
+    (is (not (equal? '[:- a a] 'x))))
 
 
   (testing "Non-equality with missing variables"
-    (is (not (equal '[[p] p] nil))))
+    (is (not (equal? '[[p] p] nil))))
 
 
   (testing "Non-equality with swapped variable names"
-    (is (equal [['a] 'b] ['b ['a]]))
-    (is (not (equal [['a] 'b] [['b] 'a]))))
+    (is (equal? [['a] 'b] ['b ['a]]))
+    (is (not (equal? [['a] 'b] [['b] 'a]))))
 
 
   (testing "Equality of algebraic transformations"
-    (is (equal '[:- a a] 'a))
-    (is (not (equal '[:- a a] 'b)))
-    (is (equal '[a a] '[a]))
-    (is (equal '[[a]] 'a [:- 'a]))
-    (is (not (equal '[["a"]] 'a)))
-    (is (equal '[a] '[[[a]]]))
-    (is (equal '[:- [[a] [b]] [a b]] '[[[a] b] [[b] a]]))
-    (is (equal '[[[a] [b]] [a b]] '[:- [[a] b] [[b] a]]))
-    (is (equal '[[p r] [q r]] '[:- [[p] [q]] r]))))
+    (is (equal? '[:- a a] 'a))
+    (is (not (equal? '[:- a a] 'b)))
+    (is (equal? '[a a] '[a]))
+    (is (equal? '[[a]] 'a [:- 'a]))
+    (is (not (equal? '[["a"]] 'a)))
+    (is (equal? '[a] '[[[a]]]))
+    (is (equal? '[:- [[a] [b]] [a b]] '[[[a] b] [[b] a]]))
+    (is (equal? '[[[a] [b]] [a b]] '[:- [[a] b] [[b] a]]))
+    (is (equal? '[[p r] [q r]] '[:- [[p] [q]] r]))))
 
 
 
-(deftest equiv-test
+(deftest equiv?-test
   (testing "Trivial cases"
-    (are [x] (equiv x x)
+    (are [x] (equiv? x x)
       nil [] [:- 'a 'b] [['a] :u] (seq-re :<r "x" "y"))
-    (is (equiv nil [[]] [[] []]))
-    (is (equiv [] [nil] [[[]]] [[[] []]] [:- [] []])))
+    (is (equiv? nil [[]] [[] []]))
+    (is (equiv? [] [nil] [[[]]] [[[] []]] [:- [] []])))
 
 
   (testing "Equivalence with redundant variables"
-    (is (equiv '[[a] a] :n nil [[]] '(a (((a a))) a) [:- '(a nil (a :n))]))
-    (is (equiv '[:- b [[a] a]] 'b))
-    (is (equiv [:- "b" [["a"] "a"]] "b"))
-    (is (equiv (seq-re :<r '(a (a)) 'b '(c (c))) (seq-re :<r nil 'b nil))))
+    (is (equiv? '[[a] a] :n nil [[]] '(a (((a a))) a) [:- '(a nil (a :n))]))
+    (is (equiv? '[:- b [[a] a]] 'b))
+    (is (equiv? [:- "b" [["a"] "a"]] "b"))
+    (is (equiv? (seq-re :<r '(a (a)) 'b '(c (c))) (seq-re :<r nil 'b nil))))
 
 
   (testing "Equivalence with swapped variable names"
-    (is (equiv [['a] 'b] [['b] 'a])))
+    (is (equiv? [['a] 'b] [['b] 'a])))
 
 
   (testing "Equivalence despite missing variables"
-    (is (equiv '[[p] p] nil))
-    (is (not (equiv '[[p] q] nil))))
+    (is (equiv? '[[p] p] nil))
+    (is (not (equiv? '[[p] q] nil))))
 
 
   (testing "Equivalence despite different variable names"
-    (is (equiv '[:- a a] 'x))
-    (is (equiv '["apple" "apple"] '[a]))
-    (is (equiv '[[x]] 'a [:- "foo bar"]))
-    (is (equiv '[boo] '[[[a]]]))
-    (is (equiv '[:- [[a] [b]] [a b]] '[[[x] y] [[y] x]]))
-    (is (equiv '[[["me"] ["you"]] ["me" "you"]] '[:- [[a] b] [[b] a]]))
-    (is (equiv '[[p r] [q r]] '[:- [[x] [xx]] xxx])))
+    (is (equiv? '[:- a a] 'x))
+    (is (equiv? '["apple" "apple"] '[a]))
+    (is (equiv? '[[x]] 'a [:- "foo bar"]))
+    (is (equiv? '[boo] '[[[a]]]))
+    (is (equiv? '[:- [[a] [b]] [a b]] '[[[x] y] [[y] x]]))
+    (is (equiv? '[[["me"] ["you"]] ["me" "you"]] '[:- [[a] b] [[b] a]]))
+    (is (equiv? '[[p r] [q r]] '[:- [[x] [xx]] xxx])))
 
 
   (testing "Equivalence in algebraic demonstrations"
     ;; LoF, prim. Alg.
     ;; C1
-    (is (equiv '((a))
-               '[:- (((a)) (a)) ((a))]
-               '((((a)) (a)) (((a)) a))
-               '((((a)) a))
-               '((((a)) a) ((a) a))
-               '[:- ((((a))) ((a))) a]
-               'a))
+    (is (equiv? '((a))
+                '[:- (((a)) (a)) ((a))]
+                '((((a)) (a)) (((a)) a))
+                '((((a)) a))
+                '((((a)) a) ((a) a))
+                '[:- ((((a))) ((a))) a]
+                'a))
     ;; C2
-    (is (equiv '[:- (a b) b]
-               '[:- (((a)) b) b]
-               '[:- (((a)) ((b))) b]
-               '(((a) b) ((b) b))
-               '(((a) b))
-               '[:- (a) b]))
+    (is (equiv? '[:- (a b) b]
+                '[:- (((a)) b) b]
+                '[:- (((a)) ((b))) b]
+                '(((a) b) ((b) b))
+                '(((a) b))
+                '[:- (a) b]))
     ;; C3
-    (is (equiv '[:- () a]
-               '[:- (a) a]
-               '(((a) a))
-               '()))
+    (is (equiv? '[:- () a]
+                '[:- (a) a]
+                '(((a) a))
+                '()))
     ;; C4
-    (is (equiv '[:- ((a) b) a]
-               '[:- ((a) b a) a]
-               '[:- ((a b) b a) a]
-               'a))
+    (is (equiv? '[:- ((a) b) a]
+                '[:- ((a) b a) a]
+                '[:- ((a b) b a) a]
+                'a))
     ;; C5
-    (is (equiv '[:- a a]
-               '[:- ((a)) a]
-               'a))
+    (is (equiv? '[:- a a]
+                '[:- ((a)) a]
+                'a))
     ;; C6
-    (is (equiv '[:- ((a) (b)) ((a) b)]
-               '((((a) (b)) ((a) b)))
-               '((((b)) (b)) (a))
-               '((a))
-               'a))
+    (is (equiv? '[:- ((a) (b)) ((a) b)]
+                '((((a) (b)) ((a) b)))
+                '((((b)) (b)) (a))
+                '((a))
+                'a))
     ;; C7
-    (is (equiv '(((a) b) c)
-               '(((a) ((b))) c)
-               '(((a c) ((b) c)))
-               '[:- (a c) ((b) c)]))
+    (is (equiv? '(((a) b) c)
+                '(((a) ((b))) c)
+                '(((a c) ((b) c)))
+                '[:- (a c) ((b) c)]))
     ;; C8
-    (is (equiv '((a) (b r) (c r))
-               '((a) (((b r) (c r))))
-               '((a) (((b) (c)) r))
-               '[:- ((a) (b) (c)) ((a) (r))]))
+    (is (equiv? '((a) (b r) (c r))
+                '((a) (((b r) (c r))))
+                '((a) (((b) (c)) r))
+                '[:- ((a) (b) (c)) ((a) (r))]))
     ;; C9 (commented out because slow, but test passes)
-    ;; (is (equiv '(((b) (r)) ((a) (r)) ((x) r) ((y) r))
+    ;; (is (equiv? '(((b) (r)) ((a) (r)) ((x) r) ((y) r))
     ;;            '(((b) (r)) ((a) (r)) ((x y) r))
     ;;            '[:- (b a ((x y) r)) (r ((x y) r))]
     ;;            '[:- (b a ((x y) r)) (r x y)]
@@ -1531,40 +1531,40 @@
 
     ;; uFORM iFORM (engl. Ed.)
     ;; p.7
-    (is (equiv '((a) b)
-               '[:- ((a) b) ((a) b)]
-               '[:- ((a) ((b))) ((a) b)]
-               '((((a) b) a) (((a) b) (b)))
-               '((((a) b) a) ((b)))
-               '((((a) b) a) b)
-               '((((a) b) ((a) b) a) b)
-               '((((a) ((b))) ((a) b) a) b)
-               '((((((a) b) a) (((a) b) (b))) a) b)
-               '((((((a) b) a) ((b))) a) b)
-               '((((((a) b) a) b) a) b)))
+    (is (equiv? '((a) b)
+                '[:- ((a) b) ((a) b)]
+                '[:- ((a) ((b))) ((a) b)]
+                '((((a) b) a) (((a) b) (b)))
+                '((((a) b) a) ((b)))
+                '((((a) b) a) b)
+                '((((a) b) ((a) b) a) b)
+                '((((a) ((b))) ((a) b) a) b)
+                '((((((a) b) a) (((a) b) (b))) a) b)
+                '((((((a) b) a) ((b))) a) b)
+                '((((((a) b) a) b) a) b)))
     ;; p.9
-    (is (equiv (seq-re :<r :m :m) (seq-re :<r :n :m) :n nil))
-    (is (equiv (seq-re :<r :m :n) :m '()))
-    (is (equiv (seq-re :<r nil nil) :u))
+    (is (equiv? (seq-re :<r :m :m) (seq-re :<r :n :m) :n nil))
+    (is (equiv? (seq-re :<r :m :n) :m '()))
+    (is (equiv? (seq-re :<r nil nil) :u))
     ;; p.10
-    (is (equiv [(seq-re :<r :m :m)] [(seq-re :<r :n :m)] [:n] '()))
-    (is (equiv [(seq-re :<r :m :n)] [:m] '(()) nil))
-    (is (equiv [(seq-re :<r nil nil)] [:u] :i))
+    (is (equiv? [(seq-re :<r :m :m)] [(seq-re :<r :n :m)] [:n] '()))
+    (is (equiv? [(seq-re :<r :m :n)] [:m] '(()) nil))
+    (is (equiv? [(seq-re :<r nil nil)] [:u] :i))
     ;; p.11
-    (is (equiv [:- (seq-re :<r nil nil) '()] [:- :u '()]
-               [:- [(seq-re :<r nil nil)] '()] [:- :i '()]
-               '()))
-    (is (equiv (seq-re :<r [:- (seq-re :<r 'a 'b) '()] 'c)
-               (seq-re :<r '() 'c)
-               '((()) c)
-               '(c)))
-    (is (equiv (seq-re :<r 'a [:- (seq-re :<r 'b 'c) '()])
-               (seq-re :<r 'a '())
-               '(()) nil))
+    (is (equiv? [:- (seq-re :<r nil nil) '()] [:- :u '()]
+                [:- [(seq-re :<r nil nil)] '()] [:- :i '()]
+                '()))
+    (is (equiv? (seq-re :<r [:- (seq-re :<r 'a 'b) '()] 'c)
+                (seq-re :<r '() 'c)
+                '((()) c)
+                '(c)))
+    (is (equiv? (seq-re :<r 'a [:- (seq-re :<r 'b 'c) '()])
+                (seq-re :<r 'a '())
+                '(()) nil))
     ;; p.17
-    (is (equiv (make :uncl "uncFo") (seq-re :<r "uncFo" "uncFo")))
-    (is (equiv (seq-re :<r '() '()) '(()) nil))
-    (is (equiv (seq-re :<r '(()) '(())) :u))))
+    (is (equiv? (make :uncl "uncFo") (seq-re :<r "uncFo" "uncFo")))
+    (is (equiv? (seq-re :<r '() '()) '(()) nil))
+    (is (equiv? (seq-re :<r '(()) '(())) :u))))
 
 
 (deftest permute-vars-test

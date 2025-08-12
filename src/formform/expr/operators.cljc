@@ -440,15 +440,15 @@
   (let [;; assumes only constant values
         ;; ? what about unevaluated FORMs and formDNA?
         {:keys [varorder dna]} (op-data fdna)
-        matches (map #(let [v (get env % calc/var-const)
-                            v (if (or (= calc/var-const v) (calc/const? v))
+        matches (map #(let [v (get env % calc/val-hole)
+                            v (if (or (= calc/val-hole v) (calc/const? v))
                                 v
                                 (symx/expr->const v))]
                         (vector % v))
                      varorder)
         vpoint (map second matches)]
     (make tag_formDNA
-          (mapv first (filter #(= (second %) calc/var-const) matches))
+          (mapv first (filter #(= (second %) calc/val-hole) matches))
           (calc/filter-dna dna vpoint))))
 
 (defn- simplify-formDNA

@@ -162,7 +162,7 @@
 ;; While resolution parity is already determined by the number of items after the re-entry signature, the three remaining parameters are set by the signature itself, which consists of the following elements (in order):
 
 ;; - `<..r` for _even_, `<..r.` for _odd_ re-entry numbers or `<r` alone for _any_ re-entry number (will be determined logically)
-;; - `'` for the _alternative_ interpretation (“recursive identity”) instead of the standard interpretation (“recursive instruction”)
+;; - `'` for the _alternative_ interpretation (“recursive identity”) instead of the standard interpretation (“recursion instruction”)
 ;; - `_` for an _open_ (unmarked) re-entry FORM instead of a closed one
 
 ;; > By the way, the `<` designates the nesting direction which would otherwise only be known by convention.

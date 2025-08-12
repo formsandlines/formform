@@ -369,7 +369,7 @@
                      nil  :n
                      :u   :u
                      [:u] :i
-                     calc/var-const)]
+                     calc/val-hole)]
     {:simplified simpl-expr
      :env env
      :val result}))
@@ -415,7 +415,7 @@
   ([expr] (=> expr {}))
   ([expr env]
    (let [{:keys [simplified val]} (eval-simplified expr env)]
-     (if (= calc/var-const val)
+     (if (= calc/val-hole val)
        simplified
        val))))
 
@@ -432,7 +432,7 @@
      (cond
        ;; if results contain holes -> return simplified expression
        (and (not allow-value-holes?)
-            (some #{:_} results)) simplified
+            (some #{calc/val-hole} results)) simplified
        ;; if there is just one result -> return simple value
        (== (count results) 1) (first results)
        ;; otherwise -> return results as a formDNA expression
@@ -462,7 +462,7 @@
 (defn evaluate
   [expr env]
   (let [{:keys [val simplified env]} (eval-simplified expr env)]
-    {:result (when-not (= :_ val) val)
+    {:result (when-not (= calc/val-hole val) val)
      :simplified simplified
      :env env}))
 
@@ -475,7 +475,7 @@
                                            {:only-vals? false
                                             :reduce-dna? false}))
         vdict (mapv (fn [{:keys [val env simplified]}]
-                      (let [result (when-not (and (= val :_)
+                      (let [result (when-not (and (= val calc/val-hole)
                                                   (not allow-value-holes?))
                                      val)]
                         (vector (mapv env varorder)
@@ -490,38 +490,38 @@
 
 ;; compare expressions
 
-(defn equal
+(defn equal?
   [& exprs]
   (let [varlists (mapv #(find-vars % {:ordered? true}) exprs)
         dnas     (mapv #(==>* % {} {:pre-simplify? false :reduce-dna? false})
                        exprs)]
     (and (apply = varlists)
-         (apply calc/equal-dna dnas))))
+         (apply calc/equal-dna? dnas))))
 
 #_
-(defn equal
+(defn equal?
   [& exprs]
   (let [data     (map (comp symx/op-data =>*) exprs)
         dnas     (map :dna data)
         varlists (map :varorder data)]
     (and (apply = varlists)
-         (apply calc/equal-dna dnas))))
+         (apply calc/equal-dna? dnas))))
 
-(defn equiv
+(defn equiv?
   [& exprs]
-  (apply calc/equiv-dna
+  (apply calc/equiv-dna?
          (mapv #(==>* % {} {:pre-simplify? false :reduce-dna? false})
                exprs)))
 
 #_
-(defn equiv
+(defn equiv?
   [& exprs]
-  (apply calc/equiv-dna (map (comp #(symx/op-get % :dna) =>*) exprs)))
+  (apply calc/equiv-dna? (map (comp #(symx/op-get % :dna) =>*) exprs)))
 
 
 (comment
-  (false? (equal ['a ['b]] ['a ['b] ['c ['c]]]))
-  (true? (equiv ['a ['b]] ['a ['b] ['c ['c]]]))
+  (false? (equal? ['a ['b]] ['a ['b] ['c ['c]]]))
+  (true? (equiv? ['a ['b]] ['a ['b] ['c ['c]]]))
   ,)
 
 

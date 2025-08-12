@@ -393,67 +393,67 @@
 
 
 
-(deftest equiv-dna-test
+(deftest equiv-dna?-test
   (testing "Equivalence of identity"
-    (are [x] (equiv-dna x)
+    (are [x] (equiv-dna? x)
       [:n] [:n :u :i :m] [:n :u :i :m
                           :u :i :m :n
                           :i :m :n :u
                           :m :n :u :i])
-    (are [x] (equiv-dna x x)
+    (are [x] (equiv-dna? x x)
       [:n] [:u] [:i] [:m])
-    (are [x] (equiv-dna x x)
+    (are [x] (equiv-dna? x x)
       [:n :n :n :n] [:u :u :u :u] [:i :i :i :i] [:m :m :m :m])
-    (are [x] (equiv-dna x x)
+    (are [x] (equiv-dna? x x)
       [:n :u :i :m] [:n :u :i :m
                      :u :i :m :n
                      :i :m :n :u
                      :m :n :u :i])
-    (is (equiv-dna [:n :u :i :m] '(:n :u :i :m))))
+    (is (equiv-dna? [:n :u :i :m] '(:n :u :i :m))))
 
   (testing "Non-equivalence"
-    (is (not (equiv-dna [:u] [:i]))) (is (not (equiv-dna [:m] [:n])))
-    (is (not (equiv-dna [:m] [:u]))) (is (not (equiv-dna [:m] [:i])))
-    (is (not (equiv-dna [:n] [:u]))) (is (not (equiv-dna [:n] [:i])))
-    (is (not (equiv-dna [:n] [:n :n :n :m])))
-    (is (not (equiv-dna [:n :n :n :n] [:n :n :n :m])))
-    (is (not (equiv-dna [:n :n :n :n :u :u :u :u :u :u :i :i :u :i :i :m]
-                        [:n :u :u :u :n :u :u :i :n :u :i :i :n :u :i :n]))))
+    (is (not (equiv-dna? [:u] [:i]))) (is (not (equiv-dna? [:m] [:n])))
+    (is (not (equiv-dna? [:m] [:u]))) (is (not (equiv-dna? [:m] [:i])))
+    (is (not (equiv-dna? [:n] [:u]))) (is (not (equiv-dna? [:n] [:i])))
+    (is (not (equiv-dna? [:n] [:n :n :n :m])))
+    (is (not (equiv-dna? [:n :n :n :n] [:n :n :n :m])))
+    (is (not (equiv-dna? [:n :n :n :n :u :u :u :u :u :u :i :i :u :i :i :m]
+                         [:n :u :u :u :n :u :u :i :n :u :i :i :n :u :i :n]))))
   
 
   (testing "Equivalence of permutation"
-    (are [x] (apply equiv-dna (vals (dna-perspectives x)))
+    (are [x] (apply equiv-dna? (vals (dna-perspectives x)))
       [:m :i :u :n :m :m :u :u :m :i :m :i :m :m :m :m]
       [:m :i :u :n :i :i :n :n :u :n :u :n :n :n :n :n :m :i :u :n :m :i :u :n :u :n :u :n :u :n :u :n :m :i :u :n :i :i :n :n :m :i :u :n :i :i :n :n :m :i :u :n :m :i :u :n :m :i :u :n :m :i :u :n]))
 
   (testing "Equivalence of tautology reduction"
-    (is (equiv-dna [:n] (repeat 4 :n) (repeat 16 :n) (repeat 64 :n)))
-    (is (equiv-dna [:u] (repeat 4 :u) (repeat 16 :u) (repeat 64 :u)))
-    (is (equiv-dna [:i] (repeat 4 :i) (repeat 16 :i) (repeat 64 :i)))
-    (is (equiv-dna [:m] (repeat 4 :m) (repeat 16 :m) (repeat 64 :m)))
-    (is (equiv-dna [:n :u :i :m]
-                   [:n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m]))
-    (is (equiv-dna [:n :n :n :n  :u :u :u :u  :i :i :i :i  :m :m :m :m
-                    :n :n :n :n  :n :n :n :n  :i :i :i :i  :i :i :i :i
-                    :n :n :n :n  :u :u :u :u  :n :n :n :n  :u :u :u :u
-                    :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n]
-                   [:n :u :i :m
-                    :n :n :i :i
-                    :n :u :n :u
-                    :n :n :n :n]
-                   ;; permutation:
-                   [:n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :m
-                    :n :n :i :i  :n :n :i :i  :n :n :i :i  :n :n :i :i
-                    :n :u :n :u  :n :u :n :u  :n :u :n :u  :n :u :n :u
-                    :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n]
-                   [:n :u :i :m
-                    :n :n :i :i
-                    :n :u :n :u
-                    :n :n :n :n]))
-    (is (equiv-dna [:n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :i :i :u :u :i :i :u :u :i :i :u :u :i :i :u :i :i :m :u :i :i :m :u :i :i :m :u :i :i :m :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :i :i :u :u :i :i :u :u :i :i :u :u :i :i :u :i :i :m :u :i :i :m :u :i :i :m :u :i :i :m :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :i :i :u :u :i :i :u :u :i :i :u :u :i :i :u :i :i :m :u :i :i :m :u :i :i :m :u :i :i :m :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :i :i :u :u :i :i :u :u :i :i :u :u :i :i :u :i :i :m :u :i :i :m :u :i :i :m :u :i :i :m]
-                   [:n :n :n :n :u :u :u :u :u :u :i :i :u :i :i :m]
-                   [:n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m]
-                   [:n :u :u :u :n :u :u :i :n :u :i :i :n :u :i :m]))))
+    (is (equiv-dna? [:n] (repeat 4 :n) (repeat 16 :n) (repeat 64 :n)))
+    (is (equiv-dna? [:u] (repeat 4 :u) (repeat 16 :u) (repeat 64 :u)))
+    (is (equiv-dna? [:i] (repeat 4 :i) (repeat 16 :i) (repeat 64 :i)))
+    (is (equiv-dna? [:m] (repeat 4 :m) (repeat 16 :m) (repeat 64 :m)))
+    (is (equiv-dna? [:n :u :i :m]
+                    [:n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m]))
+    (is (equiv-dna? [:n :n :n :n  :u :u :u :u  :i :i :i :i  :m :m :m :m
+                     :n :n :n :n  :n :n :n :n  :i :i :i :i  :i :i :i :i
+                     :n :n :n :n  :u :u :u :u  :n :n :n :n  :u :u :u :u
+                     :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n]
+                    [:n :u :i :m
+                     :n :n :i :i
+                     :n :u :n :u
+                     :n :n :n :n]
+                    ;; permutation:
+                    [:n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :m
+                     :n :n :i :i  :n :n :i :i  :n :n :i :i  :n :n :i :i
+                     :n :u :n :u  :n :u :n :u  :n :u :n :u  :n :u :n :u
+                     :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n]
+                    [:n :u :i :m
+                     :n :n :i :i
+                     :n :u :n :u
+                     :n :n :n :n]))
+    (is (equiv-dna? [:n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :i :i :u :u :i :i :u :u :i :i :u :u :i :i :u :i :i :m :u :i :i :m :u :i :i :m :u :i :i :m :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :i :i :u :u :i :i :u :u :i :i :u :u :i :i :u :i :i :m :u :i :i :m :u :i :i :m :u :i :i :m :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :i :i :u :u :i :i :u :u :i :i :u :u :i :i :u :i :i :m :u :i :i :m :u :i :i :m :u :i :i :m :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :i :i :u :u :i :i :u :u :i :i :u :u :i :i :u :i :i :m :u :i :i :m :u :i :i :m :u :i :i :m]
+                    [:n :n :n :n :u :u :u :u :u :u :i :i :u :i :i :m]
+                    [:n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m]
+                    [:n :u :u :u :n :u :u :i :n :u :i :i :n :u :i :m]))))
 
 
 

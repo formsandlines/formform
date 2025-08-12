@@ -10,30 +10,30 @@
 ;;-------------------------------------------------------------------------
 ;; constant
 
+(s/def ::val-hole #(= % :_))
+
 (s/def ::const
   (s/with-gen
     #(case % (:n :u :i :m) true false)
     #(gen/elements [:n :u :i :m])))
+(s/def ::const_
+  (s/with-gen
+    (s/or :const    ::const
+          :val-hole ::val-hole)
+    #(gen/elements [:n :u :i :m :_])))
 
 (s/def ::consts (s/every ::const
                          :kind sequential?
                          :min-count 1))
-
-(s/def ::var-const #(= % core/var-const))
-
-(s/def ::const?
-  (s/with-gen
-    (s/or :const     ::const
-          :var-const ::var-const)
-    #(gen/elements [:n :u :i :m core/var-const])))
+(s/def ::consts_ (s/every ::const_
+                          :kind sequential?
+                          :min-count 1))
 
 (s/def ::const-int (s/int-in 0 4))
-(s/def ::const-int? (s/or :int ::const-int
-                          :var-int #(and (int? %) (== % -1))))
+(s/def ::const_-int (s/int-in -1 4))
 
 (s/def ::const-char #{\N \U \I \M, \n \u \i \m, \0 \1 \2 \3})
-(s/def ::const-char? (s/or :char ::const-char
-                           :var-char #(= % \_)))
+(s/def ::const_-char #{\N \U \I \M, \n \u \i \m, \0 \1 \2 \3  \- \_})
 
 (s/def :rand/seed (s/nilable nat-int?))
 
@@ -62,10 +62,16 @@
 ;; ? necessary
 (s/def ::dna-count #(some? (core/dna-dimension %)))
 
-;; ! check if holes should be part of the spec, or rather something like ::dna?
+
 (s/def ::dna
-  (s/and (s/coll-of (s/or :const ::const
-                          :hole  ::var-const)
+  (s/and (s/coll-of ::const
+                    :kind sequential?
+                    :min-count 1)
+         (comp (partial s/valid? ::dna-length)
+               count)))
+
+(s/def ::dna_ ; allows holes
+  (s/and (s/coll-of ::const_
                     :kind sequential?
                     :min-count 1)
          (comp (partial s/valid? ::dna-length)
@@ -74,6 +80,11 @@
 (s/def ::dna-seq
   (s/and sequential? #(<= (count (set %)) 4)
          ::dna-count))
+
+(s/def ::dna-seq_ ; allows holes
+  (s/and sequential? #(<= (count (set %)) 5)
+         ::dna-count))
+
 
 (s/def ::dna-seq-elem
   (s/or :const ::const
@@ -96,17 +107,17 @@
 
 (s/def ::dna-perspective
   (s/cat :perm-order ::permutation-order
-         :dna        ::dna))
+         :dna        ::dna_))
 
 (s/def ::dna-perspective-group
-  (s/map-of ::permutation-order ::dna))
+  (s/map-of ::permutation-order ::dna_))
 
 
 ;;-------------------------------------------------------------------------
 ;; vpoint
 
 (s/def ::vpoint
-  (s/every ::const?
+  (s/every ::const_
            :kind sequential?))
 
 ;;-------------------------------------------------------------------------
@@ -122,10 +133,10 @@
                     :min-count 1
                     :distinct true)
          (fn [vspc] (let [vs-dim (core/dna-dimension (seq vspc))
-                          vp-dim (count (first vspc))]
-                      (and (some? vs-dim)
-                           (== vs-dim vp-dim)
-                           (every? #(== vp-dim (count %)) vspc))))))
+                         vp-dim (count (first vspc))]
+                     (and (some? vs-dim)
+                          (== vs-dim vp-dim)
+                          (every? #(== vp-dim (count %)) vspc))))))
 ;; ? add spec ordered-vspace
 
 ;;-------------------------------------------------------------------------
@@ -169,31 +180,31 @@
 
 (defmacro spec--dna-seq-args [spec]
   `(s/alt :ar1 (s/cat :dna-seq ~(if (nil? spec)
-                                  `::dna-seq
-                                  `(s/and ::dna-seq ~spec)))
+                                  `::dna-seq_
+                                  `(s/and ::dna-seq_ ~spec)))
           :ar2 (s/cat :sort-code ::sort-code
                       :dna-seq ~(if (nil? spec)
-                                  `::dna-seq
-                                  `(s/and ::dna-seq ~spec)))))
+                                  `::dna-seq_
+                                  `(s/and ::dna-seq_ ~spec)))))
 
 (defmacro spec--dna-args []
-  `(s/alt :ar1 (s/cat :dna       ::dna)
+  `(s/alt :ar1 (s/cat :dna       ::dna_)
           :ar2 (s/cat :sort-code ::sort-code
-                      :dna       ::dna)))
+                      :dna       ::dna_)))
 
 (s/fdef core/prod=dna-seq->dna
   :args (s/fspec :args (s/cat :sort-code ::sort-code
                               :x         any?)
                  :ret  ::const)
   :ret  (s/fspec :args (spec--dna-seq-args nil)
-                 :ret  ::dna))
+                 :ret  ::dna_))
 
 (s/fdef core/prod=dna->dna-seq
   :args (s/fspec :args (s/cat :sort-code ::sort-code
                               :const     ::const)
                  :ret  any?)
   :ret  (s/fspec :args (spec--dna-args)
-                 :ret  ::dna-seq))
+                 :ret  ::dna-seq_))
 
 
 (def ^:no-doc fns-with-specs (utils/list-fn-specs "formform.calc"))

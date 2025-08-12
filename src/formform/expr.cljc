@@ -466,33 +466,33 @@
 ;; Compare expressions
 
 ;; ! check if correct
-(s/fdef equal
+(s/fdef equal?
   :args (s/* ::sp/expression)
   :ret  boolean?)
-(defn equal
-  "Equality check for expressions. Two expressions are considered equal, if their formDNAs are equal. Compares formDNAs from evaluation results of each expression by calling `calc/equal-dna`.
+(defn equal?
+  "Equality check for expressions. Two expressions are considered equal, if their formDNAs are equal. Compares formDNAs from evaluation results of each expression by calling `calc/equal-dna?`.
 
   WARNING: Procedure and assumptions are being reassessed. Use with caution!
 
   * ordering of variable names in formDNA matters, see `find-vars`
-  * stricter than `equiv`, which compares by `calc/equiv-dna`"
+  * stricter than `equiv`, which compares by `calc/equiv-dna?`"
   [& exprs]
-  (apply core/equal exprs))
+  (apply core/equal? exprs))
 
 ;; ! check if correct
-(s/fdef equiv
+(s/fdef equiv?
   :args (s/* ::sp/expression)
   :ret  boolean?)
-(defn equiv
-  "Equivalence check for expressions. Two expressions are considered equivalent, if their formDNAs are equivalent. Compares formDNAs from evaluation results of each expression by calling `calc/equiv-dna`.
+(defn equiv?
+  "Equivalence check for expressions. Two expressions are considered equivalent, if their formDNAs are equivalent. Compares formDNAs from evaluation results of each expression by calling `calc/equiv-dna?`.
 
   WARNING: Procedure and assumptions are being reassessed. Use with caution!
 
   * ordering of variable names in formDNA is irrelevant
-  * looser than `equal`, which compares by `calc/equal-dna`
+  * looser than `equal`, which compares by `calc/equal-dna?`
   * can be slow on expressions with 6+ variables"
   [& exprs]
-  (apply core/equiv exprs))
+  (apply core/equiv? exprs))
 
 
 ;;-------------------------------------------------------------------------
@@ -720,7 +720,7 @@
   :args (s/alt :ar1 (s/cat :expr ::sp/expression)
                :ar2 (s/cat :expr ::sp/expression
                            :env  ::sp/environment))
-  :ret  ::calc-sp/const?)
+  :ret  ::calc-sp/const_)
 (defn eval->val
   "Evaluates a FORM `expr` with an optional `env` and returns a value: either a constant or a “value hole” `:_` (in case a value cannot be determined, which usually happens when variables remain uninterpreted).  
   * `env` must be a map from variables to expressions"
@@ -785,7 +785,7 @@
 (s/def :eval-all/results
   (let [interpr-spec ::calc-sp/vpoint
         result-spec  (s/or :const ::calc-sp/const
-                           :hole  ::calc-sp/var-const
+                           :hole  ::calc-sp/val-hole
                            :none  nil?
                            :map   (s/keys :req-un [:evaluate/result]))]
     (s/and (s/coll-of (s/cat :interpretation interpr-spec
@@ -909,7 +909,7 @@
   (s/conform :eval-all/results
              (:results (eval-all [:- 'a [['b]]])))
 
-    (s/conform :eval-all/results
+  (s/conform :eval-all/results
              (:results (eval-all [:- 'a [['b]]]
                                  {} {:ordered-results? true})))
 

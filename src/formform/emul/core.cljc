@@ -811,7 +811,7 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
   [dna umwelt]
   (if (== (count dna) 1)
     (dna 0)
-    (let [qtn (apply str (mapv calc-core/const?->digit umwelt))
+    (let [qtn (apply str (mapv calc-core/const_->digit umwelt))
           idx (utils/parse-int qtn 4)]
       (dna idx))))
 

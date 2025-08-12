@@ -12,9 +12,11 @@
 ;; Constant
 
 (def consts #{:n :u :i :m})
-(def var-const :_)
+(def consts_ #{:n :u :i :m :_})
+(def val-hole :_)
 
 (def const? (comp some? consts))
+(def const_? (comp some? consts_))
 
 ;; predefined sort-codes
 (def nuim-code [:n :u :i :m])
@@ -65,7 +67,7 @@
   ([n] (digit->const nuim-code n))
   ([sort-code n]
    (if (== n -1)
-     var-const ;; “hole” or variable value
+     val-hole
      (sort-code n))))
 
 (defn char->const
@@ -76,7 +78,7 @@
      (\u \U) :u
      (\i \I) :i
      (\m \M) :m
-     \_      var-const
+     \_      val-hole
      (when-let [n (utils/parse-int-maybe (str c))]
        (digit->const sort-code n)))))
 
@@ -89,11 +91,11 @@
      nmui-code (case c :n 0 :m 1 :u 2 :i 3)
      ((zipmap sort-code (range)) c))))
 
-(defn const?->digit
-  ([c] (const?->digit nuim-code c))
+(defn const_->digit
+  ([c] (const_->digit nuim-code c))
   ([sort-code c]
-   (if (= c var-const)
-     -1 ;; “hole” or variable value
+   (if (= c val-hole)
+     -1 ;; int representation of `:_`
      (const->digit sort-code c))))
 
 (defn consts->quaternary
@@ -244,7 +246,7 @@
   (prod=dna-seq->dna (fn [sort-code x] (char->const sort-code x))))
 
 (def dna->digits
-  (prod=dna->dna-seq (fn [sort-code x] (const?->digit sort-code x))))
+  (prod=dna->dna-seq (fn [sort-code x] (const_->digit sort-code x))))
 
 
 ;; ? is this correct expansion for dim > 2 (see `rel`)
@@ -258,35 +260,47 @@
     dna-seq))
 
 (defn reduce-dna-seq
-  ([dna-seq]
-   (let [dim (dna-dimension dna-seq)]
-     (reduce-dna-seq (vec (range dim)) dna-seq)))
-  ([terms dna-seq]
-   (loop [dna-seq dna-seq
-          terms   (utils/reversev terms)
-          dim     (dna-dimension dna-seq)
-          subdim  0]
-     (if (>= subdim dim)
-       [(utils/reversev terms) dna-seq]
-       (let [quad-len   (utils/pow-nat 4 subdim)
-             parts      (if (== 1 quad-len)
-                          dna-seq
-                          (partition quad-len dna-seq))
-             simplified (loop [[quad r] (split-at 4 parts)
-                               result   []]
-                          (when (apply = quad)
-                            (let [result (if (== 1 quad-len)
-                                           (conj result (first quad))
-                                           (into result (first quad)))]
-                              (if (< (count r) 4)
-                                result
-                                (recur (split-at 4 r) result)))))]
-         (if (nil? simplified)
-           (recur dna-seq terms dim (inc subdim))
-           (recur simplified
-                  (utils/dissocv terms subdim)
-                  (dec dim) subdim)))))))
+  ([dna-seq] (reduce-dna-seq dna-seq {}))
+  ([dna-seq opts] (let [dim (dna-dimension dna-seq)]
+                    (reduce-dna-seq (vec (range dim)) dna-seq opts)))
+  ([terms dna-seq
+    {:keys [assume-holes-equal?] :or {assume-holes-equal? false}}]
+   (if (and (not assume-holes-equal?) ;; ? check in loop may be more efficient
+            (some #(or (= :_ %) (= -1 %)) dna-seq))
+     [terms dna-seq]
+     (loop [dna-seq dna-seq
+            terms   (utils/reversev terms)
+            dim     (dna-dimension dna-seq)
+            subdim  0]
+       (if (>= subdim dim)
+         [(utils/reversev terms) dna-seq]
+         (let [quad-len   (utils/pow-nat 4 subdim)
+               parts      (if (== 1 quad-len)
+                            dna-seq
+                            (partition quad-len dna-seq))
+               simplified (loop [[quad r] (split-at 4 parts)
+                                 result   []]
+                            (when (apply = quad)
+                              (let [result (if (== 1 quad-len)
+                                             (conj result (first quad))
+                                             (into result (first quad)))]
+                                (if (< (count r) 4)
+                                  result
+                                  (recur (split-at 4 r) result)))))]
+           (if (nil? simplified)
+             (recur dna-seq terms dim (inc subdim))
+             (recur simplified
+                    (utils/dissocv terms subdim)
+                    (dec dim) subdim))))))))
 
+(comment
+
+  (reduce-dna-seq [:n :_ :i :m  :n :_ :i :m  :n :_ :i :m  :n :_ :i :n
+                   :n :_ :i :m  :n :_ :i :m  :n :_ :i :m  :n :_ :i :n
+                   :n :_ :i :m  :n :_ :i :m  :n :_ :i :m  :n :_ :i :n
+                   :n :_ :i :m  :n :_ :i :m  :n :_ :i :m  :n :_ :i :n]
+                  {:assume-holes-equal? false})
+  ,)
 
 (defn make-dna
   [& xs]
@@ -368,7 +382,7 @@
   [dna vpoint]
   ;; ! mapping vpoint to digits seems to drag down performance in CAs
   ;;   so either not use for CA rules or …?
-  (filter-dna-seq dna (mapv const?->digit vpoint)))
+  (filter-dna-seq dna (mapv const_->digit vpoint)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; formDNA perspectives
@@ -424,9 +438,9 @@
           {:sorted-keys perms})))))
 
 
-(def equal-dna =)
+(def equal-dna? =)
 
-(defn equiv-dna
+(defn equiv-dna?
   ([_] true)
   ([a b] (let [->psps (comp (partial dna-seq-perspectives {})
                             second reduce-dna-seq)
@@ -435,10 +449,10 @@
                b-psps (-> b ->psps ->set)]
            (= a-psps b-psps)))
   ([a b & more]
-   (if (equiv-dna a b)
+   (if (equiv-dna? a b)
      (if (next more)
        (recur b (first more) (next more))
-       (equiv-dna b (first more)))
+       (equiv-dna? b (first more)))
      false)))
 
 
@@ -526,12 +540,14 @@
       (case [a b]
         [:u :u] :u
         [:i :i] :i
-        ([:u :i] [:i :u]) :m))))
+        ([:u :i] [:i :u]) :m
+        ;; value holes are black boxes, we never look inside!
+        ([:_ :_] [:_ :u] [:u :_] [:_ :i] [:i :_]) :_))))
 
 (defn rel
   ([]  :n)
   ([a] a)
-  ([a b] (if (and (const? a) (const? b))
+  ([a b] (if (and (const_? a) (const_? b))
            (relc a b)
            (let [adim (dna-dimension a)
                  bdim (dna-dimension b)]
@@ -547,20 +563,14 @@
     :n :m
     :u :i
     :i :u
-    :m :n))
+    :m :n
+    :_ :_)) ;; <- value holes can never be compared, so this is fine
 
+;; ? is implicit relation confusing
 (defn inv
   ([]  :m)
-  ([a] (if (const? a)
+  ([a] (if (const_? a)
          (invc a)
          (mapv inv a)))
   ([a & xs] (inv (apply rel (cons a xs)))))
 
-
-(comment
-  
-  (inv :m)
-  
-  ;; (set! *print-length* 50)
-  ;; (require '[criterium.core :as crt])
-  ,)
