@@ -35,6 +35,7 @@ All notable changes to this project will be documented in this file. This change
 - `evaluate` now separates output values in `:result` and the simplified expression in `:simplified`. The result is now `nil` if it could not be determined to a value. For `eval-all`, results are either value constants or `nil`, but can optionally be maps with the same entries as from `evaluate`. Options are explained in the docstring.
 - Renamed `calc/equal-dna`, `calc/equiv-dna`, `expr/equal` and `expr/equiv` to have `?` appended to their name, to follow the convention for predicates.
 - Changed `calc/reduce-dna-seq` to check if the dna-seq contains value holes (`:_`) and in that case just return it, because reduction with value holes is not possible (extension is, though!).
+- `expr/simplify` and `expr/simplify-in` now treat each instance of an expression/value hole (`:_`) in an expression/context as a unique, distinct symbol. This means that holes in subexpressions do not get simplified by law of calling like they used to.
 
 
 ### Fixed
@@ -43,6 +44,7 @@ All notable changes to this project will be documented in this file. This change
 - `calc/permute-dna-seq`, which had an incorrect implementation and lack of testing
 - `calc/filter-dna` to handle the edge-case where formDNA dimension is 0, i.e. the dna is equivalent to a constant
 - `calc/dna-perspectives` now retains its original key-order in metadata after being converted to a map, which is useful if the order in which perspectives are listed matters
+- `expr.core/simplify-content` used to call the method `interpret-sym` for expression symbols, which was incorrect, it now calls `simplify-sym`
 
 ## [0.1.0] - 2023-05-07
 

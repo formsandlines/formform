@@ -242,7 +242,7 @@
 (deftest simplify-test
   (testing "Simple content"
     (testing "FORM"
-      (testing "equal"
+      (testing "by itself"
         (are [x y] (= x y)
           (>> nil) nil
           (>> '()) '()))
@@ -252,21 +252,31 @@
           (>> '(()))   nil
           (>> '(([]))) [])))
 
-    (testing "Constant"
-      (testing "equal"
+    (testing "Symbol"
+      (testing "by itself"
         (are [x y] (= x y)
           (>> :n) nil
           (>> :m) '()
           (>> :u) :u
-          (>> :i) '(:u)))
+          (>> :i) '(:u)
+          (>> :0) (>> :n)
+          (>> :3) (>> :m)
+          (>> :1) (>> :u)
+          (>> :2) (>> :i)
+          (>> :mn) (>> :u)))
       (testing "marked"
         (are [x y] (= x y)
-          (>> '(:n)) '()
-          (>> '(:m)) nil
-          (>> '(:u)) '(:u)
-          (>> '(:i)) :u)))
-
-    (testing "variable"
+          (>> [:n]) '()
+          (>> [:m]) nil
+          (>> [:u]) '(:u)
+          (>> [:i]) :u
+          (>> [:0]) (>> [:n]) 
+          (>> [:3]) (>> [:m]) 
+          (>> [:1]) (>> [:u]) 
+          (>> [:2]) (>> [:i]) 
+          (>> [:mn]) (>> [:u]))))
+    
+    (testing "Variable"
       (testing "without env"
         (is (= (>> 'a) 'a))
         (is (= (>> "a") "a")))
@@ -326,7 +336,20 @@
       ;; should these be reducable? pattern-matching?
       ;; -> might get too complex for eval
       (is (= (>> '((a (b)) ((b) a)))
-             '((a (b)) ((b) a)))))))
+             '((a (b)) ((b) a))))))
+
+  (testing "Expression holes"
+    ;; holes are not expression symbols, they are placeholders
+    (is (not (expr-symbol? :_)))
+    ;; they are not self-equivalent and thus not “real” expressions
+    ;; so they cannot be simplified by algebraic means
+    (is (= (>> :_) (>> [[:_]]) (>> [:- :_]) (>> [:- [:- :_ nil]])
+           :_))
+    (is (= (>> [:_]) (>> [[[:_]]]) (>> [:- [:_]]) (>> [:- [[:- :_] nil]])
+           [:_]))
+    (is (= (>> [:_ :_]) (>> [[[:_]] :n [:- :_] nil])
+           [:_ :_]))
+    (is (= (>> [[:_] :_]) [[:_] :_]))))
 
 
 (deftest simplify-in-test
@@ -501,8 +524,8 @@
            (in>> [[:mem [['x :u]] 'x] [:mem [['x :u]] 'x]])))
     (is (= '[[:fdna ["foo"] (:u :u :u :n)]]
            (in>> [[:uncl "foo"] [:uncl "foo"] [:uncl "foo"]])
-           (in>> [[:fdna ["foo"] [:u :u :u :n]
-                   [:fdna ["foo"] [:u :u :u :n]]]])))
+           (in>> [[:fdna ["foo"] [:u :u :u :n]]
+                  [:fdna ["foo"] [:u :u :u :n]]])))
     (is (= '[[:seq-re :<..r a b]]
            (in>> [[:seq-re :<..r 'a 'b] [:seq-re :<..r 'a 'b]])))
     ;; cannot cross re-entry boundary in (de)generation!
@@ -528,7 +551,34 @@
     (is (= '[[]]
            (in>> [[:- [:seq-re :<r 'a 'b] []]])
            (in>> [[:fdna [] [:m]] [:seq-re :<r 'a 'b]])
-           (in>> [[:fdna ["foo"] [:n :u :u :u]] [:fdna [] [:m]]])))))
+           (in>> [[:fdna ["foo"] [:n :u :u :u]] [:fdna [] [:m]]]))))
+
+  (testing "Interactions with expression holes"
+    (is (= (in>> '[ :_ :_ :_ ]) (in>> '[ [[:_ :_ :_]] ])
+           (in>> '[ :_ [[:_ :_]] ]) (in>> '[ [[:_]] [:- :_ :_]])
+           [ :_ :_ :_ ]))
+    (is (= (in>> '[ :_ :m :_ ]) (in>> '[ :_ [] [:_] ]) (in>> '[ :_ :u :_ :i ])
+           [ [] ]))
+    (is (= (in>> '[ :_ [:m :_] :_ ]) (in>> '[ :_ :n :_ nil ])
+           [ :_ :_ ]))
+    (is (= (in>> '[ :_ :u :_ ]) (in>> '[ :_ :u :_ [:i] ])
+           [ :_ :u :_ ]))
+    (is (= (in>> '[ :_ :i :_ ]) (in>> '[ :_ :i :_ [:u] ])
+           [ :_ [:u] :_ ]))
+    (is (= (in>> '[ :_ :i [:_ :u] ]) [ :_ [:u] ]))
+    (is (= (in>> '[ :_ :u [:_ :i] ]) [ :_ :u ]))
+    (is (= (in>> '[ :_ :u [:_ :u] ]) [ :_ :u [:_] ]))
+    (is (= (in>> '[ :_ :i [:_ :i] ]) [ :_ [:u] [:_] ]))
+    (is (= (in>> '[ a :_ a ]) [ 'a :_ ]))
+    (is (= (in>> '[ a :_ b :_ ]) [ 'a :_ 'b :_ ]))
+    (is (= (in>> '[ a :_ [a :_] ]) [ 'a :_ [:_]]))
+    (is (= (in>> '[ [:seq-re :<r :_ :_] ]) [ [:seq-re :<r :_ :_] ]))
+    (is (= (in>> '[ [:seq-re :<..r._ :_ :_] ]) [ [:seq-re :<..r._ :_ :_] ]))
+    (is (= (in>> '[ [:seq-re :<r :m :_] ]) [ [:_] ]))
+    (is (= (in>> '[ [:seq-re :<r :_ :m] ]) [ ]))
+    (is (= (in>> '[ [:seq-re :<r :u [:- :i :_]] ]) [ [[:u] :_] ]))
+    (is (= (in>> '[ [:seq-re :<r [:- :i :_] :u] ]) [ [:u] ]))
+    (is (= (in>> '[ [:uncl "foo"] :_ ]) [ [:fdna ["foo"] [:u :u :u :n]] :_ ]))))
 
 ;; more exhaustive tests in formform.expr.core-test
 ;; the tests below are more useful to illustrate how the functions work:

@@ -208,14 +208,18 @@
   ([x] (simplify-matching-content x x))
   ([x default]
    (case x ;; [] = '() in cases! (cljs doesn’t like ((…)) in cases)
+     ;; case m:
      ([] :m [nil] [:n] [[[]]] [[:m]] [[[nil]]] [[[:n]]]
       [[:u :i]] [[:i :u]])
      []
+     ;; case n:
      (nil :n [[]] [:m] [[nil]] [[:n]]
           [:u :i] [:i :u])
      nil
+     ;; case u:
      (:u [:i] [[:u]] [[[:i]]])
      :u
+     ;; case i:
      (:i [:u] [[:i]] [[[:u]]])
      [:u]
      default)))
@@ -225,6 +229,9 @@
 ;; ? metadata consistent after simplify-matching-content
 (defn simplify-form
   [form env]
+  ;; simplify the FORM as a context of expressions
+  ;; try to match the result against a simple equivalent expression
+  ;; to obtain the simplest possible FORM
   (let [form (simplify-context form env)
         expr (simplify-matching-content
               (if (and (== 1 (count form))
@@ -240,15 +247,20 @@
 
 (defn simplify-content
   [x env]
+  ;; first, try to match `x` against a simple equivalent expression
+  ;; to obtain the simplest possible FORM
   (let [res (simplify-matching-content x :failed)]
     (if (not= :failed res)
       res
+      ;; if this fails, simplify by type of content
+      ;; or try to substitute `x` if there is a matching expression in `env`
       (cond
         (symx/operator? x)    (symx/simplify-op x env)
         (form? x)             (simplify-form x env)
-        (symx/expr-symbol? x) (symx/interpret-sym x)
+        (symx/expr-symbol? x) (symx/simplify-sym x env)
         :else (substitute-expr env x)))))
 
+;; default method moved here due to dependency on `simplify-content`
 (defmethod symx/simplify-op :default simplify-op->unknown
   [[op-k & _ :as expr] env]
   (if (symx/op-symbol? op-k)
@@ -261,8 +273,8 @@
 
 ;; ? kinda messy - how to make this more systematic
 (defn- simplify-by-calling
-  "Tries to reduce given context to `()` if it contains the equivalent of a `MARK` or both `:u` and `:i` are present in the context and/or given `env`.
-  - remembers any occurrence of `:u` or `:i` in the `env`."
+  "Tries to reduce given context to `()` if it contains the equivalent of a mark or both `:u` and `:i` are present in the context and/or given `env`. Returns a tuple of the new context and env.
+  - remembers any occurrence of `:u` or `:i` in the `env`"
   [ctx env]
   ;; find mark in the expression
   (if (some #{[] :m [nil] [:n] [[[]]] [[:m]] [[[nil]]] [[[:n]]]}
@@ -271,24 +283,22 @@
     ;; else find and remember :u in the expression
     ;; match with :i if seen
     (let [[seenU? seenI?] [(observed-has? env :u) (observed-has? env :i)]
-          [seenU? env-next]
-          (if (and (not seenU?)
-                   (some #{:u [:i] [[:u]] [[[:i]]]} ctx))
-            [true (observed-put env :u)]
-            [seenU? env])]
+          [seenU? env-next] (if (and (not seenU?)
+                                     (some #{:u [:i] [[:u]] [[[:i]]]} ctx))
+                              [true (observed-put env :u)]
+                              [seenU? env])]
       (if (and seenU? seenI?)
         [[[]] env-next]
         ;; else find and remember :i in the expression
         ;; match with :u if seen
-        (let [[seenI? env-next]
-              (if (and (not seenI?)
-                       (some #{:i [:u] [[:i]] [[[:u]]]} ctx))
-                [true (observed-put env-next :i)]
-                [seenI? env-next])]
+        (let [[seenI? env-next] (if (and (not seenI?)
+                                         (some #{:i [:u] [[:i]] [[[:u]]]} ctx))
+                                  [true (observed-put env-next :i)]
+                                  [seenI? env-next])]
           (if (and seenU? seenI?)
             [[[]] env-next]
             ;; else return the input expression with distinct elements
-            [(let [ctx (distinct ctx)
+            [(let [ctx (distinct ctx) ; <- by law of calling!
                    obs (observed-get env)]
                (if (nil? obs)
                  ctx
@@ -296,22 +306,23 @@
              env-next]))))))
 
 (defn- simplify-by-crossing
-  "Tries to reduce some `((x …))` to `x …` for each FORM in given context."
+  "Tries to reduce some `((x …))` to `x …` for each FORM in given context. Returns the resulting context."
   [ctx]
-  (let [f (fn [ctx x]
+  (reduce (fn [ctx x]
             (if (pure-form? x)
               (let [[x' & r] x]
                 (if (and (pure-form? x') (empty? r))
-                  (into [] (concat ctx x'))
+                  (vec (concat ctx x'))
                   (conj ctx x)))
-              (conj ctx x)))]
-    (reduce f [] ctx)))
+              (conj ctx x)))
+          [] ctx))
 
 (defn- substitute-in-context
+  "Iteratively matches all expressions in `ctx` against keys in `env` and substitutes them with the respective values until no further substitution can be done. Afterwards, splices arrangements to clean up the resulting context."
   [env ctx]
-  (loop [ctx  ctx
-         i    0]
-    (let [ctx' (map (partial substitute-expr env) ctx)]
+  (loop [ctx ctx
+         i   0]
+    (let [ctx' (mapv (partial substitute-expr env) ctx)]
       (cond
         (= ctx' ctx) (splice-ctx ctx')
         (> i 400)    (throw (ex-info "Too many substitutions! Possibly caused by two mutually recursive associations in the env."
@@ -322,26 +333,68 @@
 ;; ? add option for assumption mn ≠ mn to prevent relation of U/I
 (defn simplify-context
   [ctx env]
+  ;; when we enter a new context, the depth counter increases
+  ;; if it exceeds a certain depth, it is probably not intentional
   (let [env (update env :depth #(if (nil? %) 0 (inc %)))]
     (if (< (:depth env) 400)
-      ;; substitute matches from env upfront
+      ;; first, substitute any matches from env upfront
       (loop [ctx (substitute-in-context env ctx)
              i   0]
+        ;; reduce simple expressions by law of calling,
+        ;; remembering observed u/i values in env for further simplification
         (let [[ctx env-next] (simplify-by-calling ctx env)]
           (if (or (= ctx [[]]) (= ctx []))
             (vary-meta ctx #(assoc % :env-next env-next))
+            ;; next, try to simplify each expression in the context
+            ;; while remembering the other exprs in env for later (de)generation
+            ;; and simplify the resulting context by law of crossing
             (let [env-next (observed-merge env-next ctx)
-                  ctx' (->> (map #(simplify-content
-                                   % (observed-disj env-next %))
-                                 ctx)
+                  ctx' (->> ctx
+                            (mapv #(simplify-content
+                                    % (observed-disj env-next %)))
                             simplify-by-crossing
                             (remove nil?))]
+              ;; if the context cannot be simplified further, return it
+              ;; otherwise, make another attempt, but don’t try too hard
               (cond
                 (= ctx' ctx) (vary-meta ctx' #(assoc % :env-next env-next))
                 (> i 3)      (throw (ex-info "Too many reduction attempts!"
                                              {:type :infinite-reduction}))
                 :else (recur ctx' (inc i)))))))
       (throw (ex-info "Context too deeply nested, possibly caused by a self-contradicting re-entry definition." {:type :stack-overflow})))))
+
+
+(defn- make-unique-symbol
+  [prefix]
+  (-> (gensym prefix) name keyword))
+
+(declare distinguish-holes-in-context)
+(declare homogenize-holes-in-context)
+
+(defn- distinguish-holes-in-content
+  [x]
+  (cond
+    (= calc/val-hole x) (make-unique-symbol "_")
+    (sequential? x) (distinguish-holes-in-context x)
+    :else x))
+
+(defn- distinguish-holes-in-context
+  [ctx]
+  (mapv distinguish-holes-in-content ctx))
+
+(def unique-hole? #(re-find #"_\d+" (name %)))
+
+(defn- homogenize-holes-in-content
+  [x]
+  (cond
+    (and (keyword? x)
+         (unique-hole? x)) :_
+    (sequential? x) (homogenize-holes-in-context x)
+    :else x))
+
+(defn- homogenize-holes-in-context
+  [ctx]
+  (mapv homogenize-holes-in-content ctx))
 
 (defn- simplify-env
   [env]
@@ -350,13 +403,29 @@
 ;; ? should env be reduced completely before substitution?
 (defn cnt>
   ([x]     (cnt> x {}))
-  ([x env] (simplify-matching-content
-            (simplify-content x (simplify-env env))))) ;; interpret ?
+  ([x env]
+   (-> x
+       (distinguish-holes-in-content)
+       (simplify-content (simplify-env env))
+       (simplify-matching-content)
+       (homogenize-holes-in-content))))
 
 (defn ctx>
   ([ctx]     (ctx> ctx {}))
-  ([ctx env] (vec (simplify-context ctx (simplify-env env)))))
+  ([ctx env]
+   (-> ctx
+       (distinguish-holes-in-context)
+       (simplify-context (simplify-env env))
+       (homogenize-holes-in-context)
+       (vec))))
 
+
+(comment
+  (symx/simplify-sym :u {})
+  (cnt> :_ {})
+  (ctx> [:_ :_] {})
+  (ctx> [:_ [:_ :_] [:_ :_]] {})
+  ,)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Evaluation

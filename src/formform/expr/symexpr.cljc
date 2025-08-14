@@ -233,7 +233,7 @@
 
 (defsymbol :n void)
 (defsymbol :m mark)
-(defsymbol :u uform :reducer (fn [u _] u))
+(defsymbol :u uform :reducer (fn [u _] u)) ; reducer never called in simplify
 (defsymbol :i [:u])
 
 (defsymbol :0 :n)
@@ -242,6 +242,11 @@
 (defsymbol :3 :m)
 
 (defsymbol :mn :u)
+
+;; expr holes (`:_`) are not interpretable as specific expressions
+;; they should not be considered expressions at all
+;; they are rather placeholders for expressions of any kind
+;; therefore they are not defined as expression symbols
 
 ;; simplest possible expression -> constant
 (def expr->const {void    :n
