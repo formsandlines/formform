@@ -575,11 +575,17 @@
 ;;-------------------------------------------------------------------------
 ;; Simplify expressions
 
+(s/def :opts/allow-hole-results? boolean?)
+(s/def :opts/allow-hole-exprs? boolean?)
+
 ;; ? remove in impl
 (s/fdef simplify
   :args (s/alt :ar1 (s/cat :x   ::sp/expression)
                :ar2 (s/cat :x   ::sp/expression
-                           :env ::sp/environment))
+                           :env ::sp/environment)
+               :ar3 (s/cat :x   ::sp/expression
+                           :env ::sp/environment
+                           :opts (s/keys :opt-un [:opts/allow-hole-exprs?])))
   :ret  ::sp/expression)
 (defn simplify
   "Simplifies a FORM recursively until it cannot be further simplified. All deductions are justified by the axioms of FORM logic.
@@ -588,7 +594,8 @@
   * if no simplification applies, tries to retrieve the value from given `env`
   * if retrieval was unsuccessful, returns `x` as is"
   ([x] (core/cnt> x))
-  ([x env] (core/cnt> x env)))
+  ([x env] (core/cnt> x env))
+  ([x env opts] (core/cnt> x (update env :--opts merge opts))))
 ;; alias
 (def >> simplify)
 
@@ -596,14 +603,18 @@
 (s/fdef simplify-in
   :args (s/alt :ar1 (s/cat :ctx ::sp/context)
                :ar2 (s/cat :ctx ::sp/context
-                           :env ::sp/environment))
+                           :env ::sp/environment)
+               :ar3 (s/cat :ctx ::sp/context
+                           :env ::sp/environment
+                           :opts (s/keys :opt-un [:opts/allow-hole-exprs?])))
   :ret  ::sp/context)
 (defn simplify-in
   "Simplifies a context/sequence of FORMs recursively until it cannot be further simplified. All deductions are justified by the axioms of FORM logic.
 
   * for complex expressions, calls `expr.core/simplify-content` on every unique element"
   ([ctx] (core/ctx> ctx))
-  ([ctx env] (core/ctx> ctx env)))
+  ([ctx env] (core/ctx> ctx env))
+  ([ctx env opts] (core/ctx> ctx (update env :--opts merge opts))))
 ;; alias
 (def in>> simplify-in)
 
@@ -639,7 +650,10 @@
 (s/fdef simplify-nested-l
   :args (s/alt :ar1 (s/cat :nesting-chain ::sp/nesting-chain-l)
                :ar2 (s/cat :nesting-chain ::sp/nesting-chain-l
-                           :env   ::sp/environment))
+                           :env  ::sp/environment)
+               :ar3 (s/cat :nesting-chain ::sp/nesting-chain-l
+                           :env  ::sp/environment
+                           :opts (s/keys :opt-un [:opts/allow-hole-exprs?])))
   :ret ::sp/nesting-chain-l)
 (defn simplify-nested-l
   "Reduces a leftward `nesting-chain`, a sequence of expressions `( … x y z )` whose interpretation is `( [[[…] x] y] z )`, to a simplified nesting chain, possibly spliced or shortened via inference.
@@ -648,14 +662,21 @@
   ([nesting-chain]
    (core/simplify-nesting-chain {:rtl? true} nesting-chain {}))
   ([nesting-chain env]
-   (core/simplify-nesting-chain {:rtl? true} nesting-chain env)))
+   (core/simplify-nesting-chain {:rtl? true} nesting-chain env))
+  ([nesting-chain env opts]
+   (core/simplify-nesting-chain {:rtl? true} nesting-chain
+                                (update env :--opts merge opts))))
+
 ;; alias
 (def nested-l>> simplify-nested-l)
 
 (s/fdef simplify-nested-r
   :args (s/alt :ar1 (s/cat :nesting-chain ::sp/nesting-chain-r)
                :ar2 (s/cat :nesting-chain ::sp/nesting-chain-r
-                           :env   ::sp/environment))
+                           :env  ::sp/environment)
+               :ar3 (s/cat :nesting-chain ::sp/nesting-chain-r
+                           :env  ::sp/environment
+                           :opts (s/keys :opt-un [:opts/allow-hole-exprs?])))
   :ret  ::sp/nesting-chain-r)
 (defn simplify-nested-r
   "Reduces a rightward `nesting-chain`, a sequence of expressions `( a b c … )` whose interpretation is `( a [b [c […]]] )`, to a simplified nesting chain, possibly spliced or shortened via inference.
@@ -664,7 +685,10 @@
   ([nesting-chain]
    (core/simplify-nesting-chain {:rtl? false} nesting-chain {}))
   ([nesting-chain env]
-   (core/simplify-nesting-chain {:rtl? false} nesting-chain env)))
+   (core/simplify-nesting-chain {:rtl? false} nesting-chain env))
+  ([nesting-chain env opts]
+   (core/simplify-nesting-chain {:rtl? false} nesting-chain
+                                (update env :--opts merge opts))))
 ;; alias
 (def nested-r>> simplify-nested-r)
 
@@ -685,7 +709,6 @@
 (def => eval->expr)
 
 
-(s/def :opts/allow-value-holes? boolean?)
 (s/def :opts/reduce-dna? boolean?)
 (s/def :opts/pre-simplify? boolean?)
 (s/def :opts/rich-results? boolean?)
@@ -697,7 +720,8 @@
                :ar3 (s/cat :expr ::sp/expression
                            :env  ::sp/environment
                            :opts (s/keys :opt-un [::sp/varorder
-                                                  :opts/allow-value-holes?
+                                                  :opts/allow-hole-results?
+                                                  :opts/allow-hole-exprs?
                                                   :opts/reduce-dna?
                                                   :opts/pre-simplify?])))
   :ret  ::sp/expression)
@@ -707,9 +731,10 @@
 
   An `opts` map can be provided with the following keys:
   * `:varorder` → sets the variable interpretation order for the resulting formDNA
-  * `:allow-value-holes?` → (default: `false`) sets a “value hole” (`:_`) in place of an uninterpretable result
   * `:pre-simplify?` → (default: `true`) simplifies the expression before interpretation, which might reduce terms and therefore evaluation time
-  * `:reduce-dna?` → (default: `true`) if result is a formDNA expression which can be reduced to fewer terms, reduces it to further simplify the output"
+  * `:reduce-dna?` → (default: `true`) if result is a formDNA expression which can be reduced to fewer terms, reduces it to further simplify the output
+  * `:allow-hole-results?` → (default: `false`) sets a “value hole” (`:_`) in place of an uninterpretable result
+  * `:allow-hole-exprs?` → (default: `false`) allows “value holes” (`:_`) in the input expression (each instance will be treated like a different variable)"
   ([expr] (core/=>* expr {} {}))
   ([expr env] (core/=>* expr env {}))
   ([expr env opts] (core/=>* expr env opts)))
@@ -735,6 +760,7 @@
                :ar3 (s/cat :expr ::sp/expression
                            :env  ::sp/environment
                            :opts (s/keys :opt-un [::sp/varorder
+                                                  :opts/allow-hole-exprs?
                                                   :opts/reduce-dna?
                                                   :opts/pre-simplify?])))
   :ret  ::calc-sp/dna)
@@ -747,7 +773,8 @@
   An `opts` map can be provided with the following keys:
   * `:varorder` → sets the variable interpretation order for the resulting formDNA
   * `:pre-simplify?` → (default: `false`) simplifies the expression before interpretation, which might reduce terms and therefore evaluation time
-  * `:reduce-dna?` → (default: `false`) if result is a formDNA expression which can be reduced to fewer terms, reduces it to further simplify the output"
+  * `:reduce-dna?` → (default: `false`) if result is a formDNA expression which can be reduced to fewer terms, reduces it to further simplify the output
+  * `:allow-hole-exprs?` → (default: `false`) allows “value holes” (`:_`) in the input expression (each instance will be treated like a different variable)"
   ([expr] (core/==>* expr {} {}))
   ([expr env] (core/==>* expr env {}))
   ([expr env opts] (core/==>* expr env opts)))
@@ -800,7 +827,8 @@
                :ar3 (s/cat :expr ::sp/expression
                            :env  ::sp/environment
                            :opts (s/keys :opt-un [::sp/varorder
-                                                  :opts/allow-value-holes?
+                                                  :opts/allow-hole-results?
+                                                  :opts/allow-hole-exprs?
                                                   :opts/pre-simplify?
                                                   :opts/rich-results?])))
   :ret  (s/keys :req-un [::sp/varorder :eval-all/results]))
@@ -816,7 +844,8 @@
   * `:varorder` → sets the variable interpretation order for the results
   * `:rich-results?` → each results value will be a map as if returned by `evaluate`
   * `:pre-simplify?` → (default: `false`) simplifies the expression before interpretation, which might reduce terms and therefore evaluation time
-  * `:allow-value-holes?` → (default: `false`) sets a “value hole” (`:_`) in place of `nil` for an uninterpretable result"
+  * `:allow-hole-results?` → (default: `false`) sets a “value hole” (`:_`) in place of `nil` for an uninterpretable result
+  * `:allow-hole-exprs?` → (default: `false`) allows “value holes” (`:_`) in the input expression (each instance will be treated like a different variable)"
   ([expr] (core/eval-all expr {} {}))
   ([expr env] (core/eval-all expr env {}))
   ([expr env opts] (core/eval-all expr env opts)))
@@ -894,16 +923,16 @@
 
   (s/conform :eval-all/results
              (:results
-              (eval-all [:- 'a [:x ['b]]] {} {:allow-value-holes? true})))
+              (eval-all [:- 'a [:x ['b]]] {} {:allow-hole-results? true})))
 
   (s/conform :eval-all/results
              (:results
-              (eval-all [:- 'a [:x ['b]]] {} {:allow-value-holes? true
+              (eval-all [:- 'a [:x ['b]]] {} {:allow-hole-results? true
                                               :rich-results? true})))
 
   (s/conform :eval-all/results
              (:results
-              (eval-all [:- 'a [:x ['b]]] {} {:allow-value-holes? true
+              (eval-all [:- 'a [:x ['b]]] {} {:allow-hole-results? true
                                               :ordered-results? true})))
 
   (s/conform :eval-all/results
@@ -915,7 +944,7 @@
 
   (s/conform :eval-all/results
              (:results
-              (eval-all [:- 'a [:x ['b]]] {} {:allow-value-holes? true})))
+              (eval-all [:- 'a [:x ['b]]] {} {:allow-hole-results? true})))
 
   (s/conform :eval-all/results
              (:results (eval-all [:- 'a [:x ['b]]])))

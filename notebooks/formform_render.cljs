@@ -1,13 +1,13 @@
 (ns formform-render
-  (:require [nextjournal.clerk.render :as r]
-            [nextjournal.clerk.viewer :as v]))
+  (:require [nextjournal.clerk.render :as r]))
 
 (defn- const->col [c]
   (case c
     :n "black"
     :u "red-500"
     :i "green-500"
-    :m "blue-500"))
+    :m "blue-500"
+    :_ "white"))
 
 (defn render-vcell-svg [c {:keys [formform/cellsize
                                   formform/grid-px
@@ -21,7 +21,7 @@
                         :y 0
                         :width size
                         :height size}]]
-    (v/html
+    (r/render-html
      (if comp-svg?
        rect-el
        [:svg {:width size
@@ -40,7 +40,7 @@
                   [r/inspect-presented
                    (assoc opts :formform/comp-svg? true) c]])
                xs)]
-    (v/html
+    (r/render-html
      (if comp-svg?
        g-els
        (into [:svg {:class "inline-block"
@@ -50,7 +50,7 @@
 
 (defn render-vgrid-svg [xs {:keys [formform/cellsize]
                             :as opts}]
-  (v/html
+  (r/render-html
    (let [nrow (count xs)
          ncol (count (:nextjournal/value (first xs)))
          size (or cellsize 10)]
@@ -65,7 +65,7 @@
 
 (defn render-rule-svg [[ptn v] {:keys [formform/cellsize]
                                 :as opts}]
-  (v/html
+  (r/render-html
    (let [size (or cellsize 10)]
      [:svg {:class "inline-block"
             :width  (* size (count ptn))

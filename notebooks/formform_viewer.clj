@@ -45,25 +45,25 @@
   {:transform-fn (clerk/update-val #(map (partial clerk/with-viewer
                                                   viewer-gen1d) %))
    :render-fn
-   '#(nextjournal.clerk.viewer/html
+   '#(nextjournal.clerk.render/render-html
       (into [:div.flex.flex-col]
-            (nextjournal.clerk.viewer/inspect-children %2)
+            (nextjournal.clerk.render/inspect-children %2)
             %1))})
 
 (def viewer-ca2d
   {:transform-fn (clerk/update-val #(map (partial clerk/with-viewer
                                                   viewer-gen2d) %))
    :render-fn
-   '#(nextjournal.clerk.viewer/html
+   '#(nextjournal.clerk.render/render-html
       (into [:div.flex.flex-row.gap-2.flex-wrap]
-            (nextjournal.clerk.viewer/inspect-children %2)
+            (nextjournal.clerk.render/inspect-children %2)
             %1))})
 
 
 (def viewer-vspace
-  {:render-fn '#(nextjournal.clerk.viewer/html
+  {:render-fn '#(nextjournal.clerk.render/render-html
                  (into [:div
                         {:class (str "grid grid-cols-8 gap-4")}]
-                       (nextjournal.clerk.viewer/inspect-children %2)
+                       (nextjournal.clerk.render/inspect-children %2)
                        %1))})
 

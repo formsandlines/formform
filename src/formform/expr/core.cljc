@@ -82,7 +82,8 @@
 
 (defn- substitute-expr
   [env expr]
-  (let [x (get env expr :not-found)]
+  (let [env-pure (dissoc env :--opts)
+        x (get env-pure expr :not-found)]
     (if (= x :not-found) expr x)))
 
 ;; ! check if defaults from `env` destructuring must be propagated in 
@@ -258,6 +259,9 @@
         (symx/operator? x)    (symx/simplify-op x env)
         (form? x)             (simplify-form x env)
         (symx/expr-symbol? x) (symx/simplify-sym x env)
+        (and (not (get-in env [:--opts :allow-hole-exprs?]))
+             (= calc/val-hole x))
+        (throw (ex-info "Value holes are not allowed in simplification. Set the option `:allow-hole-exprs?` to `true` if you want to simplify with value holes." {:x x}))
         :else (substitute-expr env x)))))
 
 ;; default method moved here due to dependency on `simplify-content`
@@ -398,26 +402,36 @@
 
 (defn- simplify-env
   [env]
-  (update-vals env #(simplify-content % {})))
+  (let [env-pure (dissoc env :--opts)]
+    (assoc (update-vals env-pure #(simplify-content % {}))
+           :--opts (:--opts env))))
 
 ;; ? should env be reduced completely before substitution?
 (defn cnt>
   ([x]     (cnt> x {}))
   ([x env]
-   (-> x
-       (distinguish-holes-in-content)
-       (simplify-content (simplify-env env))
-       (simplify-matching-content)
-       (homogenize-holes-in-content))))
+   (if (get-in env [:--opts :allow-hole-exprs?])
+     (-> x
+         (distinguish-holes-in-content)
+         (simplify-content (simplify-env env))
+         (simplify-matching-content)
+         (homogenize-holes-in-content))
+     (-> x
+         (simplify-content (simplify-env env))
+         (simplify-matching-content)))))
 
 (defn ctx>
   ([ctx]     (ctx> ctx {}))
   ([ctx env]
-   (-> ctx
-       (distinguish-holes-in-context)
-       (simplify-context (simplify-env env))
-       (homogenize-holes-in-context)
-       (vec))))
+   (if (get-in env [:--opts :allow-hole-exprs?])
+     (-> ctx
+         (distinguish-holes-in-context)
+         (simplify-context (simplify-env env))
+         (homogenize-holes-in-context)
+         (vec))
+     (-> ctx
+         (simplify-context (simplify-env env))
+         (vec)))))
 
 
 (comment
@@ -450,10 +464,10 @@
 ;; ? remove `reverse-results?` bc formDNA no longer reversed
 ;;   -> maybe a more general sort-code option
 (defn eval-simplified*
-  [expr global-env
-   {:keys [varorder only-vals? reduce-dna? pre-simplify? sort-code]
-    :or {sort-code calc/nuim-code}}]
-  (let [simpl-expr (if pre-simplify? (cnt> expr global-env) expr)
+  [expr global-env]
+  (let [{:keys [varorder only-vals? reduce-dna? pre-simplify? sort-code]
+         :or {sort-code calc/nuim-code}} (:--opts global-env)
+        simpl-expr (if pre-simplify? (cnt> expr global-env) expr)
         vars (if (nil? varorder)
                (find-vars simpl-expr {:ordered? true})
                varorder)
@@ -491,16 +505,16 @@
 (defn =>*
   ([expr] (=>* expr {}))
   ([expr env] (=>* expr env {}))
-  ([expr env {:keys [allow-value-holes?] :as opts}]
-   (let [{:keys [varorder results simplified]}
-         (eval-simplified* expr env
-                           (merge {:pre-simplify? true
-                                   :reduce-dna? true}
-                                  opts
-                                  {:only-vals? true}))]
+  ([expr env {:keys [allow-hole-results?] :as opts}]
+   (let [opts (merge {:pre-simplify? true
+                      :reduce-dna? true}
+                     opts
+                     {:only-vals? true})
+         {:keys [varorder results simplified]}
+         (eval-simplified* expr (update env :--opts merge opts))]
      (cond
        ;; if results contain holes -> return simplified expression
-       (and (not allow-value-holes?)
+       (and (not allow-hole-results?)
             (some #{calc/val-hole} results)) simplified
        ;; if there is just one result -> return simple value
        (== (count results) 1) (first results)
@@ -518,12 +532,12 @@
   ([expr] (==>* expr {}))
   ([expr env] (==>* {} expr env))
   ([expr env opts]
-   (:results
-    (eval-simplified* expr env
-                      (merge {:pre-simplify? false
-                              :reduce-dna? false}
-                             opts
-                             {:only-vals? true})))))
+   (let [opts (merge {:pre-simplify? false
+                      :reduce-dna? false}
+                     opts
+                     {:only-vals? true})]
+     (:results
+      (eval-simplified* expr (update env :--opts merge opts))))))
 
 
 ;; eval to data
@@ -537,15 +551,16 @@
 
 (defn eval-all
   [expr env
-   {:keys [allow-value-holes? rich-results?] :as opts}]
-  (let [{:keys [varorder
-                results]} (eval-simplified*
-                           expr env (merge opts
-                                           {:only-vals? false
-                                            :reduce-dna? false}))
+   {:keys [allow-hole-results? rich-results?] :as opts}]
+  (let [opts (merge opts
+                    {:only-vals? false
+                     :reduce-dna? false})
+        {:keys [varorder results]} (eval-simplified*
+                                    expr (update env :--opts merge opts))
         vdict (mapv (fn [{:keys [val env simplified]}]
-                      (let [result (when-not (and (= val calc/val-hole)
-                                                  (not allow-value-holes?))
+                      (let [env (dissoc env :--opts)
+                            result (when-not (and (= val calc/val-hole)
+                                                  (not allow-hole-results?))
                                      val)]
                         (vector (mapv env varorder)
                                 (if rich-results?

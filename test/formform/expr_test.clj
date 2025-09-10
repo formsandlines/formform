@@ -238,6 +238,9 @@
 ;; (is (= (find-vars '[ "apple tree" ("something" else) ])
 ;;        '("apple tree" else "something")))
 
+(def _expr {:allow-hole-exprs? true})
+(def _res {:allow-hole-results? true})
+(def _expr+res (merge _expr _res))
 
 (deftest simplify-test
   (testing "Simple content"
@@ -343,13 +346,26 @@
     (is (not (expr-symbol? :_)))
     ;; they are not self-equivalent and thus not “real” expressions
     ;; so they cannot be simplified by algebraic means
-    (is (= (>> :_) (>> [[:_]]) (>> [:- :_]) (>> [:- [:- :_ nil]])
+    (is (thrown? clojure.lang.ExceptionInfo (>> :_)))
+    (is (thrown? clojure.lang.ExceptionInfo (>> [:_])))
+    ;; formform ignores them if they can be overruled by the mark
+    (is (= (>> [:m [:_]]) nil))
+    ;; the option `:allow-hole-exprs?` can be set to treat holes like different
+    ;; variables, so they can be processed as self-equivalent expressions
+    (is (= (>> :_ {} _expr) (>> [[:_]] {} _expr) (>> [:- :_] {} _expr)
+           (>> [:- [:- :_ nil]] {} _expr)
            :_))
-    (is (= (>> [:_]) (>> [[[:_]]]) (>> [:- [:_]]) (>> [:- [[:- :_] nil]])
+    (is (= (>> [:_] {} _expr) (>> [[[:_]]] {} _expr) (>> [:- [:_]] {} _expr)
+           (>> [:- [[:- :_] nil]] {} _expr)
            [:_]))
-    (is (= (>> [:_ :_]) (>> [[[:_]] :n [:- :_] nil])
+    (is (= (>> [:- :_ :_] {} _expr)
+           [[:_ :_]]))
+    (is (= (>> [:- :_ :_ :_] {} _expr)
+           [[:_ :_ :_]]))
+    (is (= (>> [:_ :_] {} _expr) (>> [[[:_]] :n [:- :_] nil] {} _expr)
            [:_ :_]))
-    (is (= (>> [[:_] :_]) [[:_] :_]))))
+    (is (= (>> [[:_] :_] {} _expr)
+           [[:_] :_]))))
 
 
 (deftest simplify-in-test
@@ -554,31 +570,42 @@
            (in>> [[:fdna ["foo"] [:n :u :u :u]] [:fdna [] [:m]]]))))
 
   (testing "Interactions with expression holes"
-    (is (= (in>> '[ :_ :_ :_ ]) (in>> '[ [[:_ :_ :_]] ])
-           (in>> '[ :_ [[:_ :_]] ]) (in>> '[ [[:_]] [:- :_ :_]])
+    (is (thrown? clojure.lang.ExceptionInfo (in>> '[ :_ :_ :_ ])))
+    (is (= (in>> '[ :_ :_ :_ ] {} _expr)
+           (in>> '[ [[:_ :_ :_]] ] {} _expr)
+           (in>> '[ :_ [[:_ :_]] ] {} _expr)
+           (in>> '[ [[:_]] [:- :_ :_]] {} _expr)
            [ :_ :_ :_ ]))
-    (is (= (in>> '[ :_ :m :_ ]) (in>> '[ :_ [] [:_] ]) (in>> '[ :_ :u :_ :i ])
+    (is (= (in>> '[ :_ :m :_ ] {} _expr)
+           (in>> '[ :_ [] [:_] ] {} _expr)
+           (in>> '[ :_ :u :_ :i ] {} _expr)
            [ [] ]))
-    (is (= (in>> '[ :_ [:m :_] :_ ]) (in>> '[ :_ :n :_ nil ])
+    (is (= (in>> '[ :_ [:m :_] :_ ] {} _expr)
+           (in>> '[ :_ :n :_ nil ] {} _expr)
            [ :_ :_ ]))
-    (is (= (in>> '[ :_ :u :_ ]) (in>> '[ :_ :u :_ [:i] ])
+    (is (= (in>> '[ :_ :u :_ ] {} _expr)
+           (in>> '[ :_ :u :_ [:i] ] {} _expr)
            [ :_ :u :_ ]))
-    (is (= (in>> '[ :_ :i :_ ]) (in>> '[ :_ :i :_ [:u] ])
+    (is (= (in>> '[ :_ :i :_ ] {} _expr)
+           (in>> '[ :_ :i :_ [:u] ] {} _expr)
            [ :_ [:u] :_ ]))
-    (is (= (in>> '[ :_ :i [:_ :u] ]) [ :_ [:u] ]))
-    (is (= (in>> '[ :_ :u [:_ :i] ]) [ :_ :u ]))
-    (is (= (in>> '[ :_ :u [:_ :u] ]) [ :_ :u [:_] ]))
-    (is (= (in>> '[ :_ :i [:_ :i] ]) [ :_ [:u] [:_] ]))
-    (is (= (in>> '[ a :_ a ]) [ 'a :_ ]))
-    (is (= (in>> '[ a :_ b :_ ]) [ 'a :_ 'b :_ ]))
-    (is (= (in>> '[ a :_ [a :_] ]) [ 'a :_ [:_]]))
-    (is (= (in>> '[ [:seq-re :<r :_ :_] ]) [ [:seq-re :<r :_ :_] ]))
-    (is (= (in>> '[ [:seq-re :<..r._ :_ :_] ]) [ [:seq-re :<..r._ :_ :_] ]))
-    (is (= (in>> '[ [:seq-re :<r :m :_] ]) [ [:_] ]))
-    (is (= (in>> '[ [:seq-re :<r :_ :m] ]) [ ]))
-    (is (= (in>> '[ [:seq-re :<r :u [:- :i :_]] ]) [ [[:u] :_] ]))
-    (is (= (in>> '[ [:seq-re :<r [:- :i :_] :u] ]) [ [:u] ]))
-    (is (= (in>> '[ [:uncl "foo"] :_ ]) [ [:fdna ["foo"] [:u :u :u :n]] :_ ]))))
+    (is (= (in>> '[ :_ :i [:_ :u] ] {} _expr) [ :_ [:u] ]))
+    (is (= (in>> '[ :_ :u [:_ :i] ] {} _expr) [ :_ :u ]))
+    (is (= (in>> '[ :_ :u [:_ :u] ] {} _expr) [ :_ :u [:_] ]))
+    (is (= (in>> '[ :_ :i [:_ :i] ] {} _expr) [ :_ [:u] [:_] ]))
+    (is (= (in>> '[ a :_ a ] {} _expr) [ 'a :_ ]))
+    (is (= (in>> '[ a :_ b :_ ] {} _expr) [ 'a :_ 'b :_ ]))
+    (is (= (in>> '[ a :_ [a :_] ] {} _expr) [ 'a :_ [:_]]))
+    (is (= (in>> '[ [:seq-re :<r :_ :_] ] {} _expr)
+           [ [:seq-re :<r :_ :_] ]))
+    (is (= (in>> '[ [:seq-re :<..r._ :_ :_] ] {} _expr)
+           [ [:seq-re :<..r._ :_ :_] ]))
+    (is (= (in>> '[ [:seq-re :<r :m :_] ] {} _expr) [ [:_] ]))
+    (is (= (in>> '[ [:seq-re :<r :_ :m] ] {} _expr) [ ]))
+    (is (= (in>> '[ [:seq-re :<r :u [:- :i :_]] ] {} _expr) [ [[:u] :_] ]))
+    (is (= (in>> '[ [:seq-re :<r [:- :i :_] :u] ] {} _expr) [ [:u] ]))
+    (is (= (in>> '[ [:uncl "foo"] :_ ] {} _expr)
+           [ [:fdna ["foo"] [:u :u :u :n]] :_ ]))))
 
 ;; more exhaustive tests in formform.expr.core-test
 ;; the tests below are more useful to illustrate how the functions work:
@@ -675,11 +702,11 @@
     (is (= [:_]
            (==>* :x)))
     (is (= :_
-           (=>* :x {} {:allow-value-holes? true})))
+           (=>* :x {} _res)))
     (is (= '(a :g)
            (=>* ['a :g])))
     (is (= '[:fdna [a] [:_ :_ :_ :n]]
-           (=>* ['a :g] {} {:allow-value-holes? true})))
+           (=>* ['a :g] {} _res)))
     (is (= [:_ :_ :_ :n]
            (==>* ['a :g])))
     (is (= [[:x]]
@@ -698,7 +725,7 @@
     (is (= '((a (:x (b))))
            (=>* [:- 'a [:x ['b]]])))
     (is (= '[:fdna [a b] [:n :_ :_ :_ :u :u :_ :_ :i :_ :i :_ :m :m :m :m]]
-           (=>* [:- 'a [:x ['b]]] {} {:allow-value-holes? true})))
+           (=>* [:- 'a [:x ['b]]] {} _res)))
     (is (= [:n :_ :_ :_ :u :u :_ :_ :i :_ :i :_ :m :m :m :m]
            (==>* [:- 'a [:x ['b]]])))
 
@@ -925,7 +952,7 @@
                     [[:u :n] :u] [[:u :u] :u] [[:u :i] :_] [[:u :m] :_]
                     [[:i :n] :i] [[:i :u] :_] [[:i :i] :i] [[:i :m] :_]
                     [[:m :n] :m] [[:m :u] :m] [[:m :i] :m] [[:m :m] :m]]}
-                 (eval-all [:- 'a [:x ['b]]] {} {:allow-value-holes? true})))
+                 (eval-all [:- 'a [:x ['b]]] {} _res)))
     (is (submap? '{:varorder [a],
                    :results
                    [[[:n] {:result nil, :simplified (:g),      :env {a :n}}],
@@ -939,8 +966,7 @@
                     [[:u] {:result :_, :simplified (:u :g),   :env {a :u}}],
                     [[:i] {:result :_, :simplified ([:u] :g), :env {a :i}}],
                     [[:m] {:result :n, :simplified nil,       :env {a :m}}]]}
-                 (eval-all ['a :g] {} {:rich-results? true
-                                       :allow-value-holes? true})))
+                 (eval-all ['a :g] {} (merge {:rich-results? true} _res))))
 
     (is (submap? '{:varorder [a b],
                    :results
