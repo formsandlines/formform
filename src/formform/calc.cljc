@@ -378,7 +378,6 @@
   Note: `dna-seq` can have any type of elements (not only constants)"
   ([dna-seq]
    (core/reduce-dna-seq dna-seq))
-  ;; ! maybe terms last in arg list
   ([dna-seq terms]
    (core/reduce-dna-seq dna-seq terms {})))
 
@@ -427,16 +426,15 @@
 
 ;; Convert to/from formDNA
 
-;; ! sort-code will map AND reorder, but what if the order is already correct?
 (s/fdef digits->dna
   :args (sp/spec--dna-seq-args (s/coll-of ::sp/const-int 
                                           :min-count 1
                                           :kind sequential?))
   :ret  ::sp/dna_)
 (defn digits->dna
-  "Converts a `seqable?` of digits (as string/char or integer) to formDNA.
+  "Converts a `seqable?` of digits (as string/char or integer) to formDNA. 
   
-  Note that `nuim-code` is the default ordering and is always assumed for _formDNA_. If a different `sort-code` is specified, the input sequence (expected in this code) will be mapped and reordered to match `nuim-code`."
+  Note that `nuim-code` is the default ordering and is always assumed for _formDNA_. If a different `sort-code` is specified, the input sequence (expected in this code) will be mapped and reordered to match `nuim-code`. If you just want the mapping without reordering, use something like `(mapv digit->const dna)`."
   ([dna-seq] (core/digits->dna dna-seq))
   ([from-sort-code dna-seq]
    (core/digits->dna from-sort-code dna-seq)))

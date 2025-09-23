@@ -121,6 +121,8 @@
   (testing "Correctness of conversion"
     (is (= (dna->digits [:n :u :i :m]) '(0 1 2 3)))
     (is (= (dna->digits nmui-code [:n :u :i :m]) '(0 1 2 3)))
+    (is (= (dna->digits [:m :m :m :m  :m :i :m :i  :m :m :u :u  :m :i :u :n])
+           [3 3 3 3  3 2 3 2  3 3 1 1  3 2 1 0]))
     (is (= (dna->digits
             nmui-code
             [:m :m :m :m  :m :i :m :i  :m :m :u :u  :m :i :u :n
