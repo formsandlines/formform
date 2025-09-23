@@ -361,8 +361,8 @@
 ;; ? `unsafe-` variant for partial dna
 (s/fdef reduce-dna-seq
   :args (s/alt :ar1 (s/cat :dna-seq ::sp/dna-seq_)
-               :ar2 (s/& (s/cat :terms   sequential?
-                                :dna-seq ::sp/dna-seq_)
+               :ar2 (s/& (s/cat :dna-seq ::sp/dna-seq_
+                                :terms   sequential?)
                          #(== (count (:terms %))
                               (core/dna-dimension (:dna-seq %)))))
   :ret  (s/and (s/cat :terms   sequential?
@@ -379,8 +379,8 @@
   ([dna-seq]
    (core/reduce-dna-seq dna-seq))
   ;; ! maybe terms last in arg list
-  ([terms dna-seq]
-   (core/reduce-dna-seq terms dna-seq {})))
+  ([dna-seq terms]
+   (core/reduce-dna-seq dna-seq terms {})))
 
 ;; (s/fdef filter-dna-seq
 ;;   :args (s/and (s/cat :dna-seq          ::sp/dna-seq

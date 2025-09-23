@@ -262,8 +262,8 @@
 (defn reduce-dna-seq
   ([dna-seq] (reduce-dna-seq dna-seq {}))
   ([dna-seq opts] (let [dim (dna-dimension dna-seq)]
-                    (reduce-dna-seq (vec (range dim)) dna-seq opts)))
-  ([terms dna-seq
+                    (reduce-dna-seq dna-seq (vec (range dim)) opts)))
+  ([dna-seq terms
     {:keys [assume-holes-equal?] :or {assume-holes-equal? false}}]
    (if (and (not assume-holes-equal?) ;; ? check in loop may be more efficient
             (some #(or (= :_ %) (= -1 %)) dna-seq))

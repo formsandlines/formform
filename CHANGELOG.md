@@ -36,7 +36,7 @@ All notable changes to this project will be documented in this file. This change
 - Renamed `calc/equal-dna`, `calc/equiv-dna`, `expr/equal` and `expr/equiv` to have `?` appended to their name, to follow the convention for predicates.
 - Changed `calc/reduce-dna-seq` to check if the dna-seq contains value holes (`:_`) and in that case just return it, because reduction with value holes is not possible (extension is, though!).
 - `expr/simplify` and `expr/simplify-in` now treat each instance of an expression/value hole (`:_`) in an expression/context as a unique, distinct symbol. This means that holes in subexpressions do not get simplified by law of calling like they used to.
-
+- `calc/reduce-dna-seq` now takes the optional terms as its second argument instead of the first. This is part of an effort to make argument order more consistent across formform.
 
 ### Fixed
 
