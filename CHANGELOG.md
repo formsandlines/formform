@@ -20,6 +20,7 @@ All notable changes to this project will be documented in this file. This change
 - `eval-tsds->val-all` behaves just like `==>*`, but takes a 6-digit binary selection for a TsDS expr., which is especially convenient for `emul` functions
 - Added `calc/partial-dna?` predicate to check if formDNA contains holes.
 - Extended `calc/rel` and `calc/inv` to enable correct arithmetic with value holes.
+- `calc/equal-partial-dna?` and `calc/equiv-partial-dna?`, which work exactly the same as their non-partial counterparts, but allow value-holes in the formDNA input, where they are assumed to be equal (`:_` = `:_` is always true).
 
 ### Changed
 

@@ -391,6 +391,17 @@
            [[0] [:u :i :n :m]]))))
 
 
+;; note: equal-dna? is just `=` atm, so it doesn’t need extensive testing
+(deftest equal-dna?-test
+  (testing "Equality vs non-equality"
+    (is (equal-dna? [:i :u :u :n  :u :n :u :n  :i :m :n :m  :i :m :m :m]
+                    [:i :u :u :n  :u :n :u :n  :i :m :n :m  :i :m :m :m]))
+    (is (not
+         (equal-dna? [:i :u :u :n  :u :n :u :n  :i :m :n :m  :i :m :m :m]
+                     [:i :u :n :n  :u :n :u :n  :i :m :n :m  :i :m :m :m]))))
+  (testing "Error for value holes"
+    (is (thrown? clojure.lang.ExceptionInfo ; spec or assertion error
+                 (equal-dna? [:u] [:_])))))
 
 (deftest equiv-dna?-test
   (testing "Equivalence of identity"
@@ -452,7 +463,24 @@
     (is (equiv-dna? [:n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :i :i :u :u :i :i :u :u :i :i :u :u :i :i :u :i :i :m :u :i :i :m :u :i :i :m :u :i :i :m :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :i :i :u :u :i :i :u :u :i :i :u :u :i :i :u :i :i :m :u :i :i :m :u :i :i :m :u :i :i :m :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :i :i :u :u :i :i :u :u :i :i :u :u :i :i :u :i :i :m :u :i :i :m :u :i :i :m :u :i :i :m :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :n :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :i :i :u :u :i :i :u :u :i :i :u :u :i :i :u :i :i :m :u :i :i :m :u :i :i :m :u :i :i :m]
                     [:n :n :n :n :u :u :u :u :u :u :i :i :u :i :i :m]
                     [:n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :u :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :u :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :i :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m :n :u :i :m]
-                    [:n :u :u :u :n :u :u :i :n :u :i :i :n :u :i :m]))))
+                    [:n :u :u :u :n :u :u :i :n :u :i :i :n :u :i :m])))
+
+  (testing "Error for value holes"
+    (is (thrown? clojure.lang.ExceptionInfo ; spec or assertion error
+                 (equiv-dna? [:u] [:_])))))
+
+(deftest equiv-partial-dna?-test
+  (testing "Permission of value-holes"
+    (is (try (equiv-partial-dna? [:u] [:_])
+             true
+             (catch Exception _ false))))
+  (testing "Correct comparison of value-holes"
+    (is (not (equiv-partial-dna?
+              [:i :u :u :n  :u :n :u :n  :i :m :n :m  :i :m :m :m]
+              [:i :u :u :n  :u :_ :u :n  :i :m :n :m  :i :m :m :m])))
+    (is (equiv-partial-dna?
+         [:i :u :u :n  :u :_ :u :n  :_ :m :n :m  :i :m :m :m]
+         [:i :u :u :n  :u :_ :u :n  :_ :m :n :m  :i :m :m :m]))))
 
 
 
@@ -467,10 +495,11 @@
                         :u :n :n :u  :i :m :u :i  :m :i :i :m  :i :u :m :i
                         :n :n :u :i  :m :u :i :m  :i :i :m :i  :u :m :i :u
                         :n :u :i :m  :u :i :m :i  :i :m :i :u  :m :i :u :n]
-                       [:_ :i :_]) [:i :m :i :i
-                                    :m :i :i :m
-                                    :i :i :m :i
-                                    :i :m :i :u]))))
+                       [:_ :i :_])
+           [:i :m :i :i
+            :m :i :i :m
+            :i :i :m :i
+            :i :m :i :u]))))
 
 (deftest dna-get-test
   ;; is just filter-dna without the vector and no holes in vpoint allowed

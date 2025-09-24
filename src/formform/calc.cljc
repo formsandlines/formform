@@ -256,25 +256,6 @@
   ([dim const-weights seed]
    (core/rand-dna (utils/make-rng seed) dim const-weights)))
 
-#_#_
-(s/fdef rand-dna-seq-from
-  :args (s/alt :ar2 (s/cat :dim ::sp/dna-dimension
-                           :elems (s/or :seq (s/and sequential?
-                                                    #(<= 1 (count %) 4))
-                                        :nil nil?))
-               :ar3 (s/cat :dim ::sp/dna-dimension
-                           :elems (s/or :seq (s/and sequential?
-                                                    #(<= 1 (count %) 4))
-                                        :nil nil?)
-                           :seed :rand/seed))
-  :ret  ::sp/dna-seq)
-(defn rand-dna-seq-from
-  "Like `rand-dna` but selects from a vector of 1 (min) to 4 (max) custom elements instead of `[:n :m :u :i]` (e.g. to restrict generated values). A random seed can be provided as a second argument for reproducability."
-  ([dim elems] (core/rand-dna (utils/make-rng) dim elems))
-  ([dim elems seed]
-   (core/rand-dna (utils/make-rng seed) dim elems)))
-
-
 ;; Sort formDNA
 
 (s/fdef reorder-dna
@@ -302,7 +283,7 @@
 (defn equal-dna?
   "Equality check for formDNA. Two formDNAs are considered equal, if they contain the same constants in the same order. Stricter than `equiv-dna?`, where permutations are considered equal.
 
-  Note: partial formDNA (which includes holes (`:_`)) cannot be compared and thus are not valid input. If you know/assume equality for holes, use `equal-partial-dna-assuming-holes-equal?`."
+  Note: partial formDNA (which includes holes (`:_`)) cannot be compared and thus are not valid input. If you know/assume equality for holes or just want to ignore them in comparison, use `equal-partial-dna?`."
   [& dnas]
   {:pre [(not (some (partial some #(= :_ %)) dnas))]}
   (apply core/equal-dna? dnas))
@@ -313,27 +294,25 @@
 (defn equiv-dna?
   "Equivalence check for formDNA. Two formDNAs are considered equivalent, if they belong to the same equivalence-class of `dna-perspectives` (i.e. if they are permutations of each other).
 
-  Note: partial formDNA (which includes holes (`:_`)) cannot be compared and thus are not valid input. If you know/assume equality for holes, use `equiv-partial-dna-assuming-holes-equal?`."
+  Note: partial formDNA (which includes holes (`:_`)) cannot be compared and thus are not valid input. If you know/assume equality for holes or just want to ignore them in comparison, use `equiv-partial-dna?`."
   [& dnas]
   {:pre [(not (some (partial some #(= :_ %)) dnas))]}
   (apply core/equiv-dna? dnas))
 
 
-;; ? or `unsafe-equal-dna?`
-
-(s/fdef equal-partial-dna-assuming-holes-equal?
+(s/fdef equal-partial-dna?
   :args (s/every ::sp/dna_ :min-count 1)
   :ret  boolean?)
-(defn equal-partial-dna-assuming-holes-equal?
-  "Equality check for partial formDNA (derived from `equal-dna?`), under the assumption that all holes (`:_`) originate from the same expression and thus their supposed value would be equal."
+(defn equal-partial-dna?
+  "Equality check for partial formDNA (derived from `equal-dna?`), under the assumption that all holes (`:_`) originate from the same expression and thus their supposed value would be equal (which is the same as just ignoring them)."
   [& dnas]
   (apply core/equal-dna? dnas))
 
-(s/fdef equiv-partial-dna-assuming-holes-equal?
+(s/fdef equiv-partial-dna?
   :args (s/every ::sp/dna_ :min-count 1)
   :ret  boolean?)
-(defn equiv-partial-dna-assuming-holes-equal?
-  "Equivalence check for partial formDNA (derived from `equiv-dna?`), under the assumption that all holes (`:_`) originate from the same expression and thus their supposed value would be equal."
+(defn equiv-partial-dna?
+  "Equivalence check for partial formDNA (derived from `equiv-dna?`), under the assumption that all holes (`:_`) originate from the same expression and thus their supposed value would be equal (which is the same as just ignoring them)."
   [& dnas]
   (apply core/equiv-dna? dnas))
 
@@ -388,21 +367,6 @@
 
 ;; alias to old name -> might remove later
 (def reduce-dna-seq reduce-dna)
-
-;; (s/fdef filter-dna-seq
-;;   :args (s/and (s/cat :dna-seq          ::sp/dna-seq
-;;                       :depth-selections (s/coll-of ::sp/const_-int
-;;                                                    :kind sequential?))
-;;                #(== (core/dna-dimension (-> % :dna-seq))
-;;                     (count (-> % :depth-selections))))
-;;   :ret  ::sp/dna-seq)
-;; (defn filter-dna-seq
-;;   "Filters a `dna-seq` by matching each of its “depth indices” (which corresponds to the interpretation order of terms) with the integers from a given `depth-selections` sequence.
-
-;;   This is a generalized form of `filter-dna`."
-;;   ;; ! needs better explanation and examples
-;;   [dna-seq depth-selections]
-;;   (core/filter-dna-seq dna-seq depth-selections))
 
 (s/fdef filter-dna
   :args (s/& (s/cat :dna    ::sp/dna_
