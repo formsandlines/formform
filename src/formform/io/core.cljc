@@ -47,7 +47,7 @@
       (let [dna (apply calc/make-dna s)]
         (if (= sort-code calc/nuim-code)
           dna
-          (calc/reorder-dna-seq dna sort-code calc/nuim-code))))))
+          (calc/reorder-dna dna sort-code calc/nuim-code))))))
 
 (defn parse-re-sign
   [s]

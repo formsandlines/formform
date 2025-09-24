@@ -152,17 +152,17 @@
             :n :n :i :i  :u :n :m :i  :n :n :i :i  :u :n :m :i]))))
 
 
-(deftest reorder-dna-seq-test
+(deftest reorder-dna-test
   (testing "Correctness of reordered dna-seq"
-    (is (= (reorder-dna-seq
+    (is (= (reorder-dna
             [:n :n :n :n :u :u :u :u :i :i :i :i :m :m :m :m]
             nuim-code nmui-code)
            [:n :n :n :n :m :m :m :m :u :u :u :u :i :i :i :i]))
-    (is (= (reorder-dna-seq
+    (is (= (reorder-dna
             [:n :u :i :m  :u :i :m :n  :i :m :n :u  :m :n :u :i]
             nuim-code nmui-code)
            [:n :m :u :i  :m :i :n :u  :u :n :i :m  :i :u :m :n]))
-    (is (= (reorder-dna-seq
+    (is (= (reorder-dna
             [:n :n :n :n  :u :u :u :u  :i :i :i :i  :m :m :m :m
              :u :u :u :u  :i :i :i :i  :m :m :m :m  :n :n :n :n
              :i :i :i :i  :m :m :m :m  :n :n :n :n  :u :u :u :u
@@ -172,7 +172,7 @@
             :m :m :m :m  :i :i :i :i  :n :n :n :n  :u :u :u :u
             :u :u :u :u  :n :n :n :n  :i :i :i :i  :m :m :m :m
             :i :i :i :i  :u :u :u :u  :m :m :m :m  :n :n :n :n]))
-    (is (= (reorder-dna-seq
+    (is (= (reorder-dna
             [:n :u :i :m  :u :i :m :n  :i :m :n :u  :m :n :u :i
              :u :i :m :n  :i :m :n :u  :m :n :u :i  :n :u :i :m
              :i :m :n :u  :m :n :u :i  :n :u :i :m  :u :i :m :n
@@ -182,12 +182,12 @@
             :m :i :n :u  :i :u :m :n  :n :m :u :i  :u :n :i :m  
             :u :n :i :m  :n :m :u :i  :i :u :m :n  :m :i :n :u
             :i :u :m :n  :u :n :i :m  :m :i :n :u  :n :m :u :i]))
-    (is (= (reorder-dna-seq
+    (is (= (reorder-dna
             [:n :u :i :m  :u :i :m :n  :i :m :n :u  :m :n :u :i]
             nuim-code nuim-code)
            [:n :u :i :m  :u :i :m :n  :i :m :n :u  :m :n :u :i])))
   (testing "List reorders exactly the same as vector"
-    (is (= (reorder-dna-seq
+    (is (= (reorder-dna
             '(:n :u :i :m  :u :i :m :n  :i :m :n :u  :m :n :u :i)
             nmui-code nuim-code)
            [:n :i :m :u  :i :n :u :m  :m :u :i :n  :u :m :n :i]))))
@@ -208,70 +208,70 @@
                  [[:n :u :i :m] [:i :m] [:u :m :i] [:m :n :u]])))))
 
 
-(deftest expand-dna-seq-test
+(deftest expand-dna-test
   (testing "Correctness of expansion"
-    (is (= (expand-dna-seq [:m :i :u :n] 2)
+    (is (= (expand-dna [:m :i :u :n] 2)
            [:m :m :m :m :i :i :i :i :u :u :u :u :n :n :n :n]))
-    (is (= (expand-dna-seq [:n :u :i :m
-                            :u :i :m :i
-                            :i :m :i :u
-                            :m :i :u :n] 3)
-           (expand-dna-seq (list :n :u :i :m
-                                 :u :i :m :i
-                                 :i :m :i :u
-                                 :m :i :u :n) 3)
+    (is (= (expand-dna [:n :u :i :m
+                        :u :i :m :i
+                        :i :m :i :u
+                        :m :i :u :n] 3)
+           (expand-dna (list :n :u :i :m
+                             :u :i :m :i
+                             :i :m :i :u
+                             :m :i :u :n) 3)
            [:n :n :n :n :u :u :u :u :i :i :i :i :m :m :m :m
             :u :u :u :u :i :i :i :i :m :m :m :m :i :i :i :i
             :i :i :i :i :m :m :m :m :i :i :i :i :u :u :u :u
             :m :m :m :m :i :i :i :i :u :u :u :u :n :n :n :n]))))
 
-(deftest reduce-dna-seq-test
+(deftest reduce-dna-test
   (testing "Correct reduction for 3->2 dimensions"
-    (is (= (reduce-dna-seq [0 0 0 0  1 1 1 1  2 2 2 2  3 3 3 3
-                            1 1 1 1  2 2 2 2  3 3 3 3  0 0 0 0
-                            2 2 2 2  3 3 3 3  0 0 0 0  1 1 1 1
-                            3 3 3 3  0 0 0 0  1 1 1 1  2 2 2 2]
-                           '[a b c])
+    (is (= (reduce-dna [0 0 0 0  1 1 1 1  2 2 2 2  3 3 3 3
+                        1 1 1 1  2 2 2 2  3 3 3 3  0 0 0 0
+                        2 2 2 2  3 3 3 3  0 0 0 0  1 1 1 1
+                        3 3 3 3  0 0 0 0  1 1 1 1  2 2 2 2]
+                       '[a b c])
            '[[a b] [0 1 2 3  1 2 3 0  2 3 0 1  3 0 1 2]]))
-    (is (= (reduce-dna-seq [0 1 2 3  0 1 2 3  0 1 2 3  0 1 2 3
-                            1 2 3 0  1 2 3 0  1 2 3 0  1 2 3 0
-                            2 3 0 1  2 3 0 1  2 3 0 1  2 3 0 1
-                            3 0 1 2  3 0 1 2  3 0 1 2  3 0 1 2]
-                           '[a b c])
+    (is (= (reduce-dna [0 1 2 3  0 1 2 3  0 1 2 3  0 1 2 3
+                        1 2 3 0  1 2 3 0  1 2 3 0  1 2 3 0
+                        2 3 0 1  2 3 0 1  2 3 0 1  2 3 0 1
+                        3 0 1 2  3 0 1 2  3 0 1 2  3 0 1 2]
+                       '[a b c])
            '[[a c] [0 1 2 3  1 2 3 0  2 3 0 1  3 0 1 2]]))
-    (is (= (reduce-dna-seq [0 1 2 3  1 2 3 0  2 3 0 1  3 0 1 2
-                            0 1 2 3  1 2 3 0  2 3 0 1  3 0 1 2
-                            0 1 2 3  1 2 3 0  2 3 0 1  3 0 1 2
-                            0 1 2 3  1 2 3 0  2 3 0 1  3 0 1 2]
-                           '[a b c])
+    (is (= (reduce-dna [0 1 2 3  1 2 3 0  2 3 0 1  3 0 1 2
+                        0 1 2 3  1 2 3 0  2 3 0 1  3 0 1 2
+                        0 1 2 3  1 2 3 0  2 3 0 1  3 0 1 2
+                        0 1 2 3  1 2 3 0  2 3 0 1  3 0 1 2]
+                       '[a b c])
            '[[b c] [0 1 2 3  1 2 3 0  2 3 0 1  3 0 1 2]])))
 
   (testing "Correct reduction for 2->1 dimensions"
-    (is (= (reduce-dna-seq [0 0 0 0  1 1 1 1  2 2 2 2  3 3 3 3] '[a b])
+    (is (= (reduce-dna [0 0 0 0  1 1 1 1  2 2 2 2  3 3 3 3] '[a b])
            '[[a] [0 1 2 3]]))
-    (is (= (reduce-dna-seq [0 1 2 3  0 1 2 3  0 1 2 3  0 1 2 3] '[a b])
+    (is (= (reduce-dna [0 1 2 3  0 1 2 3  0 1 2 3  0 1 2 3] '[a b])
            '[[b] [0 1 2 3]])))
 
   (testing "Correct reduction for 1->0 dimensions"
-    (is (= (reduce-dna-seq [0 0 0 0] '[a])
+    (is (= (reduce-dna [0 0 0 0] '[a])
            '[[] [0]]))
-    (is (= (reduce-dna-seq [1 1 1 1] '[a])
+    (is (= (reduce-dna [1 1 1 1] '[a])
            '[[] [1]])))
 
   (testing "Correct reduction for 3->1 dimensions"
-    (is (= (reduce-dna-seq
+    (is (= (reduce-dna
             [:n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
              :u :u :u :u  :u :u :u :u  :u :u :u :u  :u :u :u :u
              :i :i :i :i  :i :i :i :i  :i :i :i :i  :i :i :i :i
              :m :m :m :m  :m :m :m :m  :m :m :m :m  :m :m :m :m]
             '[a b c])
-           (reduce-dna-seq
+           (reduce-dna
             [:n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :m
              :n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :m
              :n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :m
              :n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :m]
             '[c b a])
-           (reduce-dna-seq
+           (reduce-dna
             [:n :n :n :n  :u :u :u :u  :i :i :i :i  :m :m :m :m
              :n :n :n :n  :u :u :u :u  :i :i :i :i  :m :m :m :m
              :n :n :n :n  :u :u :u :u  :i :i :i :i  :m :m :m :m
@@ -280,7 +280,7 @@
            '[[a] [:n :u :i :m]])))
 
   (testing "Correct reduction for n->0 dimensions"
-    (is (= (reduce-dna-seq
+    (is (= (reduce-dna
             [:n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
              :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
              :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
@@ -301,16 +301,16 @@
              :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
              :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n]
             '[a b c d])
-           (reduce-dna-seq
+           (reduce-dna
             [:n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
              :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
              :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n
              :n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n]
             '[a b c])
-           (reduce-dna-seq
+           (reduce-dna
             [:n :n :n :n  :n :n :n :n  :n :n :n :n  :n :n :n :n])
-           (reduce-dna-seq [:n :n :n :n] ['x])
-           (reduce-dna-seq [:n])
+           (reduce-dna [:n :n :n :n] ['x])
+           (reduce-dna [:n])
            [[] [:n]])))
 
   (testing "Irreducable formDNA"
@@ -318,24 +318,24 @@
                    :u :i :m :u  :i :m :i :i  :m :i :u :m  :i :u :n :n
                    :i :m :u :i  :m :i :i :m  :i :u :m :i  :u :n :n :u
                    :m :u :i :m  :i :i :m :i  :u :m :i :u  :n :n :u :i]]
-          (= (reduce-dna-seq dna) [[0 1 2] dna]))))
+          (= (reduce-dna dna) [[0 1 2] dna]))))
 
   (testing "Almost possible reductions"
-    (is (let [dna [:n :u :n :n]] (= (reduce-dna-seq dna) [[0] dna])))
+    (is (let [dna [:n :u :n :n]] (= (reduce-dna dna) [[0] dna])))
     (is (let [dna [:n :n :n :n
                    :n :n :n :n
                    :n :n :n :n
-                   :n :n :n :u]] (= (reduce-dna-seq dna) [[0 1] dna])))
+                   :n :n :n :u]] (= (reduce-dna dna) [[0 1] dna])))
     (is (let [dna [:u :u :u :u  :u :u :u :u  :u :u :u :u  :u :u :u :u
                    :u :i :u :u  :u :u :u :u  :u :u :u :u  :u :u :u :u
                    :u :u :u :u  :u :u :u :u  :u :u :u :u  :u :u :u :u
                    :u :u :u :u  :u :u :u :u  :u :u :u :u  :u :u :u :u]]
-          (= (reduce-dna-seq dna) [[0 1 2] dna])))
+          (= (reduce-dna dna) [[0 1 2] dna])))
     (is (let [dna [:u :i :u :u  :u :i :u :u  :u :i :u :u  :u :i :u :u
                    :u :i :i :u  :u :i :i :u  :u :i :i :u  :u :i :i :u
                    :u :i :u :u  :u :i :u :u  :u :i :u :u  :u :i :u :u
                    :u :i :u :u  :u :i :u :u  :u :i :u :u  :u :i :u :u]]
-          (= (reduce-dna-seq dna)
+          (= (reduce-dna dna)
              [[0 2] [:u :i :u :u
                      :u :i :i :u
                      :u :i :u :u
@@ -344,7 +344,7 @@
                    :n :n :n :n  :u :u :u :u  :i :i :i :i  :m :m :m :m
                    :n :n :n :n  :u :u :u :u  :i :i :i :i  :m :m :m :m
                    :n :n :n :n  :i :i :i :i  :i :i :i :i  :m :m :m :m]]
-          (= (reduce-dna-seq dna)
+          (= (reduce-dna dna)
              [[0 1] [:n :u :i :m
                      :n :u :i :m
                      :n :u :i :m
@@ -353,41 +353,41 @@
                    :n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :n
                    :n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :n
                    :n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :n]]
-          (= (reduce-dna-seq dna)
+          (= (reduce-dna dna)
              [[1 2] [:n :u :i :m  :n :u :i :m  :n :u :i :m  :n :u :i :n]]))))
 
   (testing "Equivalence of reduction paths"
-    (is (= (reduce-dna-seq [:n :u :i :m])
-           (reduce-dna-seq [:n :u :i :m])
+    (is (= (reduce-dna [:n :u :i :m])
+           (reduce-dna [:n :u :i :m])
            [[0] [:n :u :i :m]]))
-    (is (= (reduce-dna-seq [:u])
-           (reduce-dna-seq [:u :u :u :u])
-           (reduce-dna-seq [:u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u])
-           (reduce-dna-seq
+    (is (= (reduce-dna [:u])
+           (reduce-dna [:u :u :u :u])
+           (reduce-dna [:u :u :u :u :u :u :u :u :u :u :u :u :u :u :u :u])
+           (reduce-dna
             [:u :u :u :u  :u :u :u :u  :u :u :u :u  :u :u :u :u
              :u :u :u :u  :u :u :u :u  :u :u :u :u  :u :u :u :u
              :u :u :u :u  :u :u :u :u  :u :u :u :u  :u :u :u :u
              :u :u :u :u  :u :u :u :u  :u :u :u :u  :u :u :u :u])
            [[] [:u]]))
-    (is (= (reduce-dna-seq [:u :i :n :m] [1])
-           (reduce-dna-seq [:u :i :n :m
-                            :u :i :n :m
-                            :u :i :n :m
-                            :u :i :n :m])
-           (reduce-dna-seq [:u :u :u :u
-                            :i :i :i :i
-                            :n :n :n :n
-                            :m :m :m :m] [1 0])
+    (is (= (reduce-dna [:u :i :n :m] [1])
+           (reduce-dna [:u :i :n :m
+                        :u :i :n :m
+                        :u :i :n :m
+                        :u :i :n :m])
+           (reduce-dna [:u :u :u :u
+                        :i :i :i :i
+                        :n :n :n :n
+                        :m :m :m :m] [1 0])
            [[1] [:u :i :n :m]]))
-    (is (= (reduce-dna-seq [:u :i :n :m])
-           (reduce-dna-seq [:u :u :u :u
-                            :i :i :i :i
-                            :n :n :n :n
-                            :m :m :m :m])
-           (reduce-dna-seq [:u :i :n :m
-                            :u :i :n :m
-                            :u :i :n :m
-                            :u :i :n :m] [1 0])
+    (is (= (reduce-dna [:u :i :n :m])
+           (reduce-dna [:u :u :u :u
+                        :i :i :i :i
+                        :n :n :n :n
+                        :m :m :m :m])
+           (reduce-dna [:u :i :n :m
+                        :u :i :n :m
+                        :u :i :n :m
+                        :u :i :n :m] [1 0])
            [[0] [:u :i :n :m]]))))
 
 
@@ -485,7 +485,7 @@
                           [:m :_])))))
 
 
-;; see `calc.core-test/permute-dna-seq-test` for more comprehensive tests
+;; see `calc.core-test/permute-dna-test` for more comprehensive tests
 (deftest permute-dna-test
   (let [dna [:u :i :m :n
              :u :i :m :n

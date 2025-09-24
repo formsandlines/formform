@@ -37,6 +37,7 @@ All notable changes to this project will be documented in this file. This change
 - Changed `calc/reduce-dna-seq` to check if the dna-seq contains value holes (`:_`) and in that case just return it, because reduction with value holes is not possible (extension is, though!).
 - `expr/simplify` and `expr/simplify-in` now treat each instance of an expression/value hole (`:_`) in an expression/context as a unique, distinct symbol. This means that holes in subexpressions do not get simplified by law of calling like they used to.
 - `calc/reduce-dna-seq` now takes the optional terms as its second argument instead of the first. This is part of an effort to make argument order more consistent across formform.
+- `calc/reorder-dna-seq`, `calc/expand-dna-seq` and `calc/reduce-dna-seq` have been renamed to `calc/reorder-dna`, `calc/expand-dna` and `calc/reduce-dna`, because the `-seq` suffix doesn’t make sense anymore and would only confuse users. Aliases to the old names are kept for now but might be removed later.
 
 ### Fixed
 

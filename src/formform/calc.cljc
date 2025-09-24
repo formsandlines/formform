@@ -277,12 +277,12 @@
 
 ;; Sort formDNA
 
-(s/fdef reorder-dna-seq
+(s/fdef reorder-dna
   :args (s/cat :dna-seq        ::sp/dna-seq_
                :sort-code-from ::sp/sort-code
                :sort-code-to   ::sp/sort-code)
   :ret  ::sp/dna-seq_)
-(defn reorder-dna-seq
+(defn reorder-dna
   "Reorders given formDNA/`dna-seq` from `sort-code-from` to `sort-code-to`.
 
   Note:
@@ -291,6 +291,8 @@
   [dna-seq sort-code-from sort-code-to]
   (core/reorder-dna-seq dna-seq sort-code-from sort-code-to))
 
+;; alias to old name -> might remove later
+(def reorder-dna-seq reorder-dna)
 
 ;; Compare formDNA
 
@@ -338,7 +340,7 @@
 
 ;; Transform formDNA
 
-(s/fdef expand-dna-seq
+(s/fdef expand-dna
   :args (s/alt :ar2 (s/cat :dna-seq ::sp/dna-seq_
                            :ext-dim ::sp/dna-dimension)
                :ar3 (s/& (s/cat :dna-seq ::sp/dna-seq_
@@ -348,18 +350,21 @@
   :ret  ::sp/dna-seq_
   :fn   #(== (-> % :args second :ext-dim)
              (core/dna-dimension (-> % :ret))))
-(defn expand-dna-seq
+(defn expand-dna
   "Expands a `dna-seq` to a given target dimension by repeating elements.
 
   Note: `dna-seq` can have any type of elements (not only constants)"
   ([dna-seq ext-dim]
    (let [dim (core/dna-dimension dna-seq)]
-     (expand-dna-seq dna-seq dim ext-dim)))
+     (expand-dna dna-seq dim ext-dim)))
   ([dna-seq dim ext-dim]
    (core/expand-dna-seq dna-seq dim ext-dim)))
 
+;; alias to old name -> might remove later
+(def expand-dna-seq expand-dna)
+
 ;; ? `unsafe-` variant for partial dna
-(s/fdef reduce-dna-seq
+(s/fdef reduce-dna
   :args (s/alt :ar1 (s/cat :dna-seq ::sp/dna-seq_)
                :ar2 (s/& (s/cat :dna-seq ::sp/dna-seq_
                                 :terms   sequential?)
@@ -369,7 +374,7 @@
                       :dna-seq ::sp/dna-seq_)
                #(== (core/dna-dimension (-> % :dna-seq))
                     (count (-> % :terms)))))
-(defn reduce-dna-seq
+(defn reduce-dna
   "Reduces a `dna-seq` by eliminating redundant/contingent terms.
 
   * returns a tuple `[terms dna-seq]`, where `terms` is a sequence that represents the remaining terms after reduction
@@ -380,6 +385,9 @@
    (core/reduce-dna-seq dna-seq))
   ([dna-seq terms]
    (core/reduce-dna-seq dna-seq terms {})))
+
+;; alias to old name -> might remove later
+(def reduce-dna-seq reduce-dna)
 
 ;; (s/fdef filter-dna-seq
 ;;   :args (s/and (s/cat :dna-seq          ::sp/dna-seq

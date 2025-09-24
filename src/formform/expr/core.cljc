@@ -482,7 +482,7 @@
                         (partial eval-simplified simpl-expr))
                       envs)
         [varorder results] (if (and only-vals? reduce-dna?)
-                             (calc/reduce-dna-seq results (vec vars))
+                             (calc/reduce-dna results (vec vars))
                              [(vec vars) results])]
     {:varorder varorder
      :vspace vspc
