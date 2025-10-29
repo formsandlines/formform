@@ -108,7 +108,7 @@
 
 ;; But it can be interpreted by a given environment:
 
-(interpret {'x :u} 'x)
+(interpret 'x {'x :u})
 
 ;; An uninterpretable variable or symbolic expression evaluates to a “hole” (represented by an underscore `:_`), which is a placeholder for any constant value:
 

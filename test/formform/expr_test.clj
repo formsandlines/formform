@@ -987,16 +987,16 @@
            (make {:mark? true :splice? false} [:- "a"] [[]] :u)
            (interpret (make :+ [:- "a"] [[]] :u))))
     (is (= '[[[:- "a"] [[]] :u]]
-           (interpret-walk {:--focus #{:+}} (form :+ [:- "a"] [[]] :u))
+           (interpret-walk (form :+ [:- "a"] [[]] :u) {:--focus #{:+}})
            (interpret (make {:splice? false} [:- "a"] [[]] :u))
            (interpret (make :- [:- "a"] [[]] :u))))
     (is (= '[[["a"] [[[]]] [:u]]]
-           (interpret-walk {:--focus #{:|}} (form :| [:- "a"] [[]] :u))
+           (interpret-walk (form :| [:- "a"] [[]] :u) {:--focus #{:|}})
            (interpret
             (interpret (make :* [:- "a"] [[]] :u)))))
     (is (= '[["a"] [[[]]] [:u]]
            (core/splice-ctx
-            (interpret-walk {:--focus #{:*}} (form :* [:- "a"] [[]] :u)))
+            (interpret-walk (form :* [:- "a"] [[]] :u) {:--focus #{:*}}))
            (interpret (make :| [:- "a"] [[]] :u)))))
 
   (testing "Correctness of transformation"
@@ -1006,23 +1006,23 @@
            '[[[a :m] [[a] [:m]]] [[b :u] [[b] [:u]]] [x y]]))
     (is (= (interpret 'a)
            'a))
-    (is (= (interpret {'a :m} 'a)
+    (is (= (interpret 'a {'a :m})
            :m))
-    (is (= (interpret {'a :m} '(a (b (a))))
+    (is (= (interpret '(a (b (a))) {'a :m})
            '(a (b (a)))))
     (is (= (interpret [:* 'a [:* 'b 'c]])
            '[:- [a] [[:* b c]]]))
     (is (= (interpret [:- :u [:- 'a [:i]]])
            '[[:u [:- a [:i]]]])))
   (testing "--defocus flags"
-    (is (= (interpret {:--defocus #{:ops}} [:uncl "hey"])
+    (is (= (interpret [:uncl "hey"] {:--defocus #{:ops}})
            [:uncl "hey"]))))
 
 (deftest interpret*-test
   (testing "Correctness of transformation"
     (is (= (interpret* [:* 'a 'b 'c])
            '[[[a] [b] [c]]]))
-    (is (= (interpret* {'a :m} 'a)
+    (is (= (interpret* 'a {'a :m})
            []))
     (is (= (interpret* [:* 'a [:* 'b 'c]])
            '[[[a] [[:* b c]]]]))
@@ -1031,7 +1031,7 @@
 
 (deftest interpret-walk-test
   (testing "Correctness of transformation"
-    (is (= (interpret-walk {'a :m} '(a (b (a))))
+    (is (= (interpret-walk '(a (b (a))) {'a :m})
            '(:m (b (:m)))))
     ;; is it okay to splice expressions in interpret?
     (is (= (interpret-walk [:* 'a [:* 'b 'c]])
@@ -1041,7 +1041,7 @@
 
 (deftest interpret-walk*-test
   (testing "Correctness of transformation"
-    (is (= (interpret-walk* {'a :m} '(a (b (a))))
+    (is (= (interpret-walk* '(a (b (a))) {'a :m})
            '([] (b ([])))))
     (is (= (interpret-walk* [:* 'a [:* 'b 'c]])
            '[[[a] [[b] [c]]]]))
@@ -1050,9 +1050,9 @@
               [[a [[[[[:f* [[:f*]]] [[:f*] [[[:f*]]]]] [:f*]]]]]]]])))
 
   (testing "--defocus flags"
-    (is (= (interpret-walk* {:--defocus #{:ops}} [:- :u [:- 'a [:i]]])
+    (is (= (interpret-walk* [:- :u [:- 'a [:i]]] {:--defocus #{:ops}})
            '[:- [:seq-re :<r nil nil] [:- a [[[:seq-re :<r nil nil]]]]]))
-    (is (= (interpret-walk* {:--defocus #{:mem}} [:- :u [:- 'a [:i]]])
+    (is (= (interpret-walk* [:- :u [:- 'a [:i]]] {:--defocus #{:mem}})
            '[[[:mem [[:f* [[:f*]]]] :f*]
               [[a [[[:mem [[:f* [[:f*]]]] :f*]]]]]]]))))
 

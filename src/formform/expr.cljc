@@ -500,8 +500,8 @@
 
 (s/fdef interpret
   :args (s/alt :ar1 (s/cat :expr ::sp/expression)
-               :ar2 (s/cat :env  ::sp/environment
-                           :expr ::sp/expression))
+               :ar2 (s/cat :expr ::sp/expression
+                           :env  ::sp/environment))
   :ret  ::sp/expression)
 (defn interpret
   "Interprets an expression of any kind. Returns the original expression if it cannot be interpreted.
@@ -513,40 +513,40 @@
   * any other expression (like a variable) can be designated as itself
   * `--focus` and `--defocus` can cancel each other out if they contain the same item so you usually pick one or the other"
   ([expr] (core/interpret expr))
-  ([env expr]
+  ([expr env]
    (core/interpret env expr)))
 
 (s/fdef interpret*
   :args (s/alt :ar1 (s/cat :expr ::sp/expression)
-               :ar2 (s/cat :env  ::sp/environment
-                           :expr ::sp/expression))
+               :ar2 (s/cat :expr ::sp/expression
+                           :env  ::sp/environment))
   :ret  ::sp/expression)
 (defn interpret*
   "Like `interpret`, but repeats substitution on interpreted expressions until they cannot be interpreted any further."
   ([expr] (core/interpret* expr))
-  ([env expr]
+  ([expr env]
    (core/interpret* env expr)))
 
 (s/fdef interpret-walk
   :args (s/alt :ar1 (s/cat :expr ::sp/expression)
-               :ar2 (s/cat :env  ::sp/environment
-                           :expr ::sp/expression))
+               :ar2 (s/cat :expr ::sp/expression
+                           :env  ::sp/environment))
   :ret  ::sp/expression)
 (defn interpret-walk
   "Recursively calls `interpret` on given expression and all its subexpressions with a depth-first walk."
   ([expr] (core/interpret-walk expr))
-  ([env expr]
+  ([expr env]
    (core/interpret-walk env expr)))
 
 (s/fdef interpret-walk*
   :args (s/alt :ar1 (s/cat :expr ::sp/expression)
-               :ar2 (s/cat :env  ::sp/environment
-                           :expr ::sp/expression))
+               :ar2 (s/cat :expr ::sp/expression
+                           :env  ::sp/environment))
   :ret  ::sp/expression)
 (defn interpret-walk*
   "Like `interpret-walk`, but repeats substitution on interpreted (sub-)expressions until they cannot be interpreted any further."
   ([expr] (core/interpret-walk* expr))
-  ([env expr]
+  ([expr env]
    (core/interpret-walk* env expr)))
 
 ;; ? spec observe-[…]
