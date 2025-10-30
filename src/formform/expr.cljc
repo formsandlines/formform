@@ -590,9 +590,11 @@
 (defn simplify
   "Simplifies a FORM recursively until it cannot be further simplified. All deductions are justified by the axioms of FORM logic.
 
-  * if `x` is a complex FORM, calls `expr.core/simplify-context` on `x`
   * if no simplification applies, tries to retrieve the value from given `env`
-  * if retrieval was unsuccessful, returns `x` as is"
+  * if retrieval was unsuccessful, returns `x` as is
+
+  An `opts` map can be provided with the following keys:
+  * `:allow-hole-exprs?` → (default: `false`) allows “value holes” (`:_`) in the input expression (each instance will be treated like a different variable)"
   ([x] (core/cnt> x))
   ([x env] (core/cnt> x env))
   ([x env opts] (core/cnt> x (update env :--opts merge opts))))
@@ -611,34 +613,13 @@
 (defn simplify-in
   "Simplifies a context/sequence of FORMs recursively until it cannot be further simplified. All deductions are justified by the axioms of FORM logic.
 
-  * for complex expressions, calls `expr.core/simplify-content` on every unique element"
+  An `opts` map can be provided with the following keys:
+  * `:allow-hole-exprs?` → (default: `false`) allows “value holes” (`:_`) in the input expression (each instance will be treated like a different variable)"
   ([ctx] (core/ctx> ctx))
   ([ctx env] (core/ctx> ctx env))
   ([ctx env opts] (core/ctx> ctx (update env :--opts merge opts))))
 ;; alias
 (def in>> simplify-in)
-
-;; ? needed
-(s/fdef simplify-op
-  :args (s/cat :operator (s/spec ::sp/operator)
-               :env      ::sp/environment)
-  :ret  ::sp/expression)
-(def simplify-op
-  "Simplifies a symbolic expression with a registered operator given an optional environment.
-  
-  Note: default to use `simplify` instead"
-  symx/simplify-op)
-
-;; ? needed
-(s/fdef simplify-sym
-  :args (s/cat :expr-symbol ::sp/expr-symbol
-               :env         ::sp/environment)
-  :ret  ::sp/expression)
-(def simplify-sym
-  "Simplifies a registered symbol given an optional environment.
-  
-  Note: default to use `simplify` instead"
-  symx/simplify-sym)
 
 (defn simplify-expr-chain
   "Obsolete → use `simplify-nested-l` or `simplify-nested-r` instead!"
@@ -658,7 +639,10 @@
 (defn simplify-nested-l
   "Reduces a leftward `nesting-chain`, a sequence of expressions `( … x y z )` whose interpretation is `( [[[…] x] y] z )`, to a simplified nesting chain, possibly spliced or shortened via inference.
 
-  * takes an optional `env` that gets applied to the nested expansion"
+  * takes an optional `env` that gets applied to the nested expansion
+
+  An `opts` map can be provided with the following keys:
+  * `:allow-hole-exprs?` → (default: `false`) allows “value holes” (`:_`) in the input expression (each instance will be treated like a different variable)"
   ([nesting-chain]
    (core/simplify-nesting-chain {:rtl? true} nesting-chain {}))
   ([nesting-chain env]
@@ -681,7 +665,10 @@
 (defn simplify-nested-r
   "Reduces a rightward `nesting-chain`, a sequence of expressions `( a b c … )` whose interpretation is `( a [b [c […]]] )`, to a simplified nesting chain, possibly spliced or shortened via inference.
   
-  * takes an optional `env` that gets applied to the nested expansion"
+  * takes an optional `env` that gets applied to the nested expansion
+
+  An `opts` map can be provided with the following keys:
+  * `:allow-hole-exprs?` → (default: `false`) allows “value holes” (`:_`) in the input expression (each instance will be treated like a different variable)"
   ([nesting-chain]
    (core/simplify-nesting-chain {:rtl? false} nesting-chain {}))
   ([nesting-chain env]

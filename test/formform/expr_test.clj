@@ -567,7 +567,30 @@
     (is (= '[[]]
            (in>> [[:- [:seq-re :<r 'a 'b] []]])
            (in>> [[:fdna [] [:m]] [:seq-re :<r 'a 'b]])
-           (in>> [[:fdna ["foo"] [:n :u :u :u]] [:fdna [] [:m]]]))))
+           (in>> [[:fdna ["foo"] [:n :u :u :u]] [:fdna [] [:m]]])))
+
+    (is (= (in>> [[:mem [['a :u]] ['a] 'b]])
+           (in>> [[:mem [['a :u]] ['a]] 'b])
+           '[(:u) b]))
+    (is (= (in>> [[:mem [['a :u]] 'a] 'b])
+           '[:u b]))
+    ;; env substitution has priority over degeneration from observed values
+    (is (= (in>> ['y [:mem [['y 'z]] 'y]])
+           '[y z]))
+    ;; rems can shadow previous rems or given reduction env
+    (is (= (in>> ['x [:mem [['y 'z]] 'x]] {'x 'y})
+           (in>> ['x [:mem [['x 'z]] 'x]] {'x 'y})
+           '[y z]))
+    (is (= (in>> [[:mem [['y 'x]] 'x]] {'x 'y})
+           (in>> [[:mem [['y [:- 'x]]] 'x]] {'x 'y})
+           '[y]))
+    (is (= (in>> [[:mem [['x 'y] ['y 'z]] 'w]] {'w 'x})
+           (in>> [[:mem [['y 'z] ['x 'y]] 'w]] {'w 'x})
+           '[z]))
+    (is (= (in>> [[:mem [['x [:- 'x 'z]]] 'x]] {'x 'y})
+           '[y z]))
+    (is (= (in>> ['x [:mem [['y 'x]] 'x]] {'x 'y})
+           '[y])))
 
   (testing "Interactions with expression holes"
     (is (thrown? clojure.lang.ExceptionInfo (in>> '[ :_ :_ :_ ])))
@@ -1055,122 +1078,6 @@
     (is (= (interpret-walk* [:- :u [:- 'a [:i]]] {:--defocus #{:mem}})
            '[[[:mem [[:f* [[:f*]]]] :f*]
               [[a [[[:mem [[:f* [[:f*]]]] :f*]]]]]]]))))
-
-
-
-
-(deftest simplify-op-test
-  (testing "formDNA"
-    (testing "Basic functionality"
-      (is (= (simplify-op (make :fdna [] [:n]) {}) :n))
-      (is (= (simplify-op (make :fdna ['a] [:n :u :i :m]) {'a :u}) :u))
-      (is (= (simplify-op (make :fdna ['a 'b] [:n :u :i :m
-                                               :u :i :m :i
-                                               :i :m :i :u
-                                               :m :i :u :n]) {'a :m})
-             '[:fdna [b] [:m :i :u :n]])))
-
-    (testing "Partial matches in dictionary"
-      (is (= (simplify-op (make :fdna ['a] [:n :u :i :m]) {'x :m})
-             '[:fdna [a] [:n :u :i :m]]))
-      (is (= (simplify-op (make :fdna ['a] [:n :u :i :m]) {'x :m 'a :u})
-             :u)))
-
-    (testing "Correctness of transformations"
-      (are [x y] (= (simplify-op (make :fdna ['a] [:m :i :u :n]) {'a x}) y)
-        :n :m
-        :u :i
-        :i :u
-        :m :n)
-
-      (is (= (simplify-op
-              (make :fdna ['a 'b] [:n :u :i :m
-                                   :u :i :m :i
-                                   :i :m :i :u
-                                   :m :i :u :n]) {'a :u})
-             '[:fdna [b] [:u :i :m :i]]))))
-
-  (testing "unclear FORMs"
-    (testing "Basic functionality"
-      (is (= (simplify-op (make :uncl "hey") {})
-             '[:fdna ["hey"] [:u :u :u :n]]))
-
-      (are [x y] (= (simplify-op (make :uncl "unkFo") {"unkFo" x}) y)
-        :n :u
-        :u :u
-        :i :u
-        :m :n)
-
-      ;; !! this is correct, but what happened exactly?
-      (is (= (>> (make :uncl "hey") {"hey" :m})
-             nil))))
-
-  (comment
-    (simplify-op [:mem [['a []]] 'a] {}))
-
-  (testing "memory FORMs"
-    (testing "Correctness of reduction"
-      (is (= (simplify-op (make :mem [['a :m]] 'a) {})
-             (simplify-op (make :mem [['a []]] 'a) {})
-             (simplify-op (make :mem [['a (form)]] 'a) {})
-             (simplify-op (make :mem [['a (make :- [])]] 'a) {})
-             '()))
-      (is (= (simplify-op (make :mem [['a :u]] ['b] 'a) {})
-             '[:- (b) :u]))
-      (is (= (simplify-op (make :mem [['x :n]] 'y) {})
-             'y)))
-
-    ;; ? move to simplify-in-test
-    (testing "In expression context"
-      (is (= (in>> [(make :mem [['a :u]] ['a] 'b)])
-             (in>> [(make :mem [['a :u]] ['a]) 'b])
-             '[(:u) b]))
-      (is (= (in>> [(make :mem [['a :u]] 'a) 'b])
-             '[:u b]))
-      ;; env substitution has priority over degeneration from observed values
-      (is (= (in>> ['y (make :mem [['y 'z]] 'y)])
-             '[y z]))
-      ;; rems can shadow previous rems or given reduction env
-      (is (= (in>> ['x (make :mem [['y 'z]] 'x)] {'x 'y})
-             (in>> ['x (make :mem [['x 'z]] 'x)] {'x 'y})
-             '[y z]))
-      (is (= (in>> [(make :mem [['y 'x]] 'x)] {'x 'y})
-             (in>> [(make :mem [['y [:- 'x]]] 'x)] {'x 'y})
-             '[y]))
-      (is (= (in>> [(make :mem [['x 'y] ['y 'z]] 'w)] {'w 'x})
-             (in>> [(make :mem [['y 'z] ['x 'y]] 'w)] {'w 'x})
-             '[z]))
-      (is (= (in>> [(make :mem [['x [:- 'x 'z]]] 'x)] {'x 'y})
-             '[y z]))
-      (is (= (in>> ['x (make :mem [['y 'x]] 'x)] {'x 'y})
-             '[y])))
-
-    (testing "Substitution of values from recursive rems"
-      ;; (= ctx' ctx) because reduce-by-calling:
-      (is (= (simplify-op (make :mem [[:x [:- :x]]] :x) {})
-             :x))
-      ;; ? merge context during repeated substitution or only once afterwards?
-      ;; !! too deeply nested
-      #_(is (= (simplify-op (make :mem [[:x (make 'a [:- :x])]] :x) {})
-               '[:mem [[:x [a :x]]] a :x])))
-
-    (testing "Exception in infinite reduction (stack overflow)"
-      ;; infinite recursion because outer expr env nullifies previous dissoc:
-      (is (thrown-with-msg? Exception #"Context too deeply nested"
-                            (simplify-op (make :mem [[:x [:x]]] :x) {})))
-      (is (thrown-with-msg? Exception #"Context too deeply nested"
-                            (simplify-op (make :mem [[:x [:- [:x]]]] :x) {})))
-      (is (thrown-with-msg? Exception #"Context too deeply nested"
-                            (simplify-op (make :mem [[:x [[:- :x]]]] :x) {}))))
-
-    (testing "Combined with outer env"
-      (= (simplify-op (make :mem [['a :n]] 'a 'b) {'b :u})
-         :u))
-
-    (testing "Reduction of shadowed rems"
-      (is (= (simplify-op (make :mem [['a '(x)] ['b [:- 'a :u]]] [:- 'b]) {})
-             '[:- (x) :u])))))
-
 
 (deftest interpret-sym-test
   (testing "Unknown symbols"

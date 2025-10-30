@@ -1,11 +1,99 @@
 (ns formform.expr.operators-test
   (:require [clojure.test :as t :refer [deftest is are testing]]
             [formform.expr.specs :refer [fns-with-specs]]
+            [formform.expr.symexpr :as symx]
             [formform.expr.operators :refer :all]
             [orchestra.spec.test :as stest]))
 
 (doseq [fsym fns-with-specs] (stest/instrument fsym))
 
+(def simplify-op symx/simplify-op)
+
+(deftest simplify-op-test
+  (testing "formDNA"
+    (testing "Basic functionality"
+      (is (= (simplify-op [:fdna [] [:n]] {}) :n))
+      (is (= (simplify-op [:fdna ['a] [:n :u :i :m]] {'a :u}) :u))
+      (is (= (simplify-op [:fdna ['a 'b] [:n :u :i :m
+                                          :u :i :m :i
+                                          :i :m :i :u
+                                          :m :i :u :n]] {'a :m})
+             '[:fdna [b] [:m :i :u :n]])))
+
+    (testing "Partial matches in dictionary"
+      (is (= (simplify-op [:fdna ['a] [:n :u :i :m]] {'x :m})
+             '[:fdna [a] [:n :u :i :m]]))
+      (is (= (simplify-op [:fdna ['a] [:n :u :i :m]] {'x :m 'a :u})
+             :u)))
+
+    (testing "Correctness of transformations"
+      (are [x y] (= (simplify-op [:fdna ['a] [:m :i :u :n]] {'a x}) y)
+        :n :m
+        :u :i
+        :i :u
+        :m :n)
+
+      (is (= (simplify-op
+              [:fdna ['a 'b] [:n :u :i :m
+                              :u :i :m :i
+                              :i :m :i :u
+                              :m :i :u :n]] {'a :u})
+             '[:fdna [b] [:u :i :m :i]]))))
+
+  (testing "unclear FORMs"
+    (testing "Basic functionality"
+      (is (= (simplify-op [:uncl "hey"] {})
+             '[:fdna ["hey"] [:u :u :u :n]]))
+
+      (are [x y] (= (simplify-op [:uncl "unkFo"] {"unkFo" x}) y)
+        :n :u
+        :u :u
+        :i :u
+        :m :n)
+
+      ;; !! this is correct, but what happened exactly?
+      (is (= (simplify-op [:uncl "hey"] {"hey" :m})
+             :n))))
+
+  (comment
+    (simplify-op [:mem [['a []]] 'a] {}))
+
+  (testing "memory FORMs"
+    (testing "Correctness of reduction"
+      (is (= (simplify-op [:mem [['a :m]] 'a] {})
+             (simplify-op [:mem [['a []]] 'a] {})
+             (simplify-op [:mem [['a [[[]]]]] 'a] {})
+             '()))
+      (is (= (simplify-op [:mem [['a :u]] ['b] 'a] {})
+             '[:- (b) :u]))
+      (is (= (simplify-op [:mem [['x :n]] 'y] {})
+             'y)))
+
+    (testing "Substitution of values from recursive rems"
+      ;; (= ctx' ctx) because reduce-by-calling:
+      (is (= (simplify-op [:mem [[:x [:- :x]]] :x] {})
+             :x))
+      ;; ? merge context during repeated substitution or only once afterwards?
+      ;; !! too deeply nested
+      #_(is (= (simplify-op (make :mem [[:x (make 'a [:- :x])]] :x) {})
+               '[:mem [[:x [a :x]]] a :x])))
+
+    (testing "Exception in infinite reduction (stack overflow)"
+      ;; infinite recursion because outer expr env nullifies previous dissoc:
+      (is (thrown-with-msg? Exception #"Context too deeply nested"
+                            (simplify-op [:mem [[:x [:x]]] :x] {})))
+      (is (thrown-with-msg? Exception #"Context too deeply nested"
+                            (simplify-op [:mem [[:x [:- [:x]]]] :x] {})))
+      (is (thrown-with-msg? Exception #"Context too deeply nested"
+                            (simplify-op [:mem [[:x [[:- :x]]]] :x] {}))))
+
+    (testing "Combined with outer env"
+      (= (simplify-op [:mem [['a :n]] 'a 'b] {'b :u})
+         :u))
+
+    (testing "Reduction of shadowed rems"
+      (is (= (simplify-op [:mem [['a '(x)] ['b [:- 'a :u]]] [:- 'b]] {})
+             '[:- (x) :u])))))
 
 (defn f
   ([x] (f x {}))
