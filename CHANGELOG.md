@@ -40,6 +40,7 @@ All notable changes to this project will be documented in this file. This change
 - `calc/reduce-dna-seq` now takes the optional terms as its second argument instead of the first. This is part of an effort to make argument order more consistent across formform.
 - `calc/reorder-dna-seq`, `calc/expand-dna-seq` and `calc/reduce-dna-seq` have been renamed to `calc/reorder-dna`, `calc/expand-dna` and `calc/reduce-dna`, because the `-seq` suffix doesn’t make sense anymore and would only confuse users. Aliases to the old names are kept for now but might be removed later.
 - `expr/interpret`, `expr/interpret*`, `expr/interpret-walk` and `expr/interpret-walk*` now all receive the optional `env` as the second argument instead of the first. This makes the api more consistent with the other functions in `expr` that receive an `env`.
+- Removed `expr/simplify-op` as well as `expr/simplify-sym`, since they can both be (almost) fully replaced by `expr/simplify`, which is less confusing. The only difference is that if the final output is a constant, it will be further simplified.
 
 ### Fixed
 
