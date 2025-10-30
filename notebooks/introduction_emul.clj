@@ -251,10 +251,10 @@ dna-slit
 (sys-ini (make-ini :figure :n (ini-patterns :ball) :center)
          [31])
 
-;; We can change the background to a different value and use an “inverted ball” (or “hole”) instead:
+;; We can change the background to a different value and use a “hole” (or “inverted ball”) instead:
 
 ^{::clerk/viewer viewer-gen1d}
-(sys-ini (make-ini :figure :m (ini-patterns :ball-inverted) :center)
+(sys-ini (make-ini :figure :m (ini-patterns :hole) :center)
          [31])
 
 ;; Instead of a simple value, we can also directly pass a background ini, such as `:cycle`:
@@ -265,7 +265,7 @@ dna-slit
 
 ^{::clerk/viewer viewer-gen2d}
 (sys-ini (make-ini :figure (make-ini :cycle [:u :m])
-                   (ini-patterns :ball2d-inverted) :center)
+                   (ini-patterns :hole2d) :center)
          [11 11])
 
 ;; Here we create a custom pattern and align it to the right:

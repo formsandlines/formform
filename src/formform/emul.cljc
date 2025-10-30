@@ -347,7 +347,7 @@
   "A collection of predefined patterns for use with `:figure` inis."
   {:ball
    [:i :u :m :u :i]
-   :ball-inverted
+   :hole
    [:u :i :n :i :u]
    :ball2d
    [[:_ :_ :i :_ :_]
@@ -355,7 +355,7 @@
     [:i :u :m :u :i]
     [:_ :i :u :i :_]
     [:_ :_ :i :_ :_]]
-   :ball2d-inverted
+   :hole2d
    [[:_ :_ :u :_ :_]
     [:_ :u :i :u :_]
     [:u :i :n :i :u]
@@ -367,7 +367,7 @@
     [:i :u :m :u :i]
     [:i :u :u :u :i]
     [:i :i :i :i :i]]
-   :ball2d-square-inverted
+   :hole2d-square
    [[:u :u :u :u :u]
     [:u :i :i :i :u]
     [:u :i :n :i :u]
