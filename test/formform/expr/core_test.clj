@@ -8,13 +8,52 @@
 (doseq [fsym fns-with-specs] (stest/instrument fsym))
 
 
-(def arrangement? (partial valid? ::sp/arrangement))
+(def sp-variable? (partial valid? ::sp/variable))
+(def sp-form? (partial valid? ::sp/form-expr))
+(def sp-struct? (partial valid? ::sp/struct-expr))
+(def sp-expression? (partial valid? ::sp/expression))
+
+;; to verify that the expression predicates match their expected target sets
+(deftest expr-predicate-test
+  (let [forms '[[] [a] [a b] [[]] [[] a] [[a] a] [:foo "x"]]
+        vars  '[a abc "a" "abc"]
+        syms  '[:m :u :mn]
+        ops   '[[:uncl "x"] [:seq-re :<r a b]]
+        empty  [nil]
+        unknown '[:x :_]]
+    (testing "Correct expression type identification"
+      ;; “pure” forms
+      (doseq [x forms]
+        (is (and (pure-form? x) (sp-form? x))))
+      (doseq [x (concat ops vars syms unknown empty)]
+        (is (not (or (pure-form? x) (sp-form? x)))))
+
+      ;; “structural” forms
+      (doseq [x (concat forms ops)]
+        (is (and (form? x) (struct-expr? x) (sp-struct? x))))
+      (doseq [x (concat vars syms unknown empty)]
+        (is (not (or (form? x) (struct-expr? x) (sp-struct? x)))))
+
+      ;; variables
+      (doseq [x vars]
+        (is (and (variable? x) (sp-variable? x))))
+      (doseq [x (concat forms ops syms unknown empty)]
+        (is (not (or (variable? x) (sp-variable? x)))))
+
+      ;; expressions
+      (doseq [x (concat forms vars syms ops empty unknown)]
+        (is (and (expression? x) (sp-expression? x))))
+      (doseq [x (concat vars syms)]
+        (is (literal-expr? x))))))
+
+
+(def sp-arrangement? (partial valid? ::sp/arrangement))
 (def chain>> simplify-nesting-chain)
 
 (defn- simplify-nesting-chain-reversed
   "Reverses expr chain before simplification and reverses again (= restores original order) afterwards. Assuming we simplified the expr chain before with the opposite value of `r->l?`, this should yield an identical result for our test."
   [r->l? exprs env]
-  (let [rev-exprs (fn [xs] (reverse (map #(if (arrangement? %)
+  (let [rev-exprs (fn [xs] (reverse (map #(if (sp-arrangement? %)
                                            (cons (first %) (reverse (rest %)))
                                            %) xs)))]
     (rev-exprs (chain>> {:rtl? r->l?} (rev-exprs exprs) env))))

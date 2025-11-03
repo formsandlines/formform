@@ -19,7 +19,6 @@
 
 (declare expression?)
 
-;; !! unchecked
 (def form? #(and (sequential? %)
                  (every? expression? %)))
 (def pure-form? #(and (form? %)
@@ -33,6 +32,7 @@
                       (variable? %)
                       (keyword? %)))
 
+;; ? redundant with `form?`
 (def struct-expr? #(or (form? %) (symx/operator? %)))
 (def literal-expr? #(or (symx/expr-symbol? %) (variable? %)))
 
