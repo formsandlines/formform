@@ -110,9 +110,14 @@
 
 (interpret 'x {'x :u})
 
-;; An uninterpretable variable or symbolic expression evaluates to a “hole” (represented by an underscore `:_`), which is a placeholder for any constant value:
+;; Evaluation will also leave uninterpretable expressions untouched:
 
-(=> 'x)
+(=> ['a ['b]])
+
+;; Unless their value can be determined algebraically:
+
+(=> [[] 'a ['b]])
+(=> ['a ['a]])
 
 
 ;; ### Symbolic expressions
@@ -131,11 +136,11 @@
 
 (interpret :m)
 
-;; The _arrangement_ expression which captures the idea of the unmarked FORM is an example of an operator and gets interpreted as (you may have guessed it) a double-marked FORM:
+;; The _arrangement_ expression, which captures the idea of the unmarked FORM, is an example of an operator and gets interpreted as (you may have guessed it) a double-marked FORM:
 
 (interpret [:- 'a 'b])
 
-;; Notice the `:-` keyword, which is the symbol at the start of this operator that identifies it as an arrangement operator. You can think about it as the ‘$+$’ in ‘$x + y$’.
+;; Notice the `:-` keyword, which is the symbol at the start of this operator that identifies it as an _arrangement_ operator. You can think about it as the ‘$+$’ in ‘$x + y$’.
 
 ;; #### Self-equivalent re-entry FORMs
 
@@ -144,6 +149,8 @@
 ;; Now we will come back to that strange interpretation of `:u`, which you can now identify as an operator with the keyword `:seq-re` (short for “self-equivalent re-entry FORM”):
 
 (interpret :u)
+
+;; > Note that in this case an _expression symbol_ gets interpreted as an _operator_.
 
 ;; This is our *uFORM*. The two `nil` at the end are the empty nested spaces in $f = ((f .) .)$ (marked with a dot here).
 
@@ -220,7 +227,7 @@
 
 (simplify ['a ['b]] {'a :u 'b :i})
 
-;; As you can see, `:u` cannot be further simplified, since it is a primitive value, just like _mn_ (‘m’ on top of ‘n’) in uFORM iFORM:
+;; As you can see, `:u` cannot be further simplified, since it is a primitive value, just like _mn_ in uFORM iFORM (represented as ‘m’ on top of ‘n’ in the book):
 
 ^{::clerk/visibility {:code :hide :result :show}}
 (clerk/table {:nextjournal.clerk/width :prose}
@@ -260,17 +267,23 @@
 
 ;; Evaluation of expressions in formform depends on a prior simplification step, which is ultimately needed to evaluate self-equivalent re-entry FORMs (which cannot be determined arithmetically, as we know from uFORM iFORM).
 
-;; This means that it uses the same algorithm as `simplify`, but interprets the simpilfied expression as a value constant instead:
+;; This means that it uses the same algorithm as `simplify`, but (if possible) interprets the simpilfied expression as a value constant instead:
 
-(evaluate [:- [] []])
+(=> [:- [] []])
+
+(=> [[]])
+
+;; Depending on whether the result can be determined to a value or not, `=>` (which is an alias for `eval->expr`) will return either a constant or the simplified input expression. You can use `evaluate` instead to get a more differentiated output:
 
 (evaluate [[]])
 
-;; Notice that `evaluate` also gives us the simplified expression. This is especially useful when it cannot be determined to a single value:
+;; As you can see, `evaluate` also gives us the simplified expression along with the result. When it cannot be determined to a single value, the result will be `nil`:
 
 (evaluate [:uncl "love"])
 
-;; However, just like with `simplify`, you can provide an environment to interpret variables and determine the result:
+;; > Note that `:result` is always a _value_ and __not__ an _expression_ (like the output of `=>`), which means that `nil` is not equivalent to `:n` here!
+
+;; However, just like with `simplify`, you can provide an environment to interpret variables, which is also retained in the output:
 
 (evaluate [:uncl "love"] {"love" :m})
 
@@ -323,6 +336,7 @@ calc/nmui-code
 ;; Self-equivalent re-entry FORMs have a short notation with curly brackets, where each nested space is separated by a comma:
 
 (io/read-expr "{}")
+(io/read-expr "{,}")
 (io/read-expr "{a, (b {,}) {:m,}, c}")
 
 ;; As you can see, the default signature is `:<r`, but of course, you can provide your own:

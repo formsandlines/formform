@@ -7,7 +7,6 @@
             [formform.calc :as calc]
             [formform.expr :as expr]
             [formform.emul :as emul :refer :all]
-            [formform.io :as io]
             [formform-viewer :refer :all]))
 
 ;; # Introduction to formform.emul
@@ -127,7 +126,7 @@ ini-patterns
 
 ;; If you haven’t encountered _formDNA_ before in _formform_, it is essentially a value structure that acts like an (implicit/abstract) lookup-table between all possible inputs for the expression and their corresponding result.
 
-;; When you evaluate any FORM expression using `formform.expr/=>*`, you will get a _formDNA expression_, which wraps the actual _formDNA_ data. Using `formform.expr/op-get`, we can extract it, but the `expr/eval->val-all` (short: `eval/==>*`) function makes it more convenient:
+;; When you evaluate any FORM expression using `expr/==>*` (shorthand for `expr/eval->val-all`), you will get the results from all possible interpretations of all variables in the expression as a _formDNA_ (instead of the table-like structure from `expr/eval-all`):
 
 (def dna-slit (expr/==>* '[:- [[a] b] [[b] a]]))
 
@@ -137,12 +136,12 @@ ini-patterns
   ::clerk/viewer viewer-vrow}
 dna-slit
 
-;; Here is the _formDNA_ from _CoOneAnother_, which we can get directly from the binary selection of its _triple-selective decision system_ (see _uFORM iFORM_), using `eval-tsds->val-all` (short: `ts==>*`):
+;; Here is the _formDNA_ from _CoOneAnother_, which we can get directly from the binary selection of its _triple-selective decision system_ (see _uFORM iFORM_), using `expr/ts==>*` (shorthand for `expr/eval-tsds->val-all`):
 
 ^{::clerk/viewer viewer-vrow}
 (def dna-coa (expr/ts==>* 1 0 1 1 0 0))
 
-;; > Hmmm… a part of this pattern seems familiar. I’ll leave the interpretation to the reader as it doesn’t fit the scope of this introduction. (:
+;; > Can you spot a familiar pattern in there?
 
 ;; _formDNA_ only stores the _results_, but the information about the input values (which would be the _“umwelt”_ in a CA) is implicit in its sequential order. Let’s make it explicit to get an idea on how the ruleset for this FORM looks like:
 
@@ -161,7 +160,7 @@ dna-slit
 
 ;; Besides _formDNA_, `make-selfi` and `make-mindform` also require an “ini-spec”, meaning a specification of their initialization pattern.
 
-;; To create an ini spec, call `make-ini` with the desired ini type and parameters for that type. What types are available? Let’s find out with the `:help` argument:
+;; To create an ini spec, call `make-ini` with the desired ini type and parameters for that type. Which types are available? Let’s find out with the `:help` argument:
 
 ^{::clerk/visibility {:code :hide :result :hide}}
 (def quoted-markdown-viewer
@@ -356,7 +355,7 @@ dna-slit
 (def arrow1d [:u :i :m])
 
 ^{::clerk/viewer viewer-gen1d}
-(sys-ini (make-ini :figure-repeat {:weights 1.0} :n arrow1d :center 10 3)
+(sys-ini (make-ini :figure-repeat :n arrow1d :center 10 3)
          [69])
 
 ^{::clerk/visibility {:result :hide}}
@@ -367,8 +366,7 @@ dna-slit
               [:u :_ :_]])
 
 ^{::clerk/viewer viewer-gen2d}
-(sys-ini (make-ini :figure-repeat {:weights 1.0} :n arrow2d
-                   {:pos :right :align :center}
+(sys-ini (make-ini :figure-repeat :n arrow2d {:pos :right :align :center}
                    [7 2] [1 2])
          [32 14])
 
