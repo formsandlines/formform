@@ -20,29 +20,33 @@
         syms  '[:m :u :mn]
         ops   '[[:uncl "x"] [:seq-re :<r a b]]
         empty  [nil]
-        unknown '[:x :_]]
+        unknown '[:x :_]
+        non-exprs [#(* % 2) (fn [x y] (* x y))]]
     (testing "Correct expression type identification"
       ;; “pure” forms
       (doseq [x forms]
         (is (and (pure-form? x) (sp-form? x))))
-      (doseq [x (concat ops vars syms unknown empty)]
+      (doseq [x (concat ops vars syms unknown empty non-exprs)]
         (is (not (or (pure-form? x) (sp-form? x)))))
 
       ;; “structural” forms
       (doseq [x (concat forms ops)]
         (is (and (form? x) (struct-expr? x) (sp-struct? x))))
-      (doseq [x (concat vars syms unknown empty)]
+      (doseq [x (concat vars syms unknown empty non-exprs)]
         (is (not (or (form? x) (struct-expr? x) (sp-struct? x)))))
 
       ;; variables
       (doseq [x vars]
         (is (and (variable? x) (sp-variable? x))))
-      (doseq [x (concat forms ops syms unknown empty)]
+      (doseq [x (concat forms ops syms unknown empty non-exprs)]
         (is (not (or (variable? x) (sp-variable? x)))))
 
       ;; expressions
       (doseq [x (concat forms vars syms ops empty unknown)]
         (is (and (expression? x) (sp-expression? x))))
+      (doseq [x non-exprs]
+        (is (not (or (expression? x) (sp-expression? x)))))
+
       (doseq [x (concat vars syms)]
         (is (literal-expr? x))))))
 

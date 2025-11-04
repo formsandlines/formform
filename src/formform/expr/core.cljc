@@ -434,13 +434,6 @@
          (vec)))))
 
 
-(comment
-  (symx/simplify-sym :u {})
-  (cnt> :_ {})
-  (ctx> [:_ :_] {})
-  (ctx> [:_ [:_ :_] [:_ :_]] {})
-  ,)
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Evaluation
 
@@ -456,9 +449,6 @@
     {:simplified simpl-expr
      :env env
      :val result}))
-
-;; ? remove
-(def nuim-code-reversed ((comp vec reverse) calc/nuim-code))
 
 ;; ? check for validity of varorder
 ;; ? remove `reverse-results?` bc formDNA no longer reversed
@@ -699,19 +689,17 @@
 
 
 (comment
-  ;; ? should env be always first arg
-  ;; ! test more interpret function
   ;; ? should registered keywords be substitutable by env
-
-  ;; simplify-op -> interpret-op or interpret or something else?
-  ;; simplify-content
 
   (interpret-walk {:--focus #{[:- 'x]}} [:- 'a ['b [ [:- 'x] ]] :m])
   (interpret-walk {:--defocus #{[:- 'x]}} [:- 'a ['b [ [:- 'x] ]] :m])
 
   ;; form </> data in this case
   (interpret [:if #(= % []) :x :m :u])
-
+  (= false
+     (expression? [:if #(= % []) :x :m :u])
+     (expression? #(= % [])))
+  
   (find-vars [['x] 'z 'a] {})
   (find-vars [['x] 'z 'a] {:ordered? true})
   (find-vars [['x] "a" 'z "x" 'a] {})
