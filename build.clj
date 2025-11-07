@@ -18,6 +18,22 @@
 (def uber-file (format "target/%s-%s-standalone.jar" (name lib) version))
 (def jar-file (format "target/%s-%s.jar" (name lib) version))
 
+(defn- pom-template [version]
+  [[:description "Clojure(Script) library to represent, transform and evaluate all the FORMs of uFORM iFORM"]
+   [:url "https://formform.dev"]
+   [:licenses
+    [:license
+     [:name "MIT License"]
+     [:url "https://opensource.org/license/MIT"]]]
+   [:developers
+    [:developer
+     [:name "Peter Hofmann"]
+     [:email "peter.hofmann@formsandlines.eu"]
+     [:url "https://formsandlines.eu"]]]
+   [:scm
+    [:url "https://github.com/formsandlines/formform"]
+    [:tag (str "v" version)]]])
+
 (defn clean [_]
   (b/delete {:path "target"}))
 
@@ -26,9 +42,8 @@
                 :lib lib
                 :version version
                 :basis basis
-                :src-dirs ["src"]})
-                ;; :src-pom "template/pom.xml"
-                
+                :src-dirs ["src"]
+                :pom-data  (pom-template version)})
   (b/copy-dir {:src-dirs ["src" "resources"]
                :target-dir class-dir})
   (b/jar {:class-dir class-dir
