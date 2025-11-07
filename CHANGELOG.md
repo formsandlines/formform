@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
+_None_
+
+## [0.2.0] - 2025-11-07
+
 ### Added
 
 - `calc/vmap-dimension` to calculate the dimension of vmaps (like `dna-dimension`) or get it from meta `:dim` cached by a vmap constructor (not for zero-dimension vmaps)
