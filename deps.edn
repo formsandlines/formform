@@ -1,5 +1,6 @@
 {:paths ["src"]
  :deps {org.clojure/clojure {:mvn/version "1.11.1"}
+        ;; org.clojure/clojure {:mvn/version "1.12.1"}
         org.clojure/math.combinatorics {:mvn/version "0.3.0"}
         org.clojure/core.match {:mvn/version "1.1.0"}
         org.clojure/test.check {:mvn/version "1.1.1"}
@@ -8,12 +9,12 @@
  :aliases
  {:neil
   {:project {:name eu.formsandlines/formform
-             :version "0.1.0"}}
+             :version "0.2.0"}}
 
   :dev
   {:extra-paths ["dev" "test" "notebooks"]
    :extra-deps {orchestra/orchestra {:mvn/version "2021.01.01-1"}
-                io.github.nextjournal/clerk {:mvn/version "0.17.1102"}}}
+                io.github.nextjournal/clerk {:git/sha "1b8f844e29a06ab1ff82bb95e4310c0c94b8ebdb"}}}
 
   :debug  ;; flow-storm (merge with :dev?)
   {:classpath-overrides {org.clojure/clojure nil} ;; for disabling the official compiler
@@ -48,11 +49,17 @@
                :source-paths ["src"]}}
 
   :clerk
-  {:extra-deps {io.github.nextjournal/clerk {:mvn/version "0.17.1102"}}
+  {:extra-paths ["notebooks"]
+   :extra-deps {io.github.nextjournal/clerk {:git/sha "1b8f844e29a06ab1ff82bb95e4310c0c94b8ebdb"}}
    :exec-fn nextjournal.clerk/build!
-   :exec-args {:paths ["notebooks/*"]
-               :index "index.clj"
-               :out-path "../formform-www"}}
+   :exec-args {:paths ["notebooks/introduction.clj"
+                       "notebooks/introduction_emul.clj"]
+               :index "notebooks/index.clj"
+               ;; :ssr true ; lacks basic hydration → unusable
+               ;; :package :single-file
+               :package :directory
+               ;; :compile-css true ; fails to compile classes in .cljs ns
+               :out-path "../formform-www/clerk"}}
 
   :build ;; added by neil
   {:deps {io.github.clojure/tools.build {:git/tag "v0.9.4" :git/sha "76b78fe"}

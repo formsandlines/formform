@@ -102,9 +102,10 @@
                            :seed :rand/seed))
   :ret  ::sp/const)
 (defn rand-const-weighted
-  "Same as `rand-const`, but takes a `weights` argument to specify the relative probability of each of the four constants to be randomly chosen.
+  "Same as [[rand-const]], but takes a `weights` argument to specify the relative probability of each of the four constants to be randomly chosen.
 
   Weights can be provided either as:
+
   * a sequence of 4 non-negative numbers (e.g. `[1 0 2 5]`) in n-u-i-m order
   * a map (e.g. `{:i 1 :u 2}`), where missing weights are 0
   * a single number in the interval [0.0, 1.0] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)"
@@ -143,7 +144,7 @@
                                             :consts ::consts-map-entry)))
                  :ret  #(#{-1 0 1} %)))
 (defn make-compare-consts
-  "Given a `sort-code` (try `calc.nuim-code` or `calc.nmui-code`), returns a comparator function to sort single constants, formDNA or arbitrary sequences of constants (can be mixed).
+  "Given a `sort-code` (try [[nuim-code]] or [[nmui-code]]), returns a comparator function to sort single constants, formDNA or arbitrary sequences of constants (can be mixed).
 
   * can also compare map-entries by keys of comparable types"
   [sort-code]
@@ -220,9 +221,9 @@
 (defn make-dna
   "Creates a formDNA from arguments, which may be valid chars, keywords, integers or sequences thereof.
 
-  * valid chars are: \\n \\u \\i \\m (upper- or lowercase) and \\0 \\1 \\2 \\3
-  * valid integers are: 0 1 2 3
-  * valid keywords are: :n :u :i :m
+  * valid chars are: `\\n` `\\u` `\\i` `\\m` (upper- or lowercase) and `\\0` `\\1` `\\2` `\\3`
+  * valid integers are: `0` `1` `2` `3`
+  * valid keywords are: `:n` `:u` `:i` `:m`
   * total argument count (including count of sequence args) must match a valid formDNA length, which is 4^d, where d is a natural number"
   [& xs]
   (apply core/make-dna xs))
@@ -245,9 +246,10 @@
                            :seed :rand/seed))
   :ret  ::sp/dna)
 (defn rand-dna-weighted
-  "Same as `rand-dna`, but takes a `weights` argument to specify the relative probability of each of the four constants to be randomly chosen.
+  "Same as [[rand-dna]], but takes a `weights` argument to specify the relative probability of each of the four constants to be randomly chosen.
 
   Weights can be provided either as:
+
   * a sequence of 4 non-negative numbers (e.g. `[1 0 2 5]`) in n-u-i-m order
   * a map (e.g. `{:i 1 :u 2}`), where missing weights are 0
   * a single number in the interval [0.0, 1.0] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)"
@@ -267,13 +269,15 @@
   "Reorders given formDNA/`dna-seq` from `sort-code-from` to `sort-code-to`.
 
   Note:
+
   * `dna-seq` can have any type of elements (not only constants)
   * does NOT change the encoding of the elements, just their ordering"
   [dna-seq sort-code-from sort-code-to]
   (core/reorder-dna-seq dna-seq sort-code-from sort-code-to))
 
 ;; alias to old name -> might remove later
-(def reorder-dna-seq reorder-dna)
+(def reorder-dna-seq "Obsolete → please use [[reorder-dna]] instead."
+  reorder-dna)
 
 ;; Compare formDNA
 
@@ -281,9 +285,9 @@
   :args (s/every ::sp/dna :min-count 1)
   :ret  boolean?)
 (defn equal-dna?
-  "Equality check for formDNA. Two formDNAs are considered equal, if they contain the same constants in the same order. Stricter than `equiv-dna?`, where permutations are considered equal.
+  "Equality check for formDNA. Two formDNAs are considered equal, if they contain the same constants in the same order. Stricter than [[equiv-dna?]], where permutations are considered equal.
 
-  Note: partial formDNA (which includes holes (`:_`)) cannot be compared and thus are not valid input. If you know/assume equality for holes or just want to ignore them in comparison, use `equal-partial-dna?`."
+  Note: partial formDNA (which includes holes (`:_`)) cannot be compared and thus are not valid input. If you know/assume equality for holes or just want to ignore them in comparison, use [[equal-partial-dna?]]."
   [& dnas]
   {:pre [(not (some (partial some #(= :_ %)) dnas))]}
   (apply core/equal-dna? dnas))
@@ -292,9 +296,9 @@
   :args (s/every ::sp/dna :min-count 1)
   :ret  boolean?)
 (defn equiv-dna?
-  "Equivalence check for formDNA. Two formDNAs are considered equivalent, if they belong to the same equivalence-class of `dna-perspectives` (i.e. if they are permutations of each other).
+  "Equivalence check for formDNA. Two formDNAs are considered equivalent, if they belong to the same equivalence-class of [[dna-perspectives]] (i.e. if they are permutations of each other).
 
-  Note: partial formDNA (which includes holes (`:_`)) cannot be compared and thus are not valid input. If you know/assume equality for holes or just want to ignore them in comparison, use `equiv-partial-dna?`."
+  Note: partial formDNA (which includes holes (`:_`)) cannot be compared and thus are not valid input. If you know/assume equality for holes or just want to ignore them in comparison, use [[equiv-partial-dna?]]."
   [& dnas]
   {:pre [(not (some (partial some #(= :_ %)) dnas))]}
   (apply core/equiv-dna? dnas))
@@ -304,7 +308,7 @@
   :args (s/every ::sp/dna_ :min-count 1)
   :ret  boolean?)
 (defn equal-partial-dna?
-  "Equality check for partial formDNA (derived from `equal-dna?`), under the assumption that all holes (`:_`) originate from the same expression and thus their supposed value would be equal (which is the same as just ignoring them)."
+  "Equality check for partial formDNA (derived from [[equal-dna?]]), under the assumption that all holes (`:_`) originate from the same expression and thus their supposed value would be equal (which is the same as just ignoring them)."
   [& dnas]
   (apply core/equal-dna? dnas))
 
@@ -312,7 +316,7 @@
   :args (s/every ::sp/dna_ :min-count 1)
   :ret  boolean?)
 (defn equiv-partial-dna?
-  "Equivalence check for partial formDNA (derived from `equiv-dna?`), under the assumption that all holes (`:_`) originate from the same expression and thus their supposed value would be equal (which is the same as just ignoring them)."
+  "Equivalence check for partial formDNA (derived from [[equiv-dna?]]), under the assumption that all holes (`:_`) originate from the same expression and thus their supposed value would be equal (which is the same as just ignoring them)."
   [& dnas]
   (apply core/equiv-dna? dnas))
 
@@ -340,7 +344,8 @@
    (core/expand-dna-seq dna-seq dim ext-dim)))
 
 ;; alias to old name -> might remove later
-(def expand-dna-seq expand-dna)
+(def expand-dna-seq "Obsolete → please use [[expand-dna]] instead."
+  expand-dna)
 
 ;; ? `unsafe-` variant for partial dna
 (s/fdef reduce-dna
@@ -366,7 +371,8 @@
    (core/reduce-dna-seq dna-seq terms {})))
 
 ;; alias to old name -> might remove later
-(def reduce-dna-seq reduce-dna)
+(def reduce-dna-seq "Obsolete → please use [[reduce-dna]] instead."
+  reduce-dna)
 
 (s/fdef filter-dna
   :args (s/& (s/cat :dna    ::sp/dna_
@@ -499,9 +505,10 @@
                            :seed :rand/seed))
   :ret  ::sp/vpoint)
 (defn rand-vpoint-weighted
-  "Same as `rand-vpoint`, but takes a `weights` argument to specify the relative probability of each of the four constants to be randomly chosen.
+  "Same as [[rand-vpoint]], but takes a `weights` argument to specify the relative probability of each of the four constants to be randomly chosen.
 
   Weights can be provided either as:
+
   * a sequence of 4 non-negative numbers (e.g. `[1 0 2 5]`) in n-u-i-m order
   * a map (e.g. `{:i 1 :u 2}`), where missing weights are 0
   * a single number in the interval [0.0, 1.0] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)"
@@ -601,7 +608,7 @@
   :args (s/cat :vmap ::sp/vmap)
   :ret  int?)
 (defn vmap-dimension
-  "Returns the dimension of a vmap (equivalent to `dna-dimension` of the corresponding formDNA)."
+  "Returns the dimension of a vmap (equivalent to [[dna-dimension]] of the corresponding formDNA)."
   [vmap]
   (core/vmap-dimension vmap))
 
@@ -630,7 +637,8 @@
   [& consts-or-dnas]
   (apply core/rel consts-or-dnas))
 ;; alias
-(def -- "Alias to `rel`." rel)
+(def -- "Alias to [[rel]]."
+  rel)
 
 (s/fdef inv
   :args (s/* (s/or :const ::sp/const_
@@ -638,13 +646,14 @@
   :ret  (s/or :const ::sp/const_
               :dna   ::sp/dna_))
 (defn inv
-  "Inverts the value of a given constant or formDNA. With multiple arguments, will relate all arguments (via `rel`) and then invert the result.
+  "Inverts the value of a given constant or formDNA. With multiple arguments, will relate all arguments (via [[rel]]) and then invert the result.
 
   Note: value holes (`:_`) will invert to value holes."
   [& consts-or-dnas]
   (apply core/inv consts-or-dnas))
 ;; alias
-(def | "Alias to `inv`." inv)
+(def | "Alias to [[inv]]."
+  inv)
 
 
 

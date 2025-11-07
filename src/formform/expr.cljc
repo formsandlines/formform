@@ -94,6 +94,7 @@
   If the first argument (or the first after the options map) is a keyword of a registered operator, will call the constructor for that operator
 
   Can be given an options map as first argument:
+
   * `mark?` (default: false) marks the whole expression, creating a FORM
   * `splice?` (default: true) dissolves all top-level arrangements"
   [& args]
@@ -103,13 +104,13 @@
   :args (s/* any?)
   :ret  ::sp/struct-expr)
 (defn form
-  "Constructor for FORM expressions `[ … ]`. Calls `make` on `args`."
+  "Constructor for FORM expressions `[ … ]`. Calls [[make]] on `args`."
   [& args]
   (apply core/form args))
 
 
 (defn mark-exprs
-  "Obsolete → use `make-marked` or `form-marked` instead."
+  "Obsolete → use [[make-marked]] or [[form-marked]] instead."
   [opts & exprs]
   (apply core/mark-exprs opts exprs))
 
@@ -135,7 +136,7 @@
 
 
 (defn nest-exprs
-  "Obsolete → use `make-nested-l/r` or `form-nested-l/r` instead."
+  "Obsolete → use [[make-nested-l]]/[[make-nested-r]] or [[form-nested-l]]/[[form-nested-r]] instead."
   [opts & exprs]
   (apply core/nest-exprs opts exprs))
 
@@ -208,8 +209,8 @@
 
   Options:
 
-  * {:ordered true} to return variables in: type order -> alphanumeric order
-  * {:vars #{…}} can be given a set of specific variables to find"
+  * `{:ordered true}` to return variables in: type order → alphanumeric order
+  * `{:vars #{…}}` can be given a set of specific variables to find"
   [expr opts]
   (core/find-vars expr opts))
 
@@ -223,12 +224,15 @@
 
 ;; ? do we need this function
 (defn expr->const
-  "Returns the constant value/expression that corresponds to its simplest (as per `simplify`) input `expr` (including itself):  
-      nil                     → :n
-      []                      → :m
-      [:seq-re :<r nil nil]   → :u
-      [[:seq-re :<r nil nil]] → :i
-      [:u]                    → :i
+  "Returns the constant value/expression that corresponds to its simplest (as per [[simplify]]) input `expr` (including itself):  
+
+  ```
+  nil                     → :n
+  []                      → :m
+  [:seq-re :<r nil nil]   → :u
+  [[:seq-re :<r nil nil]] → :i
+  [:u]                    → :i
+  ```
   "
   [expr]
   (symx/expr->const expr))
@@ -262,12 +266,12 @@
   
   Registers various methods for the operator: 
 
-  * `interpret-op` to access the interpretation function
-  * `make-op` -> constructor (either uses the provided `args` or a custom constructor function via the option `:constructor`)
-  * `simplify-op` -> simplifier (either defaults to the given interpretation function or uses a custom reducer via the option `:reducer`)
-  * `valid-op?` -> validator (provided by the `:predicate` option)
-  * `op-data` -> returns a key-value map of the operator arguments
-  * `op-get` -> returns a specific value by a given argument-key"
+  * `interpret-op` (use [[interpret]]) to access the interpretation function
+  * `make-op` (use [[make]]) → constructor (either uses the provided `args` or a custom constructor function via the option `:constructor`)
+  * `simplify-op` (use [[simplify]]) → simplifier (either defaults to the given interpretation function or uses a custom reducer via the option `:reducer`)
+  * [[valid-op?]] → validator (provided by the `:predicate` option)
+  * [[op-data]] → returns a key-value map of the operator arguments
+  * [[op-get]] → returns a specific value by a given argument-key"
   [k args interpretation & params]
   (apply symx/defoperator-impl k args interpretation params))
 
@@ -276,8 +280,8 @@
 
   Registers various methods for the expression symbol:
 
-  * `interpret-sym` -> to access the interpretation function
-  * `simplify-sym` -> simplifier (either defaults to the given interpretation function or uses a custom reducer via the option `:reducer`)"
+  * `interpret-sym` (use [[interpret]]) → to access the interpretation function
+  * `simplify-sym` (use [[simplify]]) → simplifier (either defaults to the given interpretation function or uses a custom reducer via the option `:reducer`)"
   [k interpretation & params]
   (apply symx/defsymbol-impl k interpretation params))
 
@@ -291,7 +295,7 @@
 (def make-op
   "Constructs a symbolic expression given a registered operator and parameters.
   
-  Note: default to use `make` instead of `make-op`"
+  Note: default to use [[make]] instead of `make-op`"
   symx/make-op)
 
 (s/fdef valid-op?
@@ -367,7 +371,7 @@
                                          :opts.seq-reentry/interpr]))
   :ret  ::sp/seq-reentry-signature)
 (defn seq-reentry-opts->sign
-  "Inverse map of seq-reentry-sign->opts with default args."
+  "Inverse map of [[seq-reentry-sign->opts]] with default args."
   [opt-map]
   (ops/seq-reentry-opts->sign opt-map))
 
@@ -470,12 +474,12 @@
   :args (s/* ::sp/expression)
   :ret  boolean?)
 (defn equal?
-  "Equality check for expressions. Two expressions are considered equal, if their formDNAs are equal. Compares formDNAs from evaluation results of each expression by calling `calc/equal-dna?`.
+  "Equality check for expressions. Two expressions are considered equal, if their formDNAs are equal. Compares formDNAs from evaluation results of each expression by calling [[calc/equal-dna?]].
 
   WARNING: Procedure and assumptions are being reassessed. Use with caution!
 
-  * ordering of variable names in formDNA matters, see `find-vars`
-  * stricter than `equiv`, which compares by `calc/equiv-dna?`"
+  * ordering of variable names in formDNA matters, see [[find-vars]]
+  * stricter than [[equiv]], which compares by [[calc/equiv-dna?]]"
   [& exprs]
   (apply core/equal? exprs))
 
@@ -484,12 +488,12 @@
   :args (s/* ::sp/expression)
   :ret  boolean?)
 (defn equiv?
-  "Equivalence check for expressions. Two expressions are considered equivalent, if their formDNAs are equivalent. Compares formDNAs from evaluation results of each expression by calling `calc/equiv-dna?`.
+  "Equivalence check for expressions. Two expressions are considered equivalent, if their formDNAs are equivalent. Compares formDNAs from evaluation results of each expression by calling [[calc/equiv-dna?]].
 
   WARNING: Procedure and assumptions are being reassessed. Use with caution!
 
   * ordering of variable names in formDNA is irrelevant
-  * looser than `equal`, which compares by `calc/equal-dna?`
+  * looser than [[equal]], which compares by [[calc/equal-dna?]]
   * can be slow on expressions with 6+ variables"
   [& exprs]
   (apply core/equiv? exprs))
@@ -522,7 +526,7 @@
                            :env  ::sp/environment))
   :ret  ::sp/expression)
 (defn interpret*
-  "Like `interpret`, but repeats substitution on interpreted expressions until they cannot be interpreted any further."
+  "Like [[interpret]], but repeats substitution on interpreted expressions until they cannot be interpreted any further."
   ([expr] (core/interpret* expr))
   ([expr env]
    (core/interpret* env expr)))
@@ -533,7 +537,7 @@
                            :env  ::sp/environment))
   :ret  ::sp/expression)
 (defn interpret-walk
-  "Recursively calls `interpret` on given expression and all its subexpressions with a depth-first walk."
+  "Recursively calls [[interpret]] on given expression and all its subexpressions with a depth-first walk."
   ([expr] (core/interpret-walk expr))
   ([expr env]
    (core/interpret-walk env expr)))
@@ -544,7 +548,7 @@
                            :env  ::sp/environment))
   :ret  ::sp/expression)
 (defn interpret-walk*
-  "Like `interpret-walk`, but repeats substitution on interpreted (sub-)expressions until they cannot be interpreted any further."
+  "Like [[interpret-walk]], but repeats substitution on interpreted (sub-)expressions until they cannot be interpreted any further."
   ([expr] (core/interpret-walk* expr))
   ([expr env]
    (core/interpret-walk* env expr)))
@@ -558,7 +562,7 @@
 (def interpret-op
   "Interprets a symbolic expression with a registered operator.
   
-  Note: default to use `interpret` instead"
+  Note: default to use [[interpret]] instead"
   symx/interpret-op)
 
 ;; ? needed
@@ -568,7 +572,7 @@
 (def interpret-sym
   "Interprets a registered symbol.
   
-  Note: default to use `interpret` instead"
+  Note: default to use [[interpret]] instead"
   symx/interpret-sym)
 
 
@@ -594,12 +598,14 @@
   * if retrieval was unsuccessful, returns `x` as is
 
   An `opts` map can be provided with the following keys:
+
   * `:allow-hole-exprs?` → (default: `false`) allows “value holes” (`:_`) in the input expression (each instance will be treated like a different variable)"
   ([x] (core/cnt> x))
   ([x env] (core/cnt> x env))
   ([x env opts] (core/cnt> x (update env :--opts merge opts))))
 ;; alias
-(def >> simplify)
+(def >> "Alias for [[simplify]]."
+  simplify)
 
 ;; ? remove in impl
 (s/fdef simplify-in
@@ -614,18 +620,20 @@
   "Simplifies a context/sequence of FORMs recursively until it cannot be further simplified. All deductions are justified by the axioms of FORM logic.
 
   An `opts` map can be provided with the following keys:
+
   * `:allow-hole-exprs?` → (default: `false`) allows “value holes” (`:_`) in the input expression (each instance will be treated like a different variable)"
   ([ctx] (core/ctx> ctx))
   ([ctx env] (core/ctx> ctx env))
   ([ctx env opts] (core/ctx> ctx (update env :--opts merge opts))))
 ;; alias
-(def in>> simplify-in)
+(def in>> "Alias for [[simplify-in]]."
+  simplify-in)
 
 (defn simplify-expr-chain
-  "Obsolete → use `simplify-nested-l` or `simplify-nested-r` instead!"
+  "Obsolete → use [[simplify-nested-l]] or [[simplify-nested-r]] instead!"
   ([chain env] (core/simplify-nesting-chain chain env))
   ([opts chain env] (core/simplify-nesting-chain opts chain env)))
-(def chain>> "Obsolete → use `nested-l>>` or `nested-r>>` instead!"
+(def chain>> "Obsolete → use [[nested-l>>]] or [[nested-r>>]] instead!"
   simplify-expr-chain)
 
 (s/fdef simplify-nested-l
@@ -642,6 +650,7 @@
   * takes an optional `env` that gets applied to the nested expansion
 
   An `opts` map can be provided with the following keys:
+
   * `:allow-hole-exprs?` → (default: `false`) allows “value holes” (`:_`) in the input expression (each instance will be treated like a different variable)"
   ([nesting-chain]
    (core/simplify-nesting-chain {:rtl? true} nesting-chain {}))
@@ -652,7 +661,8 @@
                                 (update env :--opts merge opts))))
 
 ;; alias
-(def nested-l>> simplify-nested-l)
+(def nested-l>> "Alias for [[simplify-nested-l]]."
+  simplify-nested-l)
 
 (s/fdef simplify-nested-r
   :args (s/alt :ar1 (s/cat :nesting-chain ::sp/nesting-chain-r)
@@ -668,6 +678,7 @@
   * takes an optional `env` that gets applied to the nested expansion
 
   An `opts` map can be provided with the following keys:
+
   * `:allow-hole-exprs?` → (default: `false`) allows “value holes” (`:_`) in the input expression (each instance will be treated like a different variable)"
   ([nesting-chain]
    (core/simplify-nesting-chain {:rtl? false} nesting-chain {}))
@@ -677,7 +688,8 @@
    (core/simplify-nesting-chain {:rtl? false} nesting-chain
                                 (update env :--opts merge opts))))
 ;; alias
-(def nested-r>> simplify-nested-r)
+(def nested-r>> "Alias for [[simplify-nested-r]]."
+  simplify-nested-r)
 
 
 ;;-------------------------------------------------------------------------
@@ -690,10 +702,12 @@
   :ret  ::sp/expression)
 (defn eval->expr
   "Evaluates a FORM `expr` with an optional `env` and returns an expression: either a constant or the simplified input expression, if it could not be determined to a value.  
+
   * `env` must be a map from variables to expressions"
   ([expr] (core/=> expr))
   ([expr env] (core/=> expr env)))
-(def => eval->expr)
+(def => "Alias for [[eval->expr]]."
+  eval->expr)
 
 
 (s/def :opts/reduce-dna? boolean?)
@@ -713,10 +727,11 @@
                                                   :opts/pre-simplify?])))
   :ret  ::sp/expression)
 (defn eval->expr-all
-  "Like `eval->expr`, but evaluates all possible interpretations of any occurring variable in the `expr`. Returns an expression: either a constant, a formDNA expression (which collects all interpretation results) or the simplified input expression, if it could not be determined to a value in any of its interpretations.  
+  "Like [[eval->expr]], but evaluates all possible interpretations of any occurring variable in the `expr`. Returns an expression: either a constant, a formDNA expression (which collects all interpretation results) or the simplified input expression, if it could not be determined to a value in any of its interpretations.  
   * `env` must be a map from variables to expressions
 
   An `opts` map can be provided with the following keys:
+
   * `:varorder` → sets the variable interpretation order for the resulting formDNA
   * `:pre-simplify?` → (default: `true`) simplifies the expression before interpretation, which might reduce terms and therefore evaluation time
   * `:reduce-dna?` → (default: `true`) if result is a formDNA expression which can be reduced to fewer terms, reduces it to further simplify the output
@@ -725,7 +740,8 @@
   ([expr] (core/=>* expr {} {}))
   ([expr env] (core/=>* expr env {}))
   ([expr env opts] (core/=>* expr env opts)))
-(def =>* eval->expr-all)
+(def =>* "Alias for [[eval->expr-all]]."
+  eval->expr-all)
 
 
 (s/fdef eval->val
@@ -735,10 +751,12 @@
   :ret  ::calc-sp/const_)
 (defn eval->val
   "Evaluates a FORM `expr` with an optional `env` and returns a value: either a constant or a “value hole” `:_` (in case a value cannot be determined, which usually happens when variables remain uninterpreted).  
+
   * `env` must be a map from variables to expressions"
   ([expr] (core/==> expr))
   ([expr env] (core/==> expr env)))
-(def ==> eval->val)
+(def ==> "Alias for [[eval->val]]."
+  eval->val)
 
 (s/fdef eval->val-all
   :args (s/alt :ar1 (s/cat :expr ::sp/expression)
@@ -752,12 +770,14 @@
                                                   :opts/pre-simplify?])))
   :ret  ::calc-sp/dna)
 (defn eval->val-all
-  "Like `eval->val`, but evaluates all possible interpretations of any occurring variable in the `expr`. Returns a complex value called formDNA, which collects all interpretation results.
+  "Like [[eval->val]], but evaluates all possible interpretations of any occurring variable in the `expr`. Returns a complex value called formDNA, which collects all interpretation results.
+
   * `env` must be a map from variables to expressions
 
   Note: interpretation results might (in very rare cases) include “value holes” `:_`, if a value cannot be determined. This applies to unregistered symbols (like `:pie`) or uninterpretable results from custom, user-defined operators. To avoid holes, wrap them in unclear FORMs, e.g. `(make :uncl :pie)`.
 
   An `opts` map can be provided with the following keys:
+
   * `:varorder` → sets the variable interpretation order for the resulting formDNA
   * `:pre-simplify?` → (default: `false`) simplifies the expression before interpretation, which might reduce terms and therefore evaluation time
   * `:reduce-dna?` → (default: `false`) if result is a formDNA expression which can be reduced to fewer terms, reduces it to further simplify the output
@@ -765,20 +785,22 @@
   ([expr] (core/==>* expr {} {}))
   ([expr env] (core/==>* expr env {}))
   ([expr env opts] (core/==>* expr env opts)))
-(def ==>* eval->val-all)
+(def ==>* "Alias for [[eval->val-all]]."
+  eval->val-all)
 
 
 (s/fdef eval-tsds->val-all
   :args (s/& (s/* #{0 1}) #(== (count %) 6))
   :ret  ::calc-sp/dna)
 (defn eval-tsds->val-all
-  "Convenience function that takes a 6-digit binary `selection` (as a vector) for a triple-selective decision system (TsDS) and returns the formDNA for the (as by `eval->val-all`) evaluated expression.
+  "Convenience function that takes a 6-digit binary `selection` (as a vector) for a triple-selective decision system (TsDS) and returns the formDNA for the (as by [[eval->val-all]]) evaluated expression.
 
-  Note: contrary to `eval->val-all`, the resulting formDNA does not get reduced."
+  Note: contrary to [[eval->val-all]], the resulting formDNA does not get reduced."
   [& selection]
   (core/==>* (make :tsds (vec selection) 'a 'b 'c)
              {} {:opts/reduce-dna? false :opts/pre-simplify? false}))
-(def ts==>* eval-tsds->val-all)
+(def ts==>* "Alias for [[eval-tsds->val-all]]."
+  eval-tsds->val-all)
 
 
 (s/def :evaluate/result (s/or :const ::calc-sp/const
@@ -820,16 +842,18 @@
                                                   :opts/rich-results?])))
   :ret  (s/keys :req-un [::sp/varorder :eval-all/results]))
 (defn eval-all
-  "Like `evaluate`, but evaluates all possible interpretations of any occurring variable in the `expr`, with an optional `env`.  
+  "Like [[evaluate]], but evaluates all possible interpretations of any occurring variable in the `expr`, with an optional `env`.  
   * `env` must be a map from variables to expressions
 
   Returns a map with the following entries:  
+
   * `:results` → vector of `[<interpretation> <result>]` tuples (with `result` like in `evaluate`), think of it as a kind of value table
   * `:varorder` → the reading order of variable interpretations
 
   An `opts` map can be provided with the following keys:
+
   * `:varorder` → sets the variable interpretation order for the results
-  * `:rich-results?` → each results value will be a map as if returned by `evaluate`
+  * `:rich-results?` → each results value will be a map as if returned by [[evaluate]]
   * `:pre-simplify?` → (default: `false`) simplifies the expression before interpretation, which might reduce terms and therefore evaluation time
   * `:allow-hole-results?` → (default: `false`) sets a “value hole” (`:_`) in place of `nil` for an uninterpretable result
   * `:allow-hole-exprs?` → (default: `false`) allows “value holes” (`:_`) in the input expression (each instance will be treated like a different variable)"

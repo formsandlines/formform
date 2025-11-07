@@ -57,30 +57,33 @@
 
 
 (defmacro defini
-  "Defines a new type of ini pattern, to be specified with `make-ini`.
+  "Defines a new type of ini pattern, to be specified with [[make-ini]].
   Takes a keyword identifier (`type-k`), `fields` for data the user needs to provide, an optional `doc-string?` (to describe the fields and the pattern) and one or more implementations of:
-  - `(make-gen [this opts w] …)` for a 1D pattern
-  - `(make-gen [this opts w h] …)` for a 2D pattern
-  - `opts` is an options map that can have keys such as `:seed`."
+
+  * `(make-gen [this opts w] …)` for a 1D pattern
+  * `(make-gen [this opts w h] …)` for a 2D pattern
+  * `opts` is an options map that can have keys such as `:seed`."
   [type-k fields doc-string? & methods]
   (apply i/defini-impl type-k fields doc-string? methods))
 
 (defmacro defumwelt
-  "Defines a new type of umwelt pattern, to be specified with `make-umwelt`.
+  "Defines a new type of umwelt pattern, to be specified with [[make-umwelt]].
   Takes a keyword identifier (`type-k`), `fields` for data the user needs to provide, an optional `doc-string?` (to describe the fields and the pattern) and one or more implementations of:
-  - `(observe-umwelt [this gen1d cell w] …)` for a 1D pattern
-  - `(observe-umwelt [this gen2d cell w h] …)` for a 2D pattern
-  - `gen1d`/`gen2d` is a vector of the current generation (flat in 1D, nested in 2D)
-  - `cell` is a vector `[[x …] v]` of the current cell coordinates and value"
+
+  * `(observe-umwelt [this gen1d cell w] …)` for a 1D pattern
+  * `(observe-umwelt [this gen2d cell w h] …)` for a 2D pattern
+  * `gen1d`/`gen2d` is a vector of the current generation (flat in 1D, nested in 2D)
+  * `cell` is a vector `[[x …] v]` of the current cell coordinates and value"
   [type-k fields doc-string? & methods]
   (apply i/defumwelt-impl type-k fields doc-string? methods))
 
 (defmacro defrule
-  "Defines a new type of rule pattern, to be specified with `make-rule`.
+  "Defines a new type of rule pattern, to be specified with [[make-rule]].
   Takes a keyword identifier (`type-k`), `fields` for data the user needs to provide, an optional `doc-string?` (to describe the fields and the pattern) and one or more implementations of:
-  - `(apply-rule [this umwelt self-v] …)`
-  - `umwelt` is an ‘umwelt’ as provided by `observe-umwelt`
-  - `self-v` is the value of the currently selected cell"
+
+  * `(apply-rule [this umwelt self-v] …)`
+  * `umwelt` is an ‘umwelt’ as provided by [[observe-umwelt]]
+  * `self-v` is the value of the currently selected cell"
   [type-k fields doc-string? & methods]
   (apply i/defrule-impl type-k fields doc-string? methods))
 
@@ -151,20 +154,23 @@
 
 (def make-ini
   "Creates an instance of a CA ini (initial conditions) specification of a given type (as a keyword) and with given parameters as required by the type.
-  - `(make-ini :help)` prints a list of all ini types and their parameters
-  - `(make-ini :t :help)` prints the parameters and docs for given type `:t`"
+
+  * `(make-ini :help)` prints a list of all ini types and their parameters
+  * `(make-ini :t :help)` prints the parameters and docs for given type `:t`"
   (partial make-instance :ini))
 
 (def make-umwelt
   "Creates an instance of a CA umwelt (neighborhood) specification of a given type (as a keyword) and with given parameters as required by the type.
-  - `(make-umwelt :help)` prints a list of all umwelt types and their parameters
-  - `(make-umwelt :t :help)` prints the parameters and docs for given type `:t`"
+
+  * `(make-umwelt :help)` prints a list of all umwelt types and their parameters
+  * `(make-umwelt :t :help)` prints the parameters and docs for given type `:t`"
   (partial make-instance :umwelt))
 
 (def make-rule
   "Creates an instance of a CA rule specification of a given type (as a keyword) and with given parameters as required by the type.
-  - `(make-rule :help)` prints a list of all rule types and their parameters
-  - `(make-rule :t :help)` prints the parameters and docs for given type `:t`"
+
+  * `(make-rule :help)` prints a list of all rule types and their parameters
+  * `(make-rule :t :help)` prints the parameters and docs for given type `:t`"
   (partial make-instance :rule))
 
 
@@ -176,11 +182,12 @@
                            :opts       (s/keys :opt-un [:rand/seed])))
   :ret  ::sp/generation)
 (defn sys-ini
-  "Returns an (initial) generation given an `ini-spec` (via `make-ini`) and a `resolution`.
+  "Returns an (initial) generation given an `ini-spec` (via [[make-ini]]) and a `resolution`.
   `resolution` must be a vector `[width]` (1D) or `[width height]` (2D).
 
   The last argument can be an options map with keys:
-  - `:seed` → an integer number to provide a seed for reproducable randomness"
+
+  * `:seed` → an integer number to provide a seed for reproducable randomness"
   ([ini-spec resolution] (apply i/make-gen ini-spec {} resolution))
   ([ini-spec resolution opts] (apply i/make-gen ini-spec opts resolution)))
 
@@ -190,7 +197,7 @@
                :generation  ::sp/generation)
   :ret  ::sp/generation)
 (defn sys-next
-  "Computes and returns the next generation given a `rule-spec` (via `make-rule`), an `umwelt-spec` (via `make-umwelt`) and a `generation`."
+  "Computes and returns the next generation given a `rule-spec` (via [[make-rule]]), an `umwelt-spec` (via [[make-umwelt]]) and a `generation`."
   [rule-spec umwelt-spec generation]
   (let [[w h :as res] (core/get-resolution-from-generation generation)]
     (core/sys-next res (range w) (when h (range h))
@@ -203,7 +210,7 @@
                :cell        ::sp/cell)
   :ret  ::sp/umwelt)
 (defn observe-umwelt
-  "Returns an ‘umwelt’ given a `umwelt-spec` (via `make-umwelt`), a `generation` and the current `cell` (a vector of the shape `[[x ?y] value]`)."
+  "Returns an ‘umwelt’ given a `umwelt-spec` (via [[make-umwelt]]), a `generation` and the current `cell` (a vector of the shape `[[x ?y] value]`)."
   [umwelt-spec generation cell]
   (let [res (core/get-resolution-from-generation generation)]
     (apply i/observe-umwelt umwelt-spec generation cell res)))
@@ -214,7 +221,7 @@
                :cell      ::sp/cell)
   :ret  ::calc-sp/const_)
 (defn apply-rule
-  "Returns a cell value given a `rule-spec` (via `make-rule`), an `umwelt` (via `observe-umwelt`) and the current `cell` (a vector of the shape `[[x ?y] value]`)."
+  "Returns a cell value given a `rule-spec` (via [[make-rule]]), an `umwelt` (via [[observe-umwelt]]) and the current `cell` (a vector of the shape `[[x ?y] value]`)."
   [rule-spec umwelt cell]
   (let [self-v (second cell)]
     (i/apply-rule rule-spec umwelt self-v)))
@@ -231,12 +238,13 @@
   :ret  ::sp/ca-spec)
 (defn specify-ca
   "Returns a `CASpec` record, given a `specs-map` (which is a map of specifications for a custom cellular automaton) and an optional `label`.
-  The `CASpec` can be used with `ca-iterator` or `create-ca`. The input map needs to have all of the following entries:
-  - `:rule-spec`: a rule specification as per `make-rule`
-  - `:umwelt-spec`: an umwelt specification as per `make-umwelt`
-  - `:ini-spec`: an ini specification as per `make-ini`
+  The `CASpec` can be used with [[ca-iterator]] or [[create-ca]]. The input map needs to have all of the following entries:
 
-  Note that formform.emul has constructors for common ca specs via `make-selfi`, `make-mindform`, `make-lifeform` and `make-decisionform`. Furthermore, there are predefined ca specs in `common-specimen`."
+  * `:rule-spec`: a rule specification as per [[make-rule]]
+  * `:umwelt-spec`: an umwelt specification as per [[make-umwelt]]
+  * `:ini-spec`: an ini specification as per [[make-ini]]
+
+  Note that formform.emul has constructors for common ca specs via [[make-selfi]], [[make-mindform]], [[make-lifeform]] and [[make-decisionform]]. Furthermore, there are predefined ca specs in [[common-specimen]]."
   ([specs-map]
    (i/->rec core/map->CASpec specs-map))
   ([specs-map label]
@@ -255,11 +263,12 @@
                            :opts (s/keys :opt-un [:ca-spec/overwrites])))
   :ret  ::sp/ca-spec)
 (defn make-selfi
-  "Returns a 1D cellular automaton known as a “SelFi” given a `dna` for its rule function and an `ini-spec` (via `make-ini`).
+  "Returns a 1D cellular automaton known as a “SelFi” given a `dna` for its rule function and an `ini-spec` (via [[make-ini]]).
   Its ‘umwelt’ is of type `:select-ltr`.
 
   The last argument can be an options map with keys:
-  - `:overwrites` → a map to overwrite any part of the returned CA spec"
+
+  * `:overwrites` → a map to overwrite any part of the returned CA spec"
   ([dna ini-spec] (make-selfi dna ini-spec {}))
   ([dna ini-spec {:keys [overwrites]}]
    (let [umwelt-size (calc/dna-dimension dna)]
@@ -279,10 +288,11 @@
                            :opts (s/keys :opt-un [:ca-spec/overwrites])))
   :ret  ::sp/ca-spec)
 (defn make-mindform
-  "Returns a 2D cellular automaton known as a “mindFORM” given a `dna` for its rule function and an `ini-spec` (via `make-ini`).
+  "Returns a 2D cellular automaton known as a “mindFORM” given a `dna` for its rule function and an `ini-spec` (via [[make-ini]]).
 
   The last argument can be an options map with keys:
-  - `:overwrites` → a map to overwrite any part of the returned CA spec "
+
+  * `:overwrites` → a map to overwrite any part of the returned CA spec "
   ([dna ini-spec] (make-mindform dna ini-spec {}))
   ([dna ini-spec {:keys [overwrites]}]
    (let [umwelt-size (calc/dna-dimension dna)]
@@ -305,7 +315,8 @@
   "Returns a 2D cellular automaton known as a “lifeFORM” given a `dna` for its rule function.
 
   The last argument can be an options map with keys:
-  - `:overwrites` → a map to overwrite any part of the returned CA spec"
+
+  * `:overwrites` → a map to overwrite any part of the returned CA spec"
   ([dna] (make-lifeform dna {}))
   ([dna {:keys [overwrites ini-opts]}]
    (i/->rec core/map->CASpec
@@ -328,7 +339,8 @@
   "Returns a 2D cellular automaton known as a “decisionFORM” given a `dna` for its rule function and an `initial-size` for its ini (type `:rand-figure`).
 
   The last argument can be an options map with keys:
-  - `:overwrites` → a map to overwrite any part of the returned CA spec"
+
+  * `:overwrites` → a map to overwrite any part of the returned CA spec"
   ([dna initial-size] (make-decisionform dna initial-size {}))
   ([dna initial-size {:keys [overwrites ini-opts]}]
    (i/->rec core/map->CASpec
@@ -448,7 +460,7 @@
                            :steps      pos-int?))
   :ret  ::sp/iterator)
 (defn ca-iterator
-  "Returns a lazy seq that iteratively computes the next generation for the given a `ca-spec` (cellular automaton specification, via `specify-ca`, etc.) and a `resolution` vector.
+  "Returns a lazy seq that iteratively computes the next generation for the given a `ca-spec` (cellular automaton specification, via [[specify-ca]], etc.) and a `resolution` vector.
   Optionally, the last argument can be a number to just get the first _n_ `steps` in its evolution."
   ([ca-spec resolution]
    (core/ca-iterator ca-spec resolution))
@@ -536,7 +548,7 @@
                            :history-cache-limit pos-int?))
   :ret  ::sp/automaton)
 (defn create-ca
-  "Returns a stateful `CellularAutomaton` object for the given `ca-spec` (cellular automaton specification, via `specify-ca`, etc.) and a `resolution` vector.
+  "Returns a stateful `CellularAutomaton` object for the given `ca-spec` (cellular automaton specification, via [[specify-ca]], etc.) and a `resolution` vector.
 
   May take an optional `history-cache-limit` to manually set the limit for how many generations will be cached (otherwise an heuristic algorithm is used).
 

@@ -6,7 +6,8 @@
 
 [![Clojars Project](https://img.shields.io/clojars/v/eu.formsandlines/formform.svg)](https://clojars.org/eu.formsandlines/formform)
 
-- [Introduction](https://formform.dev/notebooks/introduction.html)
+- [General Introduction](https://formform.dev/clerk/notebooks/introduction)
+- [Introduction to formform.emul](https://formform.dev/clerk/notebooks/introduction_emul)
 - [API Docs](https://formform.dev/docs)
 
 ---
@@ -21,7 +22,7 @@ The library is divided into 3 core modules:
 
 * `calc`: calculate with the 4 value constants or create and transform value structures such as value tables/maps and what I call *formDNA*
 * `expr`: construct, simplify and evaluate various FORM expressions or define and use powerful abstractions I call *symbolic expressions*
-* `emul`: _(unreleased)_ emulate FORMal systems as cellular automata that can be composed à la carte from declarative building-blocks
+* `emul`: emulate FORMal systems as cellular automata that can be composed à la carte from declarative building-blocks
 
 In addition, the `io` module can read and print strings in *FORMula notation*, which is easier for end users to read and write
 

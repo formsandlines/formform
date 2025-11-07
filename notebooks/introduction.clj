@@ -21,7 +21,7 @@
 
 ;; Therefore I will focus on the `expr` module in this introduction, giving you an overview of how things that you might want to do with the library can be accomplished.
 
-;; > If you are interested in the `emul` module, check out the [emul introduction](./introduction_emul). However, It is recommended (although not required), to read this introduction first.
+;; > If you are interested in the `emul` module, check out the [emul introduction](../introduction_emul). However, It is recommended (although not required), to read this introduction first.
 
 ;; ## Representation
 
@@ -367,7 +367,7 @@ calc/nmui-code
 
 ;; ## More information
 
-;; * [introduction to formform.emul](./introduction_emul)
+;; * [introduction to formform.emul](../introduction_emul)
 ;; * [source repository](https://github.com/formsandlines/formform)
 ;; * [API documentation](https://formform.dev/docs)
 

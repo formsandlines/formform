@@ -24,7 +24,7 @@
 
   Can be given a map with the following options:
 
-  * `:sort-code` -> to specify a different `sort-code` for `formDNA` interpretation (see `formform.calc/sort-code?`)"
+  * `:sort-code` -> to specify a different `sort-code` for `formDNA` interpretation (see [[formform.calc/sort-code?]])"
   ([s] (core/formula->expr {} s))
   ([opts s] (core/formula->expr opts s)))
 

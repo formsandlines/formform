@@ -118,7 +118,7 @@ ini-patterns
 
 ^{::clerk/viewer viewer-ca2d
   ::clerk/render-opts {:formform/cellsize 6}}
-(ca-iterator slit2d-spec [23 23] 8)
+(ca-iterator slit2d-spec [23 23] 5)
 
 ;; Did you notice that `make-mindform` doesn’t take the input expression itself, but its _formDNA_? Let’s explore how `formform.emul` uses it as a ruleset.
 
@@ -411,7 +411,7 @@ dna-slit
 
 ^{::clerk/viewer viewer-ca2d
   ::clerk/render-opts {:formform/cellsize 3 :formform/grid-px 0}}
-(ca-iterator lifeform-clustered [35 35] 6)
+(ca-iterator lifeform-clustered [35 35] 4)
 
 ;; For entirely new creations, `specify-ca` lets you define a CA specification from scratch:
 
@@ -423,7 +423,7 @@ dna-slit
 
 ^{::clerk/viewer viewer-ca2d
   ::clerk/render-opts {:formform/cellsize 3 :formform/grid-px 0}}
-(ca-iterator crossform-ca [35 35] 6)
+(ca-iterator crossform-ca [35 35] 4)
 
 ;; > Note: since there just a few predefined umwelt- and rule-specs right now and they work best in specific combinations, variation in CA specifications is very limited. However, you can extend formform.emul with your own ini-, rule- or umwelt-types via `defini`, `defumwelt` and `defrule`. This is beyond the scope of this introduction; take a look at the docs for these macros to learn more.
 
@@ -493,3 +493,8 @@ dna-slit
 
 (aget arr 17)
 
+;; ## More information
+
+;; * [general introduction to formform](../introduction)
+;; * [source repository](https://github.com/formsandlines/formform)
+;; * [API documentation](https://formform.dev/docs)
