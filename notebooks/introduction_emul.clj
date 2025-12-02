@@ -84,7 +84,7 @@
 ^{::clerk/viewer viewer-ca1d
   ::clerk/render-opts {:formform/cellsize 5
                        :formform/grid-px 0.5}}
-(ca-iterator coa-spec [125] 50)
+(ca-iterator coa-spec [125] {} 50)
 
 
 ;; ## Common CA Types
@@ -118,7 +118,7 @@ ini-patterns
 
 ^{::clerk/viewer viewer-ca2d
   ::clerk/render-opts {:formform/cellsize 6}}
-(ca-iterator slit2d-spec [23 23] 5)
+(ca-iterator slit2d-spec [23 23] {} 5)
 
 ;; Did you notice that `make-mindform` doesn’t take the input expression itself, but its _formDNA_? Let’s explore how `formform.emul` uses it as a ruleset.
 
@@ -411,7 +411,7 @@ dna-slit
 
 ^{::clerk/viewer viewer-ca2d
   ::clerk/render-opts {:formform/cellsize 3 :formform/grid-px 0}}
-(ca-iterator lifeform-clustered [35 35] 4)
+(ca-iterator lifeform-clustered [35 35] {} 4)
 
 ;; For entirely new creations, `specify-ca` lets you define a CA specification from scratch:
 
@@ -423,7 +423,7 @@ dna-slit
 
 ^{::clerk/viewer viewer-ca2d
   ::clerk/render-opts {:formform/cellsize 3 :formform/grid-px 0}}
-(ca-iterator crossform-ca [35 35] 4)
+(ca-iterator crossform-ca [35 35] {} 4)
 
 ;; > Note: since there just a few predefined umwelt- and rule-specs right now and they work best in specific combinations, variation in CA specifications is very limited. However, you can extend formform.emul with your own ini-, rule- or umwelt-types via `defini`, `defumwelt` and `defrule`. This is beyond the scope of this introduction; take a look at the docs for these macros to learn more.
 
@@ -477,7 +477,7 @@ dna-slit
 
 (get-history-cache-limit mark1-ca)
 
-;; > The history cache limit gets calculated dynamically when you call `create-ca` to avoid memory overload with higher resolutions and CA dimensions while still keeping a useful evolution window to work with. It takes an additional argument to set the cache limit as needed.
+;; > The history cache limit gets calculated dynamically when you call `create-ca` to avoid memory overload with higher resolutions and CA dimensions while still keeping a useful evolution window to work with. It takes an additional option to set the cache limit as needed.
 
 ;; Even though we restarted the CA, the cached evolution is still retained. This way, it doesn’t have to recalculate all its previous generations:
 

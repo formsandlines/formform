@@ -1054,7 +1054,7 @@
 
 (defn equiv-automaton-evolution?
   [evol ca res]
-  (let [automaton (create-ca ca res (count evol))]
+  (let [automaton (create-ca ca res {:history-cache-limit (count evol)})]
     (dotimes [_ (count (rest evol))] (step automaton))
     (= (get-cached-history automaton {:optimized? false})
        evol)))

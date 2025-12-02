@@ -452,20 +452,32 @@
             ini-rand)}))
 
 
+;; ? steps really necessary
 (s/fdef ca-iterator
   :args (s/alt :ar2 (s/cat :ca-spec    ::sp/ca-spec
                            :resolution ::sp/resolution)
                :ar3 (s/cat :ca-spec    ::sp/ca-spec
                            :resolution ::sp/resolution
+                           :opts       (s/keys :opt-un [:rand/seed]))
+               :ar4 (s/cat :ca-spec    ::sp/ca-spec
+                           :resolution ::sp/resolution
+                           :opts       (s/keys :opt-un [:rand/seed])
                            :steps      pos-int?))
   :ret  ::sp/iterator)
 (defn ca-iterator
   "Returns a lazy seq that iteratively computes the next generation for the given a `ca-spec` (cellular automaton specification, via [[specify-ca]], etc.) and a `resolution` vector.
-  Optionally, the last argument can be a number to just get the first _n_ `steps` in its evolution."
+
+  May take an additional argument as an options map with keys:
+
+  * `:seed` → an integer number to provide a seed for reproducable randomness (in case of randomness in the ini spec)
+
+  May take as the final argument (after the options map) a number to just get the first _n_ `steps` in its evolution."
   ([ca-spec resolution]
-   (core/ca-iterator ca-spec resolution))
-  ([ca-spec resolution steps]
-   (take steps (core/ca-iterator ca-spec resolution))))
+   (core/ca-iterator ca-spec {} resolution))
+  ([ca-spec resolution opts]
+   (core/ca-iterator ca-spec opts resolution))
+  ([ca-spec resolution opts steps]
+   (take steps (core/ca-iterator ca-spec opts resolution))))
 
 (s/fdef step
   :args (s/cat :ca-obj ::sp/automaton)
@@ -540,23 +552,29 @@
   [ca-obj]
   (i/get-resolution ca-obj))
 
+(s/def ::history-cache-limit pos-int?)
+
 (s/fdef create-ca
   :args (s/alt :ar2 (s/cat :ca-spec ::sp/ca-spec
                            :resolution ::sp/resolution)
                :ar3 (s/cat :ca-spec ::sp/ca-spec
                            :resolution ::sp/resolution
-                           :history-cache-limit pos-int?))
+                           :opts (s/keys :opt-un
+                                         [:rand/seed ::history-cache-limit])))
   :ret  ::sp/automaton)
 (defn create-ca
   "Returns a stateful `CellularAutomaton` object for the given `ca-spec` (cellular automaton specification, via [[specify-ca]], etc.) and a `resolution` vector.
 
-  May take an optional `history-cache-limit` to manually set the limit for how many generations will be cached (otherwise an heuristic algorithm is used).
+  Callable methods are `step`, `restart`, `get-resolution`, `get-current-generation`, `get-cached-history`, `get-system-time` and `get-history-cache-limit` (see docs for further explanation).
 
-  Callable methods are `step`, `restart`, `get-resolution`, `get-current-generation`, `get-cached-history`, `get-system-time` and `get-history-cache-limit` (see docs for further explanation)."
+  The last argument can be an options map with keys:
+
+  * `history-cache-limit` → manually set the limit for how many generations will be cached (otherwise an heuristic algorithm is used)
+  * `:seed` → an integer number to provide a seed for reproducable randomness (in case of randomness in the ini spec)"
   ([ca-spec resolution]
-   (core/create-ca ca-spec nil resolution))
-  ([ca-spec resolution history-cache-limit]
-   (core/create-ca ca-spec history-cache-limit resolution)))
+   (core/create-ca ca-spec {} resolution))
+  ([ca-spec resolution opts]
+   (core/create-ca ca-spec opts resolution)))
 
 
 (def ^:no-doc fns-with-specs

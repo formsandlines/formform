@@ -3,7 +3,9 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
-_None_
+### Changed
+
+- `emul/ca-iterator` and `emul/create-ca` now take an options map where users can set the seed for random inis. In the case of `emul/create-ca`, the `history-cache-limit` must now be set in this options map instead of as an extra argument.
 
 ## [0.2.0] - 2025-11-07
 

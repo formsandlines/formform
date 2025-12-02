@@ -215,8 +215,6 @@
                  (calc/rand-dna 3)
                  (emul/make-ini :random)))
   (s/conform ::ca-constructor mindform)
-  (def ca (emul/specify-ca mindform 40 30))
-  (s/conform ::automaton (emul/create-ca ca))
 
   (s/conform ::evolution
              (take 10 (iterate (fn [xs] (into [] (repeatedly 2 calc/rand-const)))

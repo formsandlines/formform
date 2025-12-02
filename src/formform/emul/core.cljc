@@ -965,6 +965,8 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
     (set! curr-gen (init-evolution 0)))
   (get-resolution [_]
     res)
+  ;; (get-seed [_]
+  ;;   seed)
   (get-current-generation [_ optimized?]
     (if optimized?
       curr-gen
@@ -1001,11 +1003,12 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
     (int (/ cell-limit cells-per-gen))))
 
 (defn create-ca
-  [{:keys [rule-spec umwelt-spec ini-spec]} hist-cache-limit resolution]
-  (let [optimized? (and (satisfies? UmweltOptimized umwelt-spec)
+  [{:keys [rule-spec umwelt-spec ini-spec]} opts resolution]
+  (let [hist-cache-limit (:hist-cache-limit opts)
+        optimized? (and (satisfies? UmweltOptimized umwelt-spec)
                         (satisfies? RuleOptimized rule-spec))
         [w h] resolution
-        gen1 (let [v (apply i/make-gen ini-spec {} resolution)]
+        gen1 (let [v (apply i/make-gen ini-spec opts resolution)]
                (if optimized?
                  (if h
                    (utils/keywords-to-array-2d v)
@@ -1025,8 +1028,8 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
                          (transient evolution) 0 gen1)))
 
 (defn ca-iterator
-  [{:keys [rule-spec umwelt-spec ini-spec]} resolution]
-  (let [gen1 (apply i/make-gen ini-spec {} resolution)
+  [{:keys [rule-spec umwelt-spec ini-spec]} opts resolution]
+  (let [gen1 (apply i/make-gen ini-spec opts resolution)
         [w h] resolution]
     (iterate (partial sys-next
                       resolution (range w) (when h (range h))
