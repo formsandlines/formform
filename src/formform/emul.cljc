@@ -463,7 +463,8 @@
                            :resolution ::sp/resolution
                            :opts       (s/keys :opt-un [:rand/seed])
                            :steps      pos-int?))
-  :ret  ::sp/iterator)
+  :ret (s/or :iterator  ::sp/iterator
+             :evolution ::sp/evolution))
 (defn ca-iterator
   "Returns a lazy seq that iteratively computes the next generation for the given a `ca-spec` (cellular automaton specification, via [[specify-ca]], etc.) and a `resolution` vector.
 

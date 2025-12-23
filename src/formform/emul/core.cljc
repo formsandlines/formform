@@ -97,7 +97,7 @@
 - `:weights` → specifies the relative probability of each of the four constants to be randomly chosen. Can be provided either as:
   - a sequence of 4 non-negative numbers (e.g. `[1 0 2 5]`) in n-u-i-m order
   - a map (e.g. `{:i 1 :u 2}`), where missing weights are 0
-  - a single number in the interval [0.0, 1.0] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)
+  - a single number in the interval [0,1] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)
 
 Note: a random seed is not part of the ini spec, but it can be set when calling `sys-ini`."
   (make-gen [this opts w]
@@ -191,7 +191,7 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
                  norm-align
                  (cond
                    (sequential? pos) pos
-                   (int? pos) [pos pos]
+                   (or (int? pos) (float? pos)) [pos pos]
                    (nil? pos) []
                    :else (throw (ex-info "Invalid position!" {:pos pos})))))]
     {:pos-x (get v 0 0)
@@ -221,8 +221,9 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
 
 (defn- normalize-anchor [anchor]
   (cond
-    ;; absolute position/index in generation
-    (or (int? anchor)
+    ;; position/index in generation
+    (or (int? anchor)   ; absolute pos. → gen. index
+        (float? anchor) ; relative pos. → ratio in [0.0, 1.0]
         (sequential? anchor))
     (merge (normalize-position  anchor)
            (normalize-alignment nil)
@@ -300,13 +301,21 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
           ptn-fn
           #(assoc % :v-prev (:v %)))))
 
+(defn rel-to-abs-position
+  [pos len]
+  (if (and (float? pos)
+           (<= 0.0 pos 1.0))
+    (int (Math/floor (* pos len)))
+    pos))
+
 (defn make-figure1d
   [normal-pattern normal-anchor opts]
   (let [{:keys [pos-x align-x offset-x]} normal-anchor
         {ptn-w :1d} (get-pattern-dimensions normal-pattern)
         update-val (make-pattern-fn normal-pattern opts)]
     (fn [{:keys [w x v] :as env}]
-      (let [[s0 s1 :as xb] (segment-bounds w ptn-w pos-x align-x offset-x)
+      (let [pos-x (rel-to-abs-position pos-x w)
+            [s0 s1 :as xb] (segment-bounds w ptn-w pos-x align-x offset-x)
             at-ptn? (within-segment-bounds? xb w x)]
         (if at-ptn?
           (-> env
@@ -324,7 +333,9 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
         {[ptn-w ptn-h] :2d} (get-pattern-dimensions normal-pattern)
         update-val (make-pattern-fn normal-pattern opts)]
     (fn [{:keys [w h x y v] :as env}]
-      (let [[sx0 sx1 :as xb] (segment-bounds w ptn-w pos-x align-x offset-x)
+      (let [pos-x (rel-to-abs-position pos-x w)
+            pos-y (rel-to-abs-position pos-y h)
+            [sx0 sx1 :as xb] (segment-bounds w ptn-w pos-x align-x offset-x)
             [sy0 sy1 :as yb] (segment-bounds h ptn-h pos-y align-y offset-y)
             at-ptn?
             (and (within-segment-bounds? xb w x)
@@ -355,7 +366,10 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
   - `f`: function that takes a map of the current `:x`, `:y` coordinates and the background value `:v` (among other parameters) and returns the same map, usually with a new/updated `:v` value (which can also be `:?` for a random value).
 - `anchor`: one of the following:
   - absolute position: can be an index (x=y) or a vector of indices `[x y]`
-  - relative position: a keyword, e.g. `:left`, `:center` `:right`, `topleft`, …
+  - relative position: can be either
+    - a float in the interval [0,1] as a fraction of the length of a generation
+    - a vector of floats, specifying the fraction of width and height seperately
+    - a keyword, e.g. `:left`, `:center` `:right`, `topleft`, …
   - a map with (all optional) keys:
     - `pos`: same as absolute or relative position
     - `align`: alignment at `pos`, same keywords as in “relative position”
@@ -385,6 +399,11 @@ Note: you can find some predefined patterns in `ini-patterns`."
                        (normalize-anchor anchor)
                        -opts))))
 
+(defn- normalize-size
+  [size]
+  (cond (vector? size) size
+        (int? size) [size size]
+        :else [1 1]))
 
 ;; ? add `:rounded-2d?` option for elliptical 2D patterns
 (defini :rand-figure [-opts bg size anchor] ; [-opts bg size shape anchor]
@@ -392,11 +411,11 @@ Note: you can find some predefined patterns in `ini-patterns`."
 - `size` can be either a single integer (for 1D or square-sized 2D patterns) or a vector `[w h]` for 2D patterns.
 
 The (first) `-opts` argument is a map where you can set the following optional parameters:
-- `:decay` → specifies the “disintegration” of the pattern, i.e. the probability of “holes” (`:_`) to occur randomly in it (number in the interval `[0.0, 1.0]`, default: 0.0)
+- `:decay` → specifies the “disintegration” of the pattern, i.e. the probability of “holes” (`:_`) to occur randomly in it (number in the interval `[0,1]`, default: 0.0)
 - `:weights` → specifies the relative probability of each of the four constants to be randomly chosen. Default is `0.5`. Can be provided either as:
   - a sequence of 4 non-negative numbers (e.g. `[1 0 2 5]`) in n-u-i-m order
   - a map (e.g. `{:i 1 :u 2}`), where missing weights are 0
-  - a single number in the interval [0.0, 1.0] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)
+  - a single number in the interval [0,1] that represents the ratio of `:u`/`:i`/`m` against `:n` (whose weight is 1 - x)
 
 Note: a random seed is not part of the ini spec, but it can be set when calling `sys-ini`."
   (make-gen [this opts w]
@@ -413,17 +432,13 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
   i/IniTransducer
   (ini-xform1d
    [_]
-   (let [w (cond (vector? size) (first size)
-                 (int? size) size
-                 :else 1)
+   (let [[w _] (normalize-size size)
          pattern {:w w
                   :f #(assoc % :v :?)}]
      (i/ini-xform1d (i/->rec ->Ini-Figure -opts nil pattern anchor))))
   (ini-xform2d
    [_]
-   (let [[w h] (cond (vector? size) size
-                     (int? size) [size size]
-                     :else [1 1])
+   (let [[w h] (normalize-size size)
          pattern {:w w :h h
                   :f #(assoc % :v :?)}]
      (i/ini-xform2d (i/->rec ->Ini-Figure -opts nil pattern anchor)))))
@@ -461,46 +476,65 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
          :end (- offset))
        global-offset)))
 
-(defini :figure-repeat [-opts bg pattern anchor copies spacing]
-  "Repeats a given `pattern` n (`copies`) times over a given background ini with a specified `spacing` between each instance. The instances are positioned as specified by `anchor` (see docs of `:figure` ini for further explanation)."
+(defini :figure-repeat [-opts figure-ini copies spacing]
+  "Repeats a given `figure-ini` n (`copies`) times over its defined background ini with a specified `spacing` between each instance. The instances are positioned as specified by `anchor` (see docs of `:figure` ini for further explanation).
+
+The `figure-ini` can be of type `:figure` or `:rand-figure`. Any other types might not be compatible.
+
+Note: `-opts` defined in the `figure-ini` can be overwritten by `-opts` defined for this ini."
   (make-gen [this opts w]
-            (let [bg-ini (parse-bg -opts bg)]
-              (transduce-ini (merge-ini-opts -opts opts)
+            (let [ini-opts (merge-ini-opts
+                            (merge (:-opts figure-ini) -opts) opts)
+                  bg-ini   (parse-bg ini-opts (:bg figure-ini))
+                  this-ini (assoc this :-opts ini-opts)]
+              (transduce-ini ini-opts
                              (comp (i/ini-xform1d bg-ini)
-                                   (i/ini-xform1d this)) w)))
+                                   (i/ini-xform1d this-ini)) w)))
   (make-gen [this opts w h]
-            (let [bg-ini (parse-bg -opts bg)]
-              (transduce-ini (merge-ini-opts -opts opts)
+            (let [ini-opts (merge-ini-opts
+                            (merge (:-opts figure-ini) -opts) opts)
+                  bg-ini   (parse-bg ini-opts (:bg figure-ini))
+                  this-ini (assoc this :-opts ini-opts)]
+              (transduce-ini ini-opts
                              (comp (i/ini-xform2d bg-ini)
-                                   (i/ini-xform2d this)) w h)))
+                                   (i/ini-xform2d this-ini)) w h)))
 
   i/IniTransducer
   (ini-xform1d
    [_]
-   (let [{:keys [align-x offset-x] :as normal-anchor} (normalize-anchor anchor)
+   (let [{:keys [anchor pattern size]} figure-ini
+         {:keys [align-x offset-x] :as normal-anchor} (normalize-anchor anchor)
          nx (if (vector? copies) (first copies) copies)
          dx (if (vector? spacing) (first spacing) spacing)
-         normal-pattern (normalize-pattern pattern)
-         {ptn-w :1d} (get-pattern-dimensions normal-pattern)
+         ;; normal-pattern (normalize-pattern pattern)
+         ptn-w (cond pattern (:1d (get-pattern-dimensions
+                                   (normalize-pattern pattern)))
+                     size (first (normalize-size size))
+                     :else (throw (ex-info "`figure-ini` must have either a `:pattern` or a `:size` key." {:pattern pattern :size size})))
          total-ptn-w (+ (* nx ptn-w) (* (dec nx) dx))
          fig-xforms
          (for [x (range nx)
                :let [offset-x' (calc-nth-pattern-offset
                                 x ptn-w total-ptn-w dx align-x offset-x)]]
            (i/ini-xform1d
-            (i/->rec ->Ini-Figure -opts nil normal-pattern
-                     (assoc normal-anchor :offset-x offset-x'))))]
+            (assoc figure-ini
+                   ;; :pattern normal-pattern
+                   :-opts -opts
+                   :anchor (assoc normal-anchor :offset-x offset-x'))))]
      (apply comp fig-xforms)))
 
   (ini-xform2d
    [_]
-   (let [{:keys [align-x align-y
-                 offset-x offset-y]
-          :as normal-anchor} (normalize-anchor anchor)
+   (let [{:keys [anchor pattern size]} figure-ini
+         {:keys [align-x align-y
+                 offset-x offset-y] :as normal-anchor} (normalize-anchor anchor)
          [nx ny] (if (vector? copies) copies [copies copies])
          [dx dy] (if (vector? spacing) spacing [spacing spacing])
-         normal-pattern (normalize-pattern pattern)
-         {[ptn-w ptn-h] :2d} (get-pattern-dimensions normal-pattern)
+         ;; normal-pattern (normalize-pattern pattern)
+         [ptn-w ptn-h] (cond pattern (:2d (get-pattern-dimensions
+                                           (normalize-pattern pattern)))
+                             size (normalize-size size)
+                             :else (throw (ex-info "`figure-ini` must have either a `:pattern` or a `:size` key." {:pattern pattern :size size})))
          total-ptn-w (+ (* nx ptn-w) (* (dec nx) dx))
          total-ptn-h (+ (* ny ptn-h) (* (dec ny) dy))
          fig-xforms
@@ -511,10 +545,12 @@ Note: a random seed is not part of the ini spec, but it can be set when calling 
                      offset-y' (calc-nth-pattern-offset
                                 y ptn-h total-ptn-h dy align-y offset-y)]]
            (i/ini-xform2d
-            (i/->rec ->Ini-Figure -opts nil normal-pattern
-                     (assoc normal-anchor
-                            :offset-x offset-x'
-                            :offset-y offset-y'))))]
+            (assoc figure-ini
+                   ;; :pattern normal-pattern
+                   :-opts -opts
+                   :anchor (assoc normal-anchor
+                                  :offset-x offset-x'
+                                  :offset-y offset-y'))))]
      (apply comp fig-xforms))))
 
 #_

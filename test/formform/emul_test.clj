@@ -654,6 +654,29 @@
        [:n :n :i :m :u]
        [:n :n :m :u :i]]))
 
+  (testing "position as ratio"
+    (is (= (sys-ini (make-ini :figure :n [:m]
+                              0.5)
+                    [7])
+           [:n :n :n :m :n :n :n]))
+    (is (= (sys-ini (make-ini :figure :n [[:_ :i :_]
+                                          [:n :_ :m]
+                                          [:_ :u :_]]
+                              {:pos 0.5 :align :center})
+                    [7 3])
+           [[:n :n :n :i :n :n :n]
+            [:n :n :n :n :m :n :n]
+            [:n :n :n :u :n :n :n]]))
+    (is (= (sys-ini (make-ini :figure :n [[:u :i]
+                                          [:m :u]]
+                              [0.25 0.75])
+                    [5 5])
+           [[:n :n :n :n :n]
+            [:n :n :n :n :n]
+            [:n :n :n :n :n]
+            [:n :u :i :n :n]
+            [:n :m :u :n :n]])))
+
   (testing "1D figure in 2D generation"
     (is (= (sys-ini (make-ini :figure :n (ini-patterns :ball)
                               :center)
@@ -663,6 +686,7 @@
             [:n :i :u :m :u :i :n]
             [:n :n :n :n :n :n :n]
             [:n :n :n :n :n :n :n]])))
+
   (testing "background ini & pattern holes"
     (is (= (sys-ini (make-ini :figure (make-ini :cycle [:i :u])
                               [[:n :m] [:m :_]]
@@ -670,6 +694,7 @@
            [[:n :m :i]
             [:m :i :u]
             [:i :u :i]])))
+
   (testing "pattern function"
     (is (= (sys-ini (make-ini :figure
                               :n {:w 3 :h 2
@@ -767,13 +792,36 @@
            [:n :u :i :n :i :u :m :u :i :n :n :n :i :n :u]))))
 
 (deftest ini-figure-repeat-test
+  (testing "figure ini type"
+    (is (= (sys-ini (make-ini :figure-repeat
+                              (make-ini :figure :n [:m] 0)
+                              [2 2] 1)
+                    [3 3])
+           [[:m :n :m]
+            [:n :n :n]
+            [:m :n :m]]))
+    (is (= (sys-ini (make-ini :figure-repeat
+                              {:weights 1.0} ; should be applied
+                              (make-ini :rand-figure
+                                        {:weights 0.5} ; should be overwritten
+                                        :n 3 0)
+                              2 3)
+                    [9]
+                    {:seed 93})
+           [:u :i :u :n :n :n :i :u :i])))
   (testing "repetition count and spacing"
-    (is (= (sys-ini (make-ini :figure-repeat :n [:m :u] {:pos 0 :align :left}
+    (is (= (sys-ini (make-ini :figure-repeat
+                              (make-ini :figure :n [:m :u]
+                                        {:pos 0 :align :left})
                               3 2)
                     [15])
            [:m :u :n :n :m :u :n :n :m :u :n :n :n :n :n]))
-    (is (= (sys-ini (make-ini :figure-repeat {:weights 1.0}
-                              :n (vec (repeat 3 (vec (repeat 3 :?)))) :center
+    (is (= (sys-ini (make-ini :figure-repeat 
+                              {:weights 1.0}
+                              (make-ini :figure
+                                        :n
+                                        (vec (repeat 3 (vec (repeat 3 :?))))
+                                        :center)
                               3 1)
                     [13 13] {:seed 42})
            [[:n :n :n :n :n :n :n :n :n :n :n :n :n]

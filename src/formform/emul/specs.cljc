@@ -90,8 +90,11 @@
                                    (or :ini-pattern/w
                                        :ini-pattern/h)])))
 
-(s/def :anchor/index (s/or :1d nat-int?
-                           :2d (s/tuple nat-int? nat-int?)))
+(s/def :anchor/pos-num (s/or :index nat-int?
+                             :ratio float?))
+
+(s/def :anchor/index (s/or :1d :anchor/pos-num
+                           :2d (s/tuple :anchor/pos-num :anchor/pos-num)))
 (s/def :anchor/pos (s/or :absolute :anchor/index
                          :relative core/align-keywords))
 (s/def :anchor/align core/align-keywords)
@@ -124,6 +127,13 @@
                                :bg ::bg
                                :figure-inis (s/coll-of ::ini-transducer)))
 
+(s/def :ini/figure-repeat (s/cat :-opts ::ini-opts
+                                 :figure-ini ::ini-transducer
+                                 :copies (s/or :num pos-int?
+                                               :per-dim (s/coll-of pos-int?))
+                                 :spacing (s/or :num nat-int?
+                                                :per-dim (s/coll-of nat-int?))))
+#_
 (s/def :ini/figure-repeat (s/cat :-opts ::ini-opts
                                  :bg ::bg
                                  :pattern ::ini-pattern

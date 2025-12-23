@@ -281,6 +281,21 @@ dna-slit
                    [[:m :n] [:n :i]] [6 3])
          [20 14])
 
+;; Or use ratios instead, to be more independent from the actual size of a generation:
+
+^{::clerk/visibility {:result :hide}}
+(def my-ini (make-ini :figure :n [:m :u] 0.7))
+
+^{::clerk/viewer viewer-gen1d}
+(sys-ini my-ini [27])
+
+^{::clerk/viewer viewer-gen2d}
+(sys-ini my-ini [7 6])
+
+;; > Note: _formform_ tries to treat ini specs as independent of a specific generation size, so you can use the same spec in different CAs.
+;; > - When `sys-ini` is given just a width, a 2D ini spec gets implicitly pruned down to one dimension.
+;; > - When given both width and height, a 1D ini spec gets placed in two dimensions with x and y at the same position, but you can also explicitly set both axes even though the pattern is 1D.
+
 ;; If you want even more precise control over the placement of the pattern, pass a map instead:
 
 ^{::clerk/visibility {:result :hide}}
@@ -298,9 +313,11 @@ dna-slit
 ^{::clerk/viewer viewer-gen2d}
 (sys-ini (make-ini :figure {:weights 1.0}
                    :n
-                   (make-frame 9 9 :?)
+                   (make-frame 7 7 :?)
                    {:pos :center :align :topleft})
          [17 17])
+
+;; Here, the frame gets neatly aligned with its top-left corner at the center position.
 
 ;; As demonstrated above, it is beneficial to define custom functions for more complex patterns.
 
@@ -355,7 +372,8 @@ dna-slit
 (def arrow1d [:u :i :m])
 
 ^{::clerk/viewer viewer-gen1d}
-(sys-ini (make-ini :figure-repeat :n arrow1d :center 10 3)
+(sys-ini (make-ini :figure-repeat (make-ini :figure :n arrow1d :center)
+                   10 3)
          [69])
 
 ^{::clerk/visibility {:result :hide}}
@@ -366,7 +384,8 @@ dna-slit
               [:u :_ :_]])
 
 ^{::clerk/viewer viewer-gen2d}
-(sys-ini (make-ini :figure-repeat :n arrow2d {:pos :right :align :center}
+(sys-ini (make-ini :figure-repeat (make-ini :figure :n arrow2d
+                                            {:pos :right :align :center})
                    [7 2] [1 2])
          [32 14])
 
@@ -385,8 +404,9 @@ dna-slit
                               {:pos :center :align :bottomright :offset 1})
                     (make-ini :figure :n (make-frame 8 8 :i)
                               {:pos :center :align :topleft :offset -3})
-                    (make-ini :figure-repeat :n arrow2d
-                              {:pos :left :align :left :offset [1 0]}
+                    (make-ini :figure-repeat
+                              (make-ini :figure :n arrow2d
+                                        {:pos :left :align :left :offset [1 0]})
                               [3 1] 1)])
          [16 16])
 
@@ -406,8 +426,9 @@ dna-slit
   (make-lifeform
    (expr/ts==>* 1 0 1 1 0 0)
    {:overwrites {:ini-spec (make-ini :figure-repeat {:weights 0.2}
-                                     :n (fill-rect 7 7 :?)
-                                     :center [2 2] [5 5])}}))
+                                     (make-ini :figure :n (fill-rect 7 7 :?)
+                                               :center)
+                                     [2 2] [5 5])}}))
 
 ^{::clerk/viewer viewer-ca2d
   ::clerk/render-opts {:formform/cellsize 3 :formform/grid-px 0}}

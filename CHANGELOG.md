@@ -3,9 +3,18 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
+_none_
+
+## [0.3.0] - 2025-12-23
+
+### Added
+
+- When specifying a position in figure-related ini specs, users can now also provide a ratio (a float number in the unit interval as a fraction of the size of a generation) instead of an index number.
+
 ### Changed
 
 - `emul/ca-iterator` and `emul/create-ca` now take an options map where users can set the seed for random inis. In the case of `emul/create-ca`, the `history-cache-limit` must now be set in this options map instead of as an extra argument.
+- Ini type `:figure-repeat` now takes a figure ini (type `:figure` or `:rand-figure`) instead of a background ini and a pattern.
 
 ## [0.2.0] - 2025-11-07
 
