@@ -1,7 +1,8 @@
 (ns ^:no-doc formform.utils
   (:require
-   [clojure.math :as math]
+   ;; [clojure.math :as math]
    [clojure.string :as str]
+   [superstring.core :as superstring]
    [clojure.test.check.random :as random]
    [clojure.spec.alpha :as s]
    #?(:cljs [goog.math.Long :as glong])))
@@ -61,28 +62,7 @@
   #?(:clj  (Integer/toString n base)
      :cljs (.toString n base)))
 
-;;-------------------------------------------------------------------------
-;; Modified from source:
-;; https://github.com/expez/superstring/blob/master/src/superstring/core.clj
-
-(defn- gen-padding
-  "Generate the necessary padding to fill s upto width."
-  [s padding width]
-  (let [missing (- width (count s))
-        full-lengths (int (math/floor (/ missing (count padding))))
-        remaining (if (zero? full-lengths) (- width (count s))
-                      (rem missing (* full-lengths (count padding))))]
-    (str (apply str (repeat full-lengths padding))
-         (subs padding 0 remaining))))
-
-(defn pad-left
-  "Pad the beginning of s with padding, or spaces, until the length of
-  s matches width."
-  [s width padding]
-  (if (<= width (count s))
-    s
-    (str (gen-padding s padding width) s)))
-;;-------------------------------------------------------------------------
+(def pad-left superstring/pad-left)
 
 (defn compare-names [a b]
   (let [to-str (fn [x] (cond

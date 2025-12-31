@@ -23,8 +23,8 @@
    [:url "https://formform.dev"]
    [:licenses
     [:license
-     [:name "MIT License"]
-     [:url "https://opensource.org/license/MIT"]]]
+     [:name "Mozilla Public License 2.0"]
+     [:url "https://www.mozilla.org/MPL/2.0/"]]]
    [:developers
     [:developer
      [:name "Peter Hofmann"]

@@ -81,8 +81,8 @@ Many of these experiments have found their way into formform and made their _re-
 
 If you want to support my work, consider [buying me a coffee](https://www.buymeacoffee.com/formsandlines). ☕
 
----
+## License
 
-(c) 2018–2025 by Peter Hofmann
+© 2018–2026 by Peter Hofmann
 
-License: MIT
+Distributed under the Mozilla Public License 2.0

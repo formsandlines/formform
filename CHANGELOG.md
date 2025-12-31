@@ -3,7 +3,9 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
-_none_
+### Changed
+
+- *IMPORTANT:* formform versions ≥ 0.4.0 are now distributed under Mozilla Public License 2.0, changing from the previous MIT license. This is because I want to ensure that any changes/improvements made by other people to the source files will be shared with everyone in the spirit of free and open source software. Still, I don’t want to impose any such restrictions on people who just want to use formform in their projects as a library, hence a weak copyleft license.
 
 ## [0.3.0] - 2025-12-23
 
